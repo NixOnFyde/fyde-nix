@@ -3,7 +3,8 @@
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.hardware.fydetabduo.bluetooth;
 
   patchram = pkgs.writeShellScript "fydetab-bluetooth-init" ''
@@ -20,21 +21,22 @@
       --patchram ${pkgs.ap6275p-firmware}/lib/firmware/ap6275p/BCM4362A2.hcd \
       /dev/ttyS9
   '';
-in {
+in
+{
   options.hardware.fydetabduo.bluetooth.enable = lib.mkOption {
     type = lib.types.bool;
     description = "Init the AP6275P Bluetooth over /dev/ttyS9 with brcm_patchram_plus.";
   };
 
   config = lib.mkIf cfg.enable {
-    boot.kernelModules = ["hci_uart"];
+    boot.kernelModules = [ "hci_uart" ];
 
     systemd.services.fydetab-bluetooth = {
       description = "FydeTab Duo Bluetooth firmware loader";
-      bindsTo = ["dev-ttyS9.device"];
-      after = ["dev-ttyS9.device"];
-      before = ["bluetooth.service"];
-      wantedBy = ["multi-user.target"];
+      bindsTo = [ "dev-ttyS9.device" ];
+      after = [ "dev-ttyS9.device" ];
+      before = [ "bluetooth.service" ];
+      wantedBy = [ "multi-user.target" ];
 
       unitConfig = {
         StartLimitIntervalSec = 0;

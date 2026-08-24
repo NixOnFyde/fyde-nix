@@ -2,9 +2,11 @@
   config,
   lib,
   ...
-}: let
+}:
+let
   cfg = config.hardware.fydetabduo.touchscreen;
-in {
+in
+{
   config = lib.mkIf cfg.enable {
     services.udev.extraRules = ''
       SUBSYSTEM=="input", ENV{ID_INPUT_TABLET}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1 0 -1 0 1 0 0 1"

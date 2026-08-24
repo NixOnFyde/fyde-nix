@@ -3,9 +3,11 @@
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.fydetabImage;
-in {
+in
+{
   options.fydetabImage = {
     enable = lib.mkEnableOption "building a FydeTab Duo disk image of this system";
 
@@ -44,14 +46,15 @@ in {
     fileSystems."/" = lib.mkDefault {
       device = "/dev/disk/by-label/NIXOS-FYDETAB";
       fsType = "btrfs";
-      options = ["x-systemd.growfs"];
+      options = [ "x-systemd.growfs" ];
     };
 
     boot.growPartition = lib.mkDefault true;
 
-    systemd.services.growpart.serviceConfig.ExecStart = let
-      growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart";
-    in
+    systemd.services.growpart.serviceConfig.ExecStart =
+      let
+        growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart";
+      in
       lib.mkForce (
         pkgs.writeShellScript "fydetab-growpart" ''
           set -u
@@ -78,7 +81,7 @@ in {
     fileSystems."/snapshots" = lib.mkIf (cfg.snapshots.enable) {
       device = "/dev/disk/by-label/NIXOS-FYDETAB";
       fsType = "btrfs";
-      options = ["subvolid=5"];
+      options = [ "subvolid=5" ];
     };
 
     environment.systemPackages = lib.mkIf (cfg.snapshots.enable) [
@@ -100,15 +103,15 @@ in {
         DefaultDependencies = false;
         ConditionPathExists = "/nix-path-registration";
       };
-      wantedBy = ["sysinit.target"];
+      wantedBy = [ "sysinit.target" ];
       before = [
         "sysinit.target"
         "shutdown.target"
         "nix-daemon.socket"
         "nix-daemon.service"
       ];
-      after = ["local-fs.target"];
-      conflicts = ["shutdown.target"];
+      after = [ "local-fs.target" ];
+      conflicts = [ "shutdown.target" ];
       restartIfChanged = false;
 
       serviceConfig = {
@@ -126,14 +129,14 @@ in {
       '';
     };
 
-    system.build.image = let
-      inherit
-        (config.hardware.fydetabduo.bootchain)
-        idblock
-        uboot
-        resource
-        ;
-    in
+    system.build.image =
+      let
+        inherit (config.hardware.fydetabduo.bootchain)
+          idblock
+          uboot
+          resource
+          ;
+      in
       pkgs.callPackage ../../lib/make-fydetab-image.nix {
         toplevel = config.system.build.toplevel;
         bootAssets = config.system.build.fydetabBootAssets;

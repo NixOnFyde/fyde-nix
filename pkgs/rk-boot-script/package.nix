@@ -12,7 +12,7 @@ stdenv.mkDerivation {
   dontConfigure = true;
   dontBuild = true;
 
-  nativeBuildInputs = [python3];
+  nativeBuildInputs = [ python3 ];
 
   installPhase = ''
     runHook preInstall

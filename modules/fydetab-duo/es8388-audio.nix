@@ -3,9 +3,11 @@
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.hardware.fydetabduo.audio;
-in {
+in
+{
   options.hardware.fydetabduo.audio.enable = lib.mkOption {
     type = lib.types.bool;
     description = ''
@@ -18,15 +20,16 @@ in {
   config = lib.mkIf cfg.enable {
     systemd.services.fydetab-es8388-routing = {
       description = "Restore ES8388 analog playback routing";
-      after = ["sound.target"];
-      wantedBy = ["multi-user.target"];
+      after = [ "sound.target" ];
+      wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = let
-          amixer = "${lib.getExe' pkgs.alsa-utils "amixer"} -c rockchipes8388";
-        in
+        ExecStart =
+          let
+            amixer = "${lib.getExe' pkgs.alsa-utils "amixer"} -c rockchipes8388";
+          in
           pkgs.writeShellScript "fydetab-es8388-routing" ''
             timeout=30
             while ! ${amixer} info > /dev/null 2>&1; do
@@ -75,14 +78,15 @@ in {
 
     systemd.user.services.fydetab-default-sink = lib.mkIf config.services.pipewire.enable {
       description = "Pin default audio sink to the ES8388 analog output";
-      wantedBy = ["default.target"];
-      after = ["pipewire.service"];
+      wantedBy = [ "default.target" ];
+      after = [ "pipewire.service" ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = let
-          wpctl = lib.getExe' pkgs.pipewire "wpctl";
-        in
+        ExecStart =
+          let
+            wpctl = lib.getExe' pkgs.pipewire "wpctl";
+          in
           pkgs.writeShellScript "fydetab-default-sink" ''
             for i in $(seq 1 45); do
               id=$(${wpctl} status 2>/dev/null |
