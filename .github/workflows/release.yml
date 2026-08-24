@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Download CI artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fydetab-duo-nixos.img.zst
           run-id: ${{ github.event.workflow_run.id }}
