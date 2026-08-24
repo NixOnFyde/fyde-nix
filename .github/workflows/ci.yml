@@ -57,6 +57,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@v22
 
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
+
       - name: Check flake correctly parses and evaluates
         run: |
           nix flake show --all-systems
@@ -75,6 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
 
       - uses: cachix/cachix-action@v17
         with:
@@ -115,6 +127,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
 
       - uses: cachix/cachix-action@v17
         with:
