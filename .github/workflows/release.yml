@@ -2,7 +2,7 @@ name: "Release image"
 
 on:
   workflow_run:
-    workflows: ["Build & cache"]
+    workflows: ["Build & cache image"]
     types: [completed]
 
 permissions:

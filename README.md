@@ -1,6 +1,6 @@
 # fyde-nix - NixOS for the FydeTab Duo
 
-Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. Runs NixOS with a labwc-based desktop shell.
+Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The default image runs NixOS with a labwc-based desktop shell.
 
 <!-- toc -->
 
