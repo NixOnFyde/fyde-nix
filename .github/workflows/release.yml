@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Build & cache image"]
     types: [completed]
+    branches: ["v*"]
 
 permissions:
   contents: write
