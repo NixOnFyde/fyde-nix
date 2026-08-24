@@ -1,0 +1,13 @@
+disabled = [
+  "BAS03",
+  "BAS04",
+
+  "manual_inherit",
+  "manual_inherit_from",
+
+  "BAS08",
+  "useless_parens",
+
+  "BAS20",
+  "repeated_keys",
+]

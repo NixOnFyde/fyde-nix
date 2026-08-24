@@ -1,0 +1,22 @@
+name: Feature request
+description: New hardware support, module option, etc.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem / what's missing?
+      description: What can't you do? If relevant, what piece of hardware doesn't work?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Do you have a suggested solution?
+      description: How would you like it to work? Exemplar config snippets for explaining your idea are appreciated if relevant.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: |
+        Links to upstream drivers, how others do it, etc. Anything that helps us understand.

@@ -1,0 +1,30 @@
+name: "Flake.lock: update Nix dependencies"
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Runs weekly on Sunday at 00:00
+  workflow_dispatch: # Allows triggering from the GitHub UI
+
+jobs:
+  update-flake:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3.22.2
+
+      - name: Update flake.lock
+        uses: DeterminateSystems/update-flake-lock@v28
+
+        with:
+          pr-title: "chore(flake.lock): update"
+          pr-labels: |
+            dependencies
+            automated
+          commit-msg: "chore(flake.lock): update"

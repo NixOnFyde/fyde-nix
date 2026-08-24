@@ -1,0 +1,47 @@
+name: Bug report
+description: Something doesn't work right (explain what)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to submit a bug report. If the tablet doesn't boot at all, serial console output would be amazing (if not possible no worries). As well as this, a description of what is (or isn't) seen on the screen would be great.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      options:
+        - Prebuilt image, first boot
+        - Prebuilt image, after updating
+        - My own configuration using nixosModules.fydetabduo
+        - Building the flake locally / in CI
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Git tag / commit of `fyde-nix`, or the release you flashed.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs & output
+      description: |
+        Console output, `journalctl -b` excerpts, etc. Please delimit inside raw block(s).
+  - type: checkboxes
+    id: sanity
+    attributes:
+      label: Checks
+      options:
+        - label: The ESP has the legacy_boot attribute set (`sgdisk --attributes=2:show`).
+        - label: I searched existing issues for this problem.

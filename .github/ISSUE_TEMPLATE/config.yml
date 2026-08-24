@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & help
+    url: https://discord.gg/sgjZDvuhnh
+    about: Ask anything about installing or configuring NixOS in the official FydeTab Duo Discord.
+  - name: FydeTab Duo community
+    url: https://github.com/Linux-for-Fydetab-Duo
+    about: Upstream kernel / image work and other distro support for the device.
