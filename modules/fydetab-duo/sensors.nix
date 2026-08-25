@@ -52,8 +52,6 @@ in
       systemd.user.services.rot8 = {
         description = "Auto-rotate outputs from the accelerometer";
         wantedBy = [ "graphical-session.target" ];
-        after = [ "graphical-session.target" ];
-        partOf = [ "graphical-session.target" ];
         serviceConfig = {
           Type = "simple";
           ExecStart = "${rot8-wrapper}";
