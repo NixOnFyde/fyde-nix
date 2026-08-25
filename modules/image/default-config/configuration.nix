@@ -67,6 +67,7 @@
     useUserPackages = true;
     sharedModules = [ fyde-nix.homeManagerModules.default ];
     extraSpecialArgs = { inherit inputs; };
+    backupFileExtension = "hm-backup";
     users.user = {
       home.stateVersion = "26.05";
       home.enableNixpkgsReleaseCheck = false;

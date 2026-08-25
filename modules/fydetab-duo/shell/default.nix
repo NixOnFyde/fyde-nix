@@ -41,19 +41,24 @@ in
       btop
       brightnessctl
       evtest
+      evince
       fastfetch
       alacritty
       fydetab-wallpaper
       ghostty
       gnome-keyring
       grim
+      haruna
+      helix
       hyprpolkitagent
       iio-sensor-proxy
+      kdePackages.gwenview
       kanshi
       libinput
       librewolf
       mesa-demos
       papirus-icon-theme
+      partition-manager
       pulseaudio
       slurp
       swaylock
@@ -64,6 +69,7 @@ in
       wl-clipboard
       xdg-user-dirs
       yazi
+      zed-editor
 
       (pkgs.writeTextDir "share/themes/FydeTab/labwc/themerc" ''
         border.width: 1
