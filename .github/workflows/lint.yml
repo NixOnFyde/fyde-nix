@@ -36,7 +36,9 @@ jobs:
       - name: shellcheck
         run: |
           fail=0
-          for s in pkgs/fydetab-snapshot/fydetab-snapshot.sh; do
+          for s in \
+            pkgs/fydetab-snapshot/fydetab-snapshot.sh \
+            pkgs/fydetab-update/fydetab-update.sh; do
             [ -f "$s" ] || continue
 
             # SC2239/SC2123 flag substituteAll template placeholders.

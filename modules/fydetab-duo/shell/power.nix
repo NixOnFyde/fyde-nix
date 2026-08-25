@@ -21,5 +21,13 @@ in
     # Power management (battery reporting for wayle)
     services.upower.enable = true;
     services.power-profiles-daemon.enable = true;
+
+    # Physical power button (rk805 pwrkey): short press suspends (sleep),
+    # long press still powers off. NixOS by default powers off on a short
+    # press, which is wrong for a tablet.
+    services.logind.settings.Login = {
+      HandlePowerKey = "suspend";
+      HandlePowerKeyLongPress = "poweroff";
+    };
   };
 }

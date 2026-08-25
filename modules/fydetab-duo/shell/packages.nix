@@ -40,6 +40,7 @@ in
       evince
       fastfetch
       alacritty
+      fydetab-update
       fydetab-wallpaper
       gnome-keyring
       grim

@@ -26,6 +26,7 @@ final: _prev: {
     resource = final.fydetab-blob-resource;
   };
   fydetab-snapshot = final.callPackage ../pkgs/fydetab-snapshot/package.nix { };
+  fydetab-update = final.callPackage ../pkgs/fydetab-update/package.nix { };
   fydetab-wallpaper = final.callPackage ../pkgs/fydetab-wallpaper/package.nix { };
   fydetab-update-bootchain = final.callPackage ../pkgs/fydetab-update-bootchain/package.nix {
     idblock = final.fydetab-blob-idblock;

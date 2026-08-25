@@ -39,11 +39,14 @@ in
       wantedBy = [ "shutdown.target" ];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = [
-          "${pkgs.coreutils}/bin/sleep 1"
-          "${pkgs.util-linux}/bin/swapoff /dev/zram0"
-          "${pkgs.kmod}/bin/modprobe -r zram"
-        ];
+        # Systemd's own swap teardown usually wins at shutdown, so
+        # swapoff then fails with EINVAL - ignore that so the
+        # unit never fails and modprobe -r still runs to unload zram.
+        ExecStart = pkgs.writeShellScript "zram-shutdown" ''
+          ${pkgs.coreutils}/bin/sleep 1
+          ${pkgs.util-linux}/bin/swapoff /dev/zram0 || true
+          ${pkgs.kmod}/bin/modprobe -r zram || true
+        '';
         RemainAfterExit = true;
         TimeoutSec = 10;
       };
