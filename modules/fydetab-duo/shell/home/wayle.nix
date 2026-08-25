@@ -275,7 +275,7 @@ in
               '';
               on-action = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
               format = "{{ state }}";
-              icon-name = "speedometer-symbolic";
+              icon-name = "media-seek-forward-symbolic";
               icon-color = "fg-default";
               label-color = "fg-default";
             }
