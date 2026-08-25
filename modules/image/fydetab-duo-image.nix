@@ -198,7 +198,7 @@ in
             --arg lm "${toString fydeLastModified}" \
             '
             .nodes.root.inputs["fyde-nix"] = "fyde-nix"
-            | .["fyde-nix"] = {
+            | .nodes["fyde-nix"] = {
                 "locked": {
                   "lastModified": ($lm | tonumber),
                   "narHash": $hash,
