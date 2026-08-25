@@ -73,111 +73,26 @@
         default = self.nixosModules.fydetabduo;
       };
 
+      homeManagerModules.default = ./modules/fydetab-duo/shell/home.nix;
+
       nixosConfigurations.example = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
-        specialArgs = { inherit inputs; };
+        specialArgs = {
+          inherit inputs;
+          fyde-nix = self;
+        };
         modules = [
           self.nixosModules.fydetabduo
           self.nixosModules.fydetabduo-image
           home-manager.nixosModules.home-manager
           inputs.vicinae.nixosModules.default
+          ./modules/image/default-config/configuration.nix
           (
+            { ... }:
             {
-              lib,
-              pkgs,
-              ...
-            }:
-            {
-              hardware.fydetabduo.enable = true;
-              hardware.fydetabduo.landscape.enable = true;
-
-              hardware.fydetabduo.shell.enable = true;
-
               hardware.fydetabduo.installer-tools.enable = true;
-              boot.loader.fydetabduo.enable = true;
               fydetabImage.enable = true;
-
-              programs.vicinae.input-server.enable = true;
-
-              nixpkgs.config.allowUnfreePredicate =
-                pkg:
-                builtins.elem (lib.getName pkg) [
-                  "ap6275p-firmware"
-                  "himax-firmware"
-                ];
-
-              networking.hostName = "fydetabduo";
-
-              console.keyMap = "uk";
-              environment.sessionVariables.XKB_DEFAULT_LAYOUT = "gb";
-              networking.networkmanager.enable = true;
-
-              networking.modemmanager.enable = true;
-
-              users.users.user = {
-                isNormalUser = true;
-                extraGroups = [
-                  "wheel"
-                  "networkmanager"
-                ];
-                initialPassword = "fydetab";
-              };
-
-              home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                sharedModules = [ ./modules/fydetab-duo/shell/home.nix ];
-                extraSpecialArgs = { inherit inputs; };
-                users.user = {
-                  home.stateVersion = "26.05";
-
-                  home.enableNixpkgsReleaseCheck = false;
-                };
-              };
-
               boot.initrd.systemd.emergencyAccess = true;
-
-              services.openssh.enable = true;
-
-              networking.firewall.allowedTCPPorts = [ 22 ];
-
-              environment.systemPackages = with pkgs; [
-                adwaita-icon-theme
-                alsa-utils
-                btop
-                evtest
-                fastfetch
-                fydetab-wallpaper
-                iio-sensor-proxy
-                kanshi
-                libinput
-                mesa-demos
-                papirus-icon-theme
-                pulseaudio
-                usb-modeswitch
-                vulkan-tools
-                xdg-user-dirs
-              ];
-
-              fonts.packages = with pkgs; [
-                noto-fonts
-                noto-fonts-color-emoji
-                nerd-fonts.symbols-only
-              ];
-
-              environment.pathsToLink = [ "/share/backgrounds" ];
-
-              security.rtkit.enable = true;
-              services.pipewire = {
-                enable = true;
-                alsa.enable = true;
-                pulse.enable = true;
-              };
-
-              programs.labwc.enable = true;
-              programs.regreet.enable = true;
-
-              system.stateVersion = "26.05";
             }
           )
         ];

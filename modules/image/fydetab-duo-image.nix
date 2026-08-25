@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  self ? null,
   ...
 }:
 let
@@ -28,6 +29,20 @@ in
           can create and roll back to system snapshots.
         '';
       };
+    };
+
+    defaultConfig = {
+      enable = lib.mkEnableOption ''
+        shipping an exemplar configuration in the image.
+
+        When enabled the image contains a configuration that reproduces
+        the exact system the image was built from, so rebuilding without
+        any file changes should change nothing except what's detailed below:
+
+        It specifically omits fydetabImage.enable (you shouldn't need to
+        rebuild the image on-device) and boot.initrd.systemd.emergencyAccess
+        (which is for debugging and it should not stay on by default).
+      '';
     };
   };
 
@@ -145,5 +160,22 @@ in
         resourceBlob = resource;
         inherit (cfg) compress;
       };
+
+    # EXEMPLAR /etc/nixos config
+    #
+    # When defaultConfig.enable is set, the image ships a config
+    # under /etc/nixos so that a rebuild without touching them
+    # reproduces the exact same system.
+    environment.etc = lib.mkIf cfg.defaultConfig.enable {
+      "nixos/configuration.nix".source = ./default-config/configuration.nix;
+      "nixos/hardware-configuration.nix".source = ./default-config/hardware-configuration.nix;
+
+      # flake.nix - pinned to the specific commit this image was built from.
+      "nixos/flake.nix".source = pkgs.substituteAll {
+        src = ./default-config/flake.nix;
+        FYDE_NIX_REV = if builtins.isAttrs self then self.rev or "main" else "main";
+      };
+    };
+
   };
 }

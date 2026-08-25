@@ -2,9 +2,7 @@ name: "Build & cache image"
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -76,8 +74,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: eval
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@v22
@@ -118,11 +114,6 @@ jobs:
     name: Build FydeTab Duo image (aarch64)
     runs-on: ubuntu-24.04-arm
     needs: eval
-
-    # PRs by default lint+eval only; manual addition of the build-image
-    # label opts a PR into the image build (maintainers only).
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
-      contains(github.event.pull_request.labels.*.name, 'build-image')
 
     steps:
       - uses: actions/checkout@v7

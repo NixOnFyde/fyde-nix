@@ -1,4 +1,4 @@
-# fyde-nix - NixOS for the FydeTab Duo
+# fyde-nix - NixOS for the FydeTab Duo [![Build & cache image](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml/badge.svg)](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml)
 
 Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The default image runs NixOS with a labwc-based desktop shell.
 

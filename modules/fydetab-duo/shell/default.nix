@@ -13,23 +13,51 @@ in
     wallpaper / keybind setup, keyring, polkit agent, and idle lock.
 
     Per-user components are provided as a Home Manager module; import
-    `modules/fydetab-duo/shell/home.nix` into home-manager.sharedModules.
+    `fyde-nix.homeManagerModules.default` into home-manager.sharedModules.
   '';
 
   config = lib.mkIf cfg.enable {
+    # Desktop compositor & greeter
+    programs.labwc.enable = true;
+    programs.regreet.enable = true;
+    programs.vicinae.input-server.enable = true;
+
+    # Audio
+    security.rtkit.enable = true;
+    services.pipewire = {
+      enable = true;
+      alsa.enable = true;
+      pulse.enable = true;
+    };
+
+    # Desktop packages
     environment.systemPackages = with pkgs; [
+      adwaita-icon-theme
+      alsa-utils
+      btop
       brightnessctl
+      evtest
+      fastfetch
+      fydetab-wallpaper
       ghostty
       gnome-keyring
       grim
       hyprpolkitagent
+      iio-sensor-proxy
       kanshi
+      libinput
       librewolf
+      mesa-demos
+      papirus-icon-theme
+      pulseaudio
       slurp
       swaylock
       thunar
+      usb-modeswitch
+      vulkan-tools
       wlopm
       wl-clipboard
+      xdg-user-dirs
       yazi
 
       (pkgs.writeTextDir "share/themes/FydeTab/labwc/themerc" ''
@@ -62,6 +90,14 @@ in
         osd.window-switcher.width: 600
       '')
     ];
+
+    fonts.packages = with pkgs; [
+      noto-fonts
+      noto-fonts-color-emoji
+      nerd-fonts.symbols-only
+    ];
+
+    environment.pathsToLink = [ "/share/backgrounds" ];
 
     environment.etc."xdg/labwc/menu.xml".text = ''
       <?xml version="1.0"?>

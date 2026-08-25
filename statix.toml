@@ -1,13 +1,7 @@
 disabled = [
-  "BAS03",
-  "BAS04",
-
+  "empty_pattern",
   "manual_inherit",
   "manual_inherit_from",
-
-  "BAS08",
   "useless_parens",
-
-  "BAS20",
   "repeated_keys",
 ]

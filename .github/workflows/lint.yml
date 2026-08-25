@@ -1,0 +1,71 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint flake
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Install linters
+        run: |
+          nix profile install --profile /tmp/lint \
+            nixpkgs#nixfmt-rfc-style nixpkgs#statix nixpkgs#deadnix \
+            nixpkgs#shellcheck nixpkgs#actionlint
+
+      - name: nixfmt (check)
+        run: /tmp/lint/bin/nixfmt --check flake.nix modules overlays pkgs lib
+
+      - name: statix
+        run: /tmp/lint/bin/statix check
+
+      - name: deadnix
+        run: /tmp/lint/bin/deadnix --fail flake.nix modules overlays pkgs lib
+
+      - name: shellcheck
+        run: |
+          fail=0
+          for s in pkgs/fydetab-snapshot/fydetab-snapshot.sh; do
+            [ -f "$s" ] || continue
+
+            # SC2239/SC2123 flag substituteAll template placeholders.
+            /tmp/lint/bin/shellcheck -S warning \
+              --exclude=SC2239,SC2123 "$s" || fail=1
+          done
+          exit $fail
+
+      - name: actionlint
+        run: /tmp/lint/bin/actionlint
+
+  eval:
+    name: Flake evaluation
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
+
+      - name: Check flake correctly parses and evaluates
+        run: |
+          nix flake show --all-systems
+          nix eval .#nixosConfigurations.example.config.system.build.toplevel.drvPath \
+            --raw --impure > /dev/null
+        env:
+          NIXPKGS_ALLOW_UNFREE: "1"
