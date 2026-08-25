@@ -22,6 +22,10 @@ in
     programs.regreet.enable = true;
     programs.vicinae.input-server.enable = true;
 
+    # Power management (battery reporting for wayle)
+    services.upower.enable = true;
+    services.power-profiles-daemon.enable = true;
+
     # Audio
     security.rtkit.enable = true;
     services.pipewire = {
@@ -38,6 +42,7 @@ in
       brightnessctl
       evtest
       fastfetch
+      alacritty
       fydetab-wallpaper
       ghostty
       gnome-keyring
@@ -65,7 +70,6 @@ in
         border.color: #2a2a2a
         cornerRadius: 8
 
-        titlebar.height: 30
         padding.height: 6
 
         window.active.title.bg.color: #1c1c1e
@@ -110,7 +114,7 @@ in
             <action name="Execute" command="thunar"/>
           </item>
           <item label="Terminal" icon="utilities-terminal">
-            <action name="Execute" command="ghostty"/>
+            <action name="Execute" command="alacritty"/>
           </item>
           <separator/>
           <item label="Screenshot" icon="camera-photo">

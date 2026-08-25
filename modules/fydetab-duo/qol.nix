@@ -27,6 +27,21 @@ in
     zramSwap.enable = lib.mkDefault true;
     zramSwap.algorithm = lib.mkDefault "zstd";
 
+    systemd.services.zram-shutdown = {
+      description = "Forcefully deactivate zram swap before shutdown";
+      unitConfig.DefaultDependencies = false;
+      before = [ "shutdown.target" ];
+      wantedBy = [ "shutdown.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = [
+          "${pkgs.kmod}/bin/modprobe -r zram"
+        ];
+        RemainAfterExit = true;
+        TimeoutSec = 5;
+      };
+    };
+
     networking.networkmanager.wifi.powersave = lib.mkDefault false;
 
     systemd.user.services.xdg-user-dirs-update = {
