@@ -19,15 +19,25 @@ jobs:
       startsWith(github.event.workflow_run.head_branch, 'v')
 
     steps:
-      - name: Get artifact URL
-        id: artifact
+      - name: Get artifact URL and generate release notes
+        id: meta
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          TAG=${{ github.event.workflow_run.head_branch }}
           RUN_ID=${{ github.event.workflow_run.id }}
+
           ARTIFACT_URL=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
             --jq '.artifacts[] | select(.name=="fydetab-duo-nixos.img.zst") | .archive_download_url')
           echo "url=${ARTIFACT_URL}" >> "$GITHUB_OUTPUT"
+
+          NOTES=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="${TAG}" --jq '.body')
+          {
+            echo "notes<<RELEASE_NOTES_EOF"
+            echo "${NOTES}"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Download CI artifact
         uses: actions/download-artifact@v8
@@ -61,7 +71,11 @@ jobs:
             > [!NOTE]
             > **Single-image download expires 90 days from release.** If the link below has expired, use the split parts further down and merge them with `cat fydetab-duo-nixos.img.zst.part-* > fydetab-duo-nixos.img.zst`.
 
-            **[Download full image (~3.5 GB)](${{ steps.artifact.outputs.url }})**
+            **[Download full image (~3.5 GB)](${{ steps.meta.outputs.url }})**
+
+            ---
+
+            ${{ steps.meta.outputs.notes }}
 
           files: |
             fydetab-duo-nixos.img.zst*
