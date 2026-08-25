@@ -10,6 +10,17 @@ fi
 current_root_partition=$(findmnt -n -o SOURCE /)
 boot_disk_device=$(lsblk -npo PKNAME "$current_root_partition")
 
+# The inbuilt initrd boots with root=fstab and resolves the root by-label, so the
+# eMMC MUST have the same labels as the boot medium - otherwise the initrd
+# waits for the old label and drops to emergency mode. Read them from the live
+# boot medium rather than hardcoding, so any boot medium works.
+boot_root_label=$(lsblk -nro LABEL "$current_root_partition")
+boot_esp_label=$(lsblk -nro LABEL "$(findmnt -n -o SOURCE /boot)")
+if [[ -z "$boot_root_label" || -z "$boot_esp_label" ]]; then
+    echo "error: cannot determine boot medium labels (root='$boot_root_label', esp='$boot_esp_label'); aborting" >&2
+    exit 1
+fi
+
 candidate_devices=()
 for candidate_disk in /dev/mmcblk[0-9] /dev/nvme[0-9]n1; do
     [[ -b "$candidate_disk" ]] || continue
@@ -61,8 +72,8 @@ write_blob "@idblock@"  64
 write_blob "@uboot@"    16384
 write_blob "@resource@" 24580
 
-echo "==> creating ESP"
-mkfs.vfat -F 32 -n ESPEMMC "$target_esp_partition" > /dev/null
+echo "==> creating ESP (label '$boot_esp_label', matching the boot medium)"
+mkfs.vfat -F 32 -n "$boot_esp_label" "$target_esp_partition" > /dev/null
 esp_mount_point=$(mktemp -d)
 mount "$target_esp_partition" "$esp_mount_point"
 
@@ -75,7 +86,7 @@ umount "$esp_mount_point"
 rmdir "$esp_mount_point"
 
 echo "==> cloning root filesystem (this takes a few minutes)"
-mkfs.btrfs -q -f -L NIXOS-EMMC "$target_root_partition"
+mkfs.btrfs -q -f -L "$boot_root_label" "$target_root_partition"
 root_mount_point=$(mktemp -d)
 mount "$target_root_partition" "$root_mount_point"
 
@@ -87,41 +98,6 @@ rsync -aHAXx --numeric-ids \
     --exclude=/snapshots \
     --exclude=/lost+found \
     / "$root_mount_point/"
-
-# Relabel fstab and hardware-configuration.nix to the internal storage labels.
-#
-# On NixOS /etc/fstab is a symlink chain (/etc/fstab -> /etc/static/fstab ->
-# /nix/store/...). Those absolute symlinks resolve on the source system, whose
-# store is mounted read-only, so editing via the symlink fails. Resolve the
-# final target with readlink -f, then re-prefix the clone mount so we edit the
-# clone's copy instead.
-target_fstab_file=$(readlink -f "$root_mount_point/etc/fstab" 2>/dev/null || true)
-if [ -n "$target_fstab_file" ] && [ "$target_fstab_file" != "$root_mount_point/etc/fstab" ]; then
-    case "$target_fstab_file" in
-        "$root_mount_point"*) : ;;
-        *) target_fstab_file="$root_mount_point$target_fstab_file" ;;
-    esac
-else
-    target_fstab_file="$root_mount_point/etc/fstab"
-fi
-
-if [ -f "$target_fstab_file" ]; then
-    # store paths are read-only; the eMMC copy is not
-    chmod u+w "$target_fstab_file"
-    # fstab is unquoted (/dev/disk/by-label/ESP /boot ...); the nix config quoted
-    sed -i 's/NIXOS-FYDETAB/NIXOS-EMMC/g; s|by-label/ESP |by-label/ESPEMMC |g; s|by-label/ESP"|by-label/ESPEMMC"|g' "$target_fstab_file"
-else
-    echo "warning: cloned fstab not found; labels left shared" >&2
-fi
-
-# hardware-configuration.nix is for future rebuilds; without this, the first
-# rebuild on the eMMC regenerates the SD labels and /boot stops mounting.
-hwconfig_file="$root_mount_point/etc/nixos/hardware-configuration.nix"
-if [ -f "$hwconfig_file" ]; then
-    sed -i 's/NIXOS-FYDETAB/NIXOS-EMMC/g; s|by-label/ESP"|by-label/ESPEMMC"|g' "$hwconfig_file"
-else
-    echo "warning: cloned hardware-configuration.nix not found; labels left shared" >&2
-fi
 
 mkdir -p "$root_mount_point"/{dev,proc,sys,run,tmp,boot,mnt,media}
 chmod 1777 "$root_mount_point/tmp"
