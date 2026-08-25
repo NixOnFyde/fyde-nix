@@ -7,8 +7,6 @@ Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's o
 - [fyde-nix - NixOS for the FydeTab Duo](#fyde-nix---nixos-for-the-fydetab-duo)
   - [Feature status](#feature-status)
     - [Hardware](#hardware)
-    - [Desktop](#desktop)
-    - [System](#system)
   - [Docs](#docs)
 
 <!-- /toc -->

@@ -58,7 +58,7 @@ in
       librewolf
       mesa-demos
       papirus-icon-theme
-      partition-manager
+      kdePackages.partitionmanager
       pulseaudio
       slurp
       swaylock
