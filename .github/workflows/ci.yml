@@ -1,78 +1,23 @@
 name: "Build & cache image"
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["Lint"]
+    types: [completed]
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false # Just in case
+  group: ci-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 jobs:
-  lint:
-    name: Lint flake
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@v22
-
-      - name: Install linters
-        run: |
-          nix profile install --profile /tmp/lint \
-            nixpkgs#nixfmt-rfc-style nixpkgs#statix nixpkgs#deadnix \
-            nixpkgs#shellcheck nixpkgs#actionlint
-
-      - name: nixfmt (check)
-        run: /tmp/lint/bin/nixfmt --check flake.nix modules overlays pkgs lib
-
-      - name: statix
-        run: /tmp/lint/bin/statix check
-
-      - name: deadnix
-        run: /tmp/lint/bin/deadnix --fail flake.nix modules overlays pkgs lib
-
-      - name: shellcheck
-        run: |
-          fail=0
-          for s in pkgs/fydetab-snapshot/fydetab-snapshot.sh; do
-            [ -f "$s" ] || continue
-
-            # SC2239/SC2123 flag substituteAll template placeholders.
-            /tmp/lint/bin/shellcheck -S warning \
-              --exclude=SC2239,SC2123 "$s" || fail=1
-          done
-          exit $fail
-
-      - name: actionlint
-        run: /tmp/lint/bin/actionlint
-
-  eval:
-    name: Flake evaluations
-    runs-on: ubuntu-latest
-    needs: lint
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@v22
-
-      - name: Accept flake nixConfig
-        run: |
-          sudo mkdir -p /etc/nix
-          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
-          sudo pkill -HUP nix-daemon || true
-
-      - name: Check flake correctly parses and evaluates
-        run: |
-          nix flake show --all-systems
-          nix eval .#nixosConfigurations.example.config.system.build.toplevel.drvPath \
-            --raw --impure > /dev/null
-        env:
-          NIXPKGS_ALLOW_UNFREE: "1"
-
-  cache:
-    name: Warm Cachix cache
+  build:
+    name: Build & cache
     runs-on: ubuntu-24.04-arm
-    needs: eval
+
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
 
     steps:
       - uses: actions/checkout@v7
@@ -110,27 +55,6 @@ jobs:
           cachix pin fyde-nix system "$SYSTEM" --keep-revisions 1
           cachix pin fyde-nix kernel "$KERNEL" --keep-revisions 1
 
-  build-image:
-    name: Build FydeTab Duo image (aarch64)
-    runs-on: ubuntu-24.04-arm
-    needs: eval
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@v22
-
-      - name: Accept flake nixConfig
-        run: |
-          sudo mkdir -p /etc/nix
-          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
-          sudo pkill -HUP nix-daemon || true
-
-      - uses: cachix/cachix-action@v17
-        with:
-          name: fyde-nix
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-          skipPush: true
-
       - name: Build NixOS image
         env:
           NIXPKGS_ALLOW_UNFREE: "1"
@@ -165,36 +89,37 @@ jobs:
           sudo mkdir -p "$MNT/var/empty"
           sudo chmod 0755 "$MNT/var/empty"
 
-          # Verify before discarding the mount
           sample=$(find "$MNT/nix/store" -maxdepth 1 -name '*logrotate*' | head -1)
-          [ "$(sudo stat -c %u "$sample")" = 0 ]
+          [ "$(sudo stat -c %u "$sample")" = 0          # Verify before discarding the mount
+ ]
           [ -L "$MNT/var/run" ] && [ "$(sudo readlink "$MNT/var/run")" = /run ]
           [ -d "$MNT/var/empty" ]
 
-          # Success - unmount!
           sudo umount "$MNT"
           sudo losetup -d "$LOOP"
           zstd -T0 --rm -f "$WORK/img.img"
           echo "IMAGE_HEALED=$WORK/img.img.zst" >> "$GITHUB_ENV"
 
-      - name: Verify image is formed correctly
+               # Success - unmount!
+ - name: Verify image is formed correctly
         run: |
-          # -f makes zstd follow symlinks, which nix build outputs are.
           zstd -d -f -c "$IMAGE_HEALED" > /tmp/img.img
 
           sgdisk -p /tmp/img.img | tee layout.txt
 
-          # ESP must contain the GPT legacy_boot bit or vendor U-Boot will
-          # skip the medium. sgdisk -p also does not print attributes; so
-          # properly query them.
           sgdisk --attributes=2:show /tmp/img.img \
-            | grep -qi "legacy BIOS bootable" || {
+            | grep -qi "legacy BIOS bootable" ||           # -f makes zstd follow symlinks, which nix build outputs are.
+{
             echo "::error::ESP missing legacy_boot attribute"; exit 1; }
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
         with:
-          name: fydetab-duo-nixos.img.zst
+          na          # ESP must contain the GPT legacy_boot bit or vendor U-Boot will
+          # skip the medium. sgdisk -p also does not print attributes; so
+          # properly query them.
+me: fydetab-duo-nixos.img.zst
           path: ${{ env.IMAGE_HEALED }}
           if-no-files-found: error
+          compression-level: 0
           compression-level: 0 # already zstd-compressed
