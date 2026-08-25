@@ -174,10 +174,8 @@ in
       "nixos/configuration.nix".source = ./default-config/configuration.nix;
       "nixos/hardware-configuration.nix".source = ./default-config/hardware-configuration.nix;
 
-      # flake.nix - pinned to the specific commit this image was built from.
-      "nixos/flake.nix".source = pkgs.replaceVars ./default-config/flake.nix {
-        FYDE_NIX_REV = if builtins.isAttrs fyde-nix then fyde-nix.rev or "main" else "main";
-      };
+      # flake.nix - pinned to the commit recorded in flake.lock.
+      "nixos/flake.nix".source = ./default-config/flake.nix;
 
       # flake.lock - auto-generated from the repo's own lock file.
       # The shipped flake has the same inputs (nixpkgs, nixpkgs-unstable,

@@ -1,6 +1,5 @@
-# NOTE: This flake pins fyde-nix to the commit this image was
-# built from. When updating to your own configuration, you should
-# do one of the following:
+# NOTE: This flake pins fyde-nix to a specific commit via flake.lock.
+# When updating to your own configuration, you should do one of the following:
 #
 #   1. Pin to a tag - most stable as commits are tested before being
 #      tagged. The recommended option as it helps prevent breakage.
@@ -15,7 +14,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    fyde-nix.url = "github:NixOnFyde/fyde-nix/@FYDE_NIX_REV@";
+    fyde-nix.url = "github:NixOnFyde/fyde-nix";
 
     home-manager = {
       url = "github:nix-community/home-manager/master";
