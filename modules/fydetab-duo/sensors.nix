@@ -54,6 +54,8 @@ in
           RestartSec = 5;
           Environment = [
             "WAYLAND_DISPLAY=wayland-0"
+            "XDG_RUNTIME_DIR=/run/user/%U"
+            "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus"
           ];
         };
       };
