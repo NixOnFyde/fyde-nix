@@ -52,6 +52,9 @@ in
           ExecStart = lib.getExe pkgs.rot8;
           Restart = "on-failure";
           RestartSec = 5;
+          Environment = [
+            "WAYLAND_DISPLAY=wayland-0"
+          ];
         };
       };
 
