@@ -19,6 +19,16 @@ jobs:
       startsWith(github.event.workflow_run.head_branch, 'v')
 
     steps:
+      - name: Get artifact URL
+        id: artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=${{ github.event.workflow_run.id }}
+          ARTIFACT_URL=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+            --jq '.artifacts[] | select(.name=="fydetab-duo-nixos.img.zst") | .archive_download_url')
+          echo "url=${ARTIFACT_URL}" >> "$GITHUB_OUTPUT"
+
       - name: Download CI artifact
         uses: actions/download-artifact@v8
         with:
@@ -30,10 +40,10 @@ jobs:
         run: |
           mv img.img.zst fydetab-duo-nixos.img.zst
 
-          # GitHub release assets are capped at 2GB; split if needed.
+          # GitHub release assets must be <2GB; split if needed.
           SIZE=$(stat -c %s fydetab-duo-nixos.img.zst)
           if [ "$SIZE" -gt 2147483648 ]; then
-            split -b 2G fydetab-duo-nixos.img.zst fydetab-duo-nixos.img.zst.part-
+            split -b 2000M fydetab-duo-nixos.img.zst fydetab-duo-nixos.img.zst.part-
             rm fydetab-duo-nixos.img.zst
           fi
 
@@ -45,7 +55,13 @@ jobs:
 
         with:
           tag_name: ${{ github.event.workflow_run.head_branch }}
-          generate_release_notes: true
+          body: |
+            ## Quick download
+
+            > [!NOTE]
+            > **Single-image download expires 90 days from release.** If the link below has expired, use the split parts further down and merge them with `cat fydetab-duo-nixos.img.zst.part-* > fydetab-duo-nixos.img.zst`.
+
+            **[Download full image (~3.5 GB)](${{ steps.artifact.outputs.url }})**
 
           files: |
             fydetab-duo-nixos.img.zst*
