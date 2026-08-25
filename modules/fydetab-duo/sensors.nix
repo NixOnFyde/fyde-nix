@@ -49,21 +49,16 @@ in
         pkgs.wlr-randr
       ];
 
-      # Write the unit file directly to avoid NixOS injecting Environment= directives
-      # that override the user session env (PATH, LOCALE_ARCHIVE, etc.)
-      environment.etc."systemd/user/rot8.service".text = ''
-        [Unit]
-        Description=Auto-rotate outputs from the accelerometer
-
-        [Service]
-        Type=simple
-        ExecStart=${rot8-wrapper}
-        Restart=on-failure
-        RestartSec=10
-
-        [Install]
-        WantedBy=graphical-session.target
-      '';
+      systemd.user.services.rot8 = {
+        description = "Auto-rotate outputs from the accelerometer";
+        wantedBy = [ "graphical-session.target" ];
+        serviceConfig = {
+          Type = "simple";
+          ExecStart = "${rot8-wrapper}";
+          Restart = "on-failure";
+          RestartSec = 10;
+        };
+      };
 
       # Allow users in wheel to claim iio-sensor-proxy without polkit auth
       environment.etc."polkit-1/rules.d/50-iio-sensor-proxy.rules".text = ''
