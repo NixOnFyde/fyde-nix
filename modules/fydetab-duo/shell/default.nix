@@ -162,5 +162,11 @@ in
 
     security.pam.services.greetd.enableGnomeKeyring = true;
     security.pam.services.login.enableGnomeKeyring = true;
+
+    systemd.tmpfiles.rules = [
+      "d /var/lib/regreet  0755 greeter greeter -"
+      "d /var/log/regreet  0755 greeter greeter -"
+      "d /tmp/.X11-unix   1777 root     root    -"
+    ];
   };
 }

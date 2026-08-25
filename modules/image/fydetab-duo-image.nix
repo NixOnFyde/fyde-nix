@@ -113,7 +113,7 @@ in
     };
 
     systemd.services.register-nix-paths = {
-      description = "Register Nix store paths from the image manifest";
+      description = "Register Nix store paths from the image manifest and activate the system";
       unitConfig = {
         DefaultDependencies = false;
         ConditionPathExists = "/nix-path-registration";
@@ -139,6 +139,10 @@ in
 
         touch /etc/NIXOS
         ${lib.getExe' config.nix.package.out "nix-env"} -p /nix/var/nix/profiles/system --set /run/current-system
+
+        # Run the full NixOS activation so /etc, /var, tmpfiles, etc.
+        # are set up before services (including greetd) start.
+        /run/current-system/activate
 
         rm -f /nix-path-registration
       '';
