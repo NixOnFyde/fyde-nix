@@ -179,6 +179,43 @@ in
         src = ./default-config/flake.nix;
         FYDE_NIX_REV = if builtins.isAttrs self then self.rev or "main" else "main";
       };
+
+      # flake.lock - auto-generated from the repo's own lock file.
+      # The shipped flake has the same inputs (nixpkgs, nixpkgs-unstable,
+      # home-manager, vicinae) and fyde-nix. So, we patch the root node and
+      # add the fyde-nix entry using jq so the lock stays in sync with the
+      # build environment without any manual stuff.
+      "nixos/flake.lock".source =
+        let
+          fydeRev = if builtins.isAttrs self then self.rev or "main" else "main";
+          fydeHash = if builtins.isAttrs self then self.narHash or "" else "";
+          fydeLastModified = if builtins.isAttrs self then self.lastModifiedDate or 0 else 0;
+        in
+        pkgs.runCommand "flake.lock" { nativeBuildInputs = [ pkgs.jq ]; } ''
+          cp ${../../../flake.lock} $out
+          jq \
+            --arg rev "${fydeRev}" \
+            --arg hash "${fydeHash}" \
+            --arg lm "${toString fydeLastModified}" \
+            '
+            .root.inputs["fyde-nix"] = "fyde-nix"
+            | .["fyde-nix"] = {
+                "locked": {
+                  "lastModified": ($lm | tonumber),
+                  "narHash": $hash,
+                  "owner": "NixOnFyde",
+                  "repo": "fyde-nix",
+                  "rev": $rev,
+                  "type": "github"
+                },
+                "original": {
+                  "owner": "NixOnFyde",
+                  "repo": "fyde-nix",
+                  "type": "github"
+                }
+              }
+            ' "$out" > "$out.tmp" && mv "$out.tmp" "$out"
+        '';
     };
 
   };

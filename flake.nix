@@ -93,6 +93,7 @@
             {
               hardware.fydetabduo.installer-tools.enable = true;
               fydetabImage.enable = true;
+              fydetabImage.defaultConfig.enable = true;
               boot.initrd.systemd.emergencyAccess = true;
             }
           )
