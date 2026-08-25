@@ -117,11 +117,15 @@ in
 
     nixpkgs.overlays = [
       (import ../../overlays/default.nix)
-      (final: _prev: let
-        unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
-      in {
-        labwc = unstable.labwc;
-      })
+      (
+        final: _prev:
+        let
+          unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
+        in
+        {
+          labwc = unstable.labwc;
+        }
+      )
     ];
 
     environment.systemPackages =

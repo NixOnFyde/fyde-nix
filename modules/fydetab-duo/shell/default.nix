@@ -130,7 +130,8 @@ in
     environment.etc."xdg/labwc/autostart".text = ''
       systemctl --user --no-block start labwc-session.target
       dbus-update-activation-environment --systemd --all
-    '' + lib.optionalString config.hardware.fydetabduo.landscape.enable ''
+    ''
+    + lib.optionalString config.hardware.fydetabduo.landscape.enable ''
       kanshi -c /etc/xdg/kanshi/config &
     '';
 
