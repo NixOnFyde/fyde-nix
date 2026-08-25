@@ -10,17 +10,33 @@ let
   cursorTheme = "Bibata-Modern-Ice";
   cursorSize = "24";
 
+  # The DSI panel output name. The panel is natively portrait; landscape
+  # applies a 270 transform via kanshi.
+  panelName = "DSI-1";
+
   kanshiBase = ''
     profile {
-      output DSI-1 scale ${toString config.hardware.fydetabduo.display.scale}
+      output ${panelName}
     }
   '';
   kanshiLandscape = ''
     profile {
-      output DSI-1 scale ${toString config.hardware.fydetabduo.display.scale} transform 270
+      output ${panelName} transform 270
     }
   '';
-  labwcCalibrationMatrix = "0 1 0 -1 0 1";
+
+  # Map the himax touchscreen and stylus to the panel output. wlroots
+  # (via wlr_cursor) applies the output's CURRENT transform to mapped
+  # touch/tablet devices, so input follows output rotation automagically -
+  # under rot8, kanshi, or any wlr-randr transform - in every orientation.
+  # This is compositor-agnostic within wlroots (labwc, sway, river, ...);
+  # non-wlroots compositors (GNOME, KDE) map touch to outputs themselves.
+  # Do NOT add a static libinput calibration matrix here: it cannot be
+  # updated at runtime and breaks as soon as the output rotates.
+  touchMapToOutput = ''
+    <touch mapToOutput="${panelName}" />
+    <tablet mapToOutput="${panelName}" />
+  '';
 in
 {
   options.hardware.fydetabduo.landscape = {
@@ -28,27 +44,15 @@ in
       Default landscape base for the DSI panel (which is natively portrait).
       Applies the transform through kanshi (wlr-output-management protocol,
       so it works under labwc, sway, niri, ... - anything supporting the
-      protocol), and the matching himax touchscreen calibration for
-      compositors without native touch-to-output mapping (labwc).
+      protocol).
+
+      Touch and stylus mapping to the panel output is handled separately
+      (see touchMapToOutput above), so input follows the transform in any
+      orientation.
 
       Compositors with built-in output handling (e.g., niri, GNOME, KDE) can
       disable this and configure rotation themselves.
-
-      Mutually exclusive with sensors.autoRotate.
     '';
-  };
-
-  options.hardware.fydetabduo.display = {
-    scale = lib.mkOption {
-      type = lib.types.numbers.between 1.0 2.0;
-      default = 1.25;
-      description = ''
-        Display scale factor for the DSI panel. The FydeTab Duo has a
-        2000x1200 display at ~10.4 inches (~224 PPI). A scale of 1.25
-        gives an effective 1600x960 logical resolution. Increase to 1.5
-        for larger UI elements.
-      '';
-    };
   };
 
   config = lib.mkMerge [
@@ -140,7 +144,6 @@ in
         in
         lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/xdg/labwc-greeter -S ${greetd-start}";
 
-      # kanshi: always write config with scale (transform added by landscape block)
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
 
@@ -173,16 +176,13 @@ in
               <action name="Execute" command="brightnessctl s 5%-"/>
             </keybind>
           </keyboard>
+          ${touchMapToOutput}
         </labwc_config>
       '';
       environment.etc."xdg/labwc-greeter/rc.xml".text = ''
         <?xml version="1.0"?>
         <labwc_config>
-          <libinput>
-            <device category="himax-touchscreen">
-              <calibrationMatrix>${labwcCalibrationMatrix}</calibrationMatrix>
-            </device>
-          </libinput>
+          ${touchMapToOutput}
         </labwc_config>
       '';
     })
@@ -221,11 +221,7 @@ in
               <action name="Execute" command="brightnessctl s 5%-"/>
             </keybind>
           </keyboard>
-          <libinput>
-            <device category="himax-touchscreen">
-              <calibrationMatrix>${labwcCalibrationMatrix}</calibrationMatrix>
-            </device>
-          </libinput>
+          ${touchMapToOutput}
         </labwc_config>
       '';
     })
