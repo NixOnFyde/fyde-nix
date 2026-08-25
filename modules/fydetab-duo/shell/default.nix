@@ -36,6 +36,17 @@ in
 
     # Desktop packages
     environment.systemPackages = with pkgs; [
+      # Register text/x-nix so .nix files get their own mimetype instead of
+      # going into text/plain (which LibreWolf controls on first run).
+      (pkgs.writeTextDir "share/mime/packages/nix.xml" ''
+        <?xml version="1.0" encoding="UTF-8"?>
+        <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+          <mime-type type="text/x-nix">
+            <comment>Nix expression</comment>
+            <glob pattern="*.nix"/>
+          </mime-type>
+        </mime-info>
+      '')
       adwaita-icon-theme
       alsa-utils
       btop
@@ -55,6 +66,7 @@ in
       kdePackages.gwenview
       kanshi
       libinput
+      libnotify
       librewolf
       mesa-demos
       papirus-icon-theme
@@ -101,7 +113,14 @@ in
       '')
     ];
 
+    # Open .nix files in Zed (GUI editor) rather than falling back to
+    # LibreWolf using the text/plain association.
+    xdg.mime.defaultApplications = {
+      "text/x-nix" = [ "dev.zed.Zed.desktop" ];
+    };
+
     fonts.packages = with pkgs; [
+      jetbrains-mono
       noto-fonts
       noto-fonts-color-emoji
       nerd-fonts.symbols-only
@@ -141,7 +160,6 @@ in
       systemctl --user --no-block start labwc-session.target
       dbus-update-activation-environment --systemd --all
       kanshi -c /etc/xdg/kanshi/config &
-      ${lib.optionalString config.hardware.fydetabduo.sensors.autoRotate "${pkgs.rot8}/bin/rot8 &"}
     '';
 
     environment.etc."xdg/labwc/shutdown".text = ''
