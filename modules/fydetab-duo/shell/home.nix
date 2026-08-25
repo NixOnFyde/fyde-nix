@@ -65,8 +65,8 @@ in
           {
             id = "auto-rotate";
             interval-ms = 3000;
-            command = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"alt":"on"}' || printf '{"alt":"off"}' '';
-            left-click = ''systemctl --user is-active rot8 >/dev/null 2>&1 && systemctl --user stop rot8 || systemctl --user start rot8 '';
+            command = ''pgrep -x rot8 >/dev/null 2>&1 && printf '{"alt":"on"}' || printf '{"alt":"off"}' '';
+            left-click = ''pgrep -x rot8 >/dev/null 2>&1 && pkill -x rot8 || ${pkgs.rot8}/bin/rot8 & '';
             format = "{{ output }}";
             icon-map = {
               on = "ld-rotate-right-symbolic";
