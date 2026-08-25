@@ -99,6 +99,13 @@ in
     ]
     ++ lib.optionals cfg.touchscreen.enable [ pkgs.himax-firmware ];
 
+    nixpkgs.config.allowUnfreePredicate =
+      pkg:
+      builtins.elem (lib.getName pkg) [
+        "ap6275p-firmware"
+        "himax-firmware"
+      ];
+
     hardware.fydetabduo.bluetooth.enable = lib.mkDefault true;
     hardware.fydetabduo.deepSuspend.enable = lib.mkDefault true;
     hardware.fydetabduo.wakeScreenFix.enable = lib.mkDefault true;
