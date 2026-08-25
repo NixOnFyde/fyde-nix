@@ -52,6 +52,7 @@
           rk-boot-script = pkgs.rk-boot-script;
           fydetab-wake-activity = pkgs.fydetab-wake-activity;
           fydetab-snapshot = pkgs.fydetab-snapshot;
+          fydetab-update = pkgs.fydetab-update;
           fydetab-update-bootchain = pkgs.fydetab-update-bootchain;
         }
         // (
