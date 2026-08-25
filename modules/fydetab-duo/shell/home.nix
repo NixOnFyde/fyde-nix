@@ -127,7 +127,7 @@ in
       };
 
       launcher_window = {
-        opacity = 0.97;
+        opacity = 0.95;
       };
 
       providers.clipboard.preferences = {
