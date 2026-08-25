@@ -10,6 +10,7 @@ let
     export WAYLAND_DISPLAY=wayland-0
     export XDG_RUNTIME_DIR="/run/user/$(id -u)"
     export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+    export PATH="${lib.makeBinPath [ pkgs.wlr-randr pkgs.coreutils ]}"
     exec ${lib.getExe pkgs.rot8}
   '';
 in
