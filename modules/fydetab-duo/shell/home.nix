@@ -15,7 +15,7 @@ in
     settings = {
       bar = {
         location = "top";
-        scale = 0.8;
+        scale = 0.85;
         spacing = 4;
         background-opacity = 5;
         button-bg-opacity = 50;
@@ -28,6 +28,7 @@ in
               "dashboard"
               "cpu"
               "ram"
+              "custom-auto-rotate"
             ];
             center = [
               "clock"
@@ -59,6 +60,20 @@ in
         clock.format = "%a %d %b %H:%M";
         battery.low-threshold = 15;
         cpu.show-per-core = false;
+
+        custom = [
+          {
+            id = "auto-rotate";
+            interval-ms = 3000;
+            command = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"alt":"on"}' || printf '{"alt":"off"}' '';
+            left-click = ''systemctl --user is-active rot8 >/dev/null 2>&1 && systemctl --user stop rot8 || systemctl --user start rot8 '';
+            format = "{{ output }}";
+            icon-map = {
+              on = "ld-rotate-right-symbolic";
+              off = "ld-rotate-right-symbolic";
+            };
+          }
+        ];
       };
 
       styling = {
