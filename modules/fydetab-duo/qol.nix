@@ -27,6 +27,11 @@ in
     zramSwap.enable = lib.mkDefault true;
     zramSwap.algorithm = lib.mkDefault "zstd";
 
+    services.earlyoom = {
+      enable = lib.mkDefault true;
+      enableNotifications = true;
+    };
+
     systemd.services.zram-shutdown = {
       description = "Forcefully deactivate zram swap before shutdown";
       unitConfig.DefaultDependencies = false;

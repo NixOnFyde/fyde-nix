@@ -40,44 +40,6 @@ Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's o
 | Camera                      | ✅     | Works out of the box                          |
 | Fingerprint reader          | ❌     | Not yet implemented                           |
 
-### Desktop
-
-| Feature            | Status | Implementation                                             |
-| ------------------ | ------ | ---------------------------------------------------------- |
-| Window manager     | ✅     | labwc with FydeTab theming                                 |
-| Login manager      | ✅     | regreet under labwc greeter                                |
-| App launcher       | ✅     | Vicinae                                                    |
-| Terminal           | ✅     | Ghostty                                                    |
-| Status bar         | ✅     | Wayle (clock, battery, volume, network, BT, notifications) |
-| Browser            | ✅     | LibreWolf                                                  |
-| File manager       | ✅     | Thunar                                                     |
-| File manager (TUI) | ✅     | Yazi                                                       |
-| Clipboard history  | ✅     | Vicinae clipboard provider                                 |
-| Screenshots        | ✅     | grim + slurp (Print key)                                   |
-| Notifications      | ✅     | Wayle notifications module                                 |
-| Polkit agent       | ✅     | Hyprpolkitagent                                            |
-| Keyring            | ✅     | GNOME keyring                                              |
-| Idle lock          | ✅     | swayidle + swaylock (10 min screen off, 15 min suspend)    |
-| Auto-rotate        | ✅     | rot8 reads accelerometer, rotates via wlr-randr            |
-| Wallpaper engine   | ✅     | Wayle wallpaper module (fill mode, DSI-1)                  |
-
-### System
-
-| Feature                | Status | Implementation                                                        |
-| ---------------------- | ------ | --------------------------------------------------------------------- |
-| Boot from SD           | ✅     | Vendor U-Boot to FAT32 ESP to boot.scr to NixOS                       |
-| eMMC install           | ✅     | fydetab-install-to-emmc clones live system with rsync                 |
-| Boot chain update      | ✅     | fydetab-update-bootchain rewrites idblock/uboot/resource blobs        |
-| Btrfs snapshots        | ✅     | fydetab-snapshot create/list/rollback/delete                          |
-| NixOS rebuild          | ✅     | nixos-rebuild switch (over SSH or locally)                            |
-| WiFi regulatory domain | ✅     | Auto-detected from system timezone                                    |
-| Zram swap              | ✅     | zstd compressed                                                       |
-| Journal persistence    | ✅     | CoW-disabled /var/log/journal on btrfs                                |
-| SSH                    | ✅     | OpenSSH enabled                                                       |
-| XDG user dirs          | ✅     | Auto-created per session                                              |
-| Nix flakes             | ✅     | Enabled (nix-command + flakes)                                        |
-| Home Manager           | ✅     | Shared module for per-user config (vicinae, wayle, ghostty, swayidle) |
-
 ## Docs
 
 Coming soon™ — will be pushed within 24 hours of initial commit.
