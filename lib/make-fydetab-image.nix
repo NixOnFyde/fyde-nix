@@ -39,6 +39,12 @@ let
 
       cp ${closureInfo}/registration rootImage/nix-path-registration
 
+      # Seed runtime dirs that the greeter needs before first activation.
+      # systemd-tmpfiles creates these on boot, but the greeter starts
+      # before tmpfiles has finished on a fresh image.
+      mkdir -p rootImage/var/{lib,log}/regreet
+      mkdir -p rootImage/tmp/.X11-unix
+
       sizeKiB=$(( $(du -sk rootImage | cut -f1) * 5 / 4 + 262144 ))
       truncate -s "''${sizeKiB}K" btrfs-fs.img
 
