@@ -15,8 +15,12 @@ in
     settings = {
       bar = {
         location = "top";
-        scale = 0.8;
+        scale = 0.65;
         spacing = 4;
+        background-opacity = 5;
+        button-bg-opacity = 50;
+        button-variant = "basic";
+        button-rounding = "none";
         layout = [
           {
             monitor = "DSI-1";
@@ -24,17 +28,19 @@ in
               "dashboard"
               "window-title"
             ];
-            center = [ "clock" ];
-            right = [
+            center = [
               "cpu"
               "ram"
               "media"
+            ];
+            right = [
               "volume"
               "brightness"
               "network"
               "bluetooth"
               "battery"
               "systray"
+              "clock"
               "notifications"
             ];
             show = true;
@@ -58,16 +64,16 @@ in
       };
 
       styling = {
-        rounding = 10;
-        scale = 1.0;
+        rounding = "none";
+        scale = 0.75;
 
         palette = {
-          bg = "#161618";
-          surface = "#1c1c1e";
-          elevated = "#313134";
-          fg = "#e6e6ef";
-          fg-muted = "#8a8a96";
-          primary = "#8ba4b0";
+          bg = "#0d0c0c";
+          surface = "#181616";
+          elevated = "#282727";
+          fg = "#c5c9c5";
+          fg-muted = "#a6a69c";
+          primary = "#8992a7";
           blue = "#8ba4b0";
           green = "#87a987";
           yellow = "#c4b28a";
