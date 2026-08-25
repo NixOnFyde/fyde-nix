@@ -88,20 +88,39 @@ rsync -aHAXx --numeric-ids \
     --exclude=/lost+found \
     / "$root_mount_point/"
 
-# Update fstab to reference internal storage partition labels
-target_etc_directory=$(readlink "$root_mount_point/etc" || true)
-[ -n "$target_etc_directory" ] || target_etc_directory=/etc
-[ "${target_etc_directory#/}" != "$target_etc_directory" ] && target_etc_directory="$root_mount_point$target_etc_directory"
-
-target_fstab_file=$(readlink "$target_etc_directory/fstab" || true)
-[ -n "$target_fstab_file" ] || target_fstab_file="$target_etc_directory/fstab"
-[ "${target_fstab_file#/}" != "$target_fstab_file" ] && target_fstab_file="$root_mount_point$target_fstab_file"
+# Relabel fstab and hardware-configuration.nix to the internal storage labels.
+#
+# On NixOS /etc/fstab is a symlink chain (/etc/fstab -> /etc/static/fstab ->
+# /nix/store/...). Those absolute symlinks resolve on the source system, whose
+# store is mounted read-only, so editing via the symlink fails. Resolve the
+# final target with readlink -f, then re-prefix the clone mount so we edit the
+# clone's copy instead.
+target_fstab_file=$(readlink -f "$root_mount_point/etc/fstab" 2>/dev/null || true)
+if [ -n "$target_fstab_file" ] && [ "$target_fstab_file" != "$root_mount_point/etc/fstab" ]; then
+    case "$target_fstab_file" in
+        "$root_mount_point"*) : ;;
+        *) target_fstab_file="$root_mount_point$target_fstab_file" ;;
+    esac
+else
+    target_fstab_file="$root_mount_point/etc/fstab"
+fi
 
 if [ -f "$target_fstab_file" ]; then
+    # store paths are read-only; the eMMC copy is not
     chmod u+w "$target_fstab_file"
-    sed -i 's/NIXOS-FYDETAB/NIXOS-EMMC/g; s|by-label/ESP"|by-label/ESPEMMC"|g' "$target_fstab_file"
+    # fstab is unquoted (/dev/disk/by-label/ESP /boot ...); the nix config quoted
+    sed -i 's/NIXOS-FYDETAB/NIXOS-EMMC/g; s|by-label/ESP |by-label/ESPEMMC |g; s|by-label/ESP"|by-label/ESPEMMC"|g' "$target_fstab_file"
 else
     echo "warning: cloned fstab not found; labels left shared" >&2
+fi
+
+# hardware-configuration.nix is for future rebuilds; without this, the first
+# rebuild on the eMMC regenerates the SD labels and /boot stops mounting.
+hwconfig_file="$root_mount_point/etc/nixos/hardware-configuration.nix"
+if [ -f "$hwconfig_file" ]; then
+    sed -i 's/NIXOS-FYDETAB/NIXOS-EMMC/g; s|by-label/ESP"|by-label/ESPEMMC"|g' "$hwconfig_file"
+else
+    echo "warning: cloned hardware-configuration.nix not found; labels left shared" >&2
 fi
 
 mkdir -p "$root_mount_point"/{dev,proc,sys,run,tmp,boot,mnt,media}
