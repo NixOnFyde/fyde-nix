@@ -65,6 +65,7 @@ in
                 "network"
                 "bluetooth"
                 "battery"
+                "custom-performance"
                 "custom-auto-rotate"
                 "notifications"
               ];
@@ -254,6 +255,27 @@ in
               command = "df -h / | awk 'NR==2{print $5}' ";
               format = "{{ output }}";
               icon-name = "drive-harddisk-symbolic";
+              icon-color = "fg-default";
+              label-color = "fg-default";
+            }
+            {
+              # Performance mode (CPU + GPU performance governor).
+              # Runs fydetab-perf using passwordless sudo (see shell/power.nix).
+              id = "performance";
+              interval-ms = 3000;
+              command = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              left-click = ''
+                if [ "$(fydetab-perf status)" = on ]; then
+                  sudo -n fydetab-perf off
+                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode off"
+                else
+                  sudo -n fydetab-perf on
+                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode on"
+                fi
+              '';
+              on-action = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              format = "{{ state }}";
+              icon-name = "speedometer-symbolic";
               icon-color = "fg-default";
               label-color = "fg-default";
             }
