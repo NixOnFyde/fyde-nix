@@ -27,7 +27,7 @@
 
   # Device hardware enablement
   hardware.fydetabduo.enable = true;
-  hardware.fydetabduo.landscape.enable = false;
+  hardware.fydetabduo.landscape.enable = true;
   hardware.fydetabduo.sensors.autoRotate = true;
   hardware.fydetabduo.display.scale = 1.1;
 

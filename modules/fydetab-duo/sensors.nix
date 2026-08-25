@@ -22,10 +22,9 @@ in
       iio-sensor-proxy and rotates outputs via wlr-randr (wlr-output-management),
       so it works under labwc, sway, river, niri - any wlroots compositor.
 
-      EXPERIMENTAL: the shipped touch calibration matrix assumes landscape
-      only; in other orientations touch mapping may be off unless your
-      compositor maps touch to output itself. Mutually exclusive with
-      hardware.fydetabduo.landscape.enable (which pins as landscape).
+      Can be used alongside landscape.enable: kanshi applies the landscape
+      transform at startup, rot8 overrides it dynamically when the device
+      is rotated. Touch mapping is handled by wlr-output-management.
     '';
   };
 
@@ -55,6 +54,16 @@ in
           RestartSec = 5;
         };
       };
+
+      # Allow users in wheel to claim iio-sensor-proxy without polkit auth
+      environment.etc."polkit-1/rules.d/50-iio-sensor-proxy.rules".text = ''
+        polkit.addRule(function(action, subject) {
+          if (action.id == "org.freedesktop.sensors.claim" &&
+              subject.isInGroup("wheel")) {
+            return polkit.Result.YES;
+          }
+        });
+      '';
     })
   ];
 }
