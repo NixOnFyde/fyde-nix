@@ -55,7 +55,12 @@ let
       # Make sure the root directory is owned by root so systemd-tmpfiles
       # does not refuse to process rules due to "unsafe path transition"
       # from a non-root-owned / to system directories.
-      chown -hR 0:0 rootImage
+      #
+      # Some build sandboxes are not able to chown to the unmapped uid 0
+      # and fail with EINVAL; the release workflow heals ownership post-build,
+      # so allow that case.
+      chown -hR 0:0 rootImage 2>/dev/null \
+        || echo "warning: chown of seed tree to root failed in this sandbox; ownership is healed post-build (CI)" >&2
 
       sizeKiB=$(( $(du -sk rootImage | cut -f1) * 5 / 4 + 262144 ))
       truncate -s "''${sizeKiB}K" btrfs-fs.img

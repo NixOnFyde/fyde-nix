@@ -21,22 +21,21 @@ Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's o
 
 ### Hardware
 
-| Feature                     | Status | Implementation                                |
-| --------------------------- | ------ | --------------------------------------------- |
-| GPU (Mali G610)             | ✅     | Panthor kernel module                         |
-| WiFi (AP6275P)              | ✅     | dhd driver + Broadcom firmware                |
-| Bluetooth (AP6275P)         | ✅     | brcm-patchram-plus loads BCM4362A2 firmware   |
-| Touchscreen (Himax HX83102) | ✅     | himax_tp driver + libinput calibration matrix |
-| Stylus                      | ✅     | udev calibration + axis tuning via hwdb       |
-| Accelerometer (lis2dw12)    | ✅     | iio-sensor-proxy + rot8 auto-rotate           |
-| Audio (ES8388)              | ✅     | Speaker + headphone via PipeWire              |
-| Brightness keys             | ✅     | brightnessctl via labwc keybinds              |
-| Volume keys                 | ✅     | wpctl via labwc keybinds                      |
-| Deep suspend/resume         | ✅     | mem_sleep_default=deep + synthetic wake key   |
-| USB-C DisplayPort           | ✅     | Alt mode support                              |
-| HiDPI portrait panel        | ✅     | kanshi rotates DSI-1 by 270°                  |
-| Camera                      | ✅     | Works out of the box                          |
-| Fingerprint reader          | ❌     | Not yet implemented                           |
+Working:
+
+- Accelerometer
+- Audio with and without wired headphones
+- Bluetooth
+- Brightness and volume keys (with OSD)
+- Camera
+- Deep suspend / resume
+- GPU
+- HiDPI portrait panel
+- Power button - short press suspend, long press power off
+- Touchscreen and stylus in any orientation (respecting auto-rotate)
+- USB-C DisplayPort / HDMI
+- WiFi
+- wlroots compositors auto-rotate (greeter defaults to landscape however for ease of use)
 
 ## Docs
 
