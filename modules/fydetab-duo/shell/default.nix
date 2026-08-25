@@ -127,10 +127,16 @@ in
       </openbox_menu>
     '';
 
-    environment.etc."xdg/labwc/autostart".text =
-      lib.optionalString config.hardware.fydetabduo.landscape.enable ''
-        kanshi -c /etc/xdg/kanshi/config &
-      '';
+    environment.etc."xdg/labwc/autostart".text = ''
+      systemctl --user --no-block start labwc-session.target
+      dbus-update-activation-environment --systemd --all
+    '' + lib.optionalString config.hardware.fydetabduo.landscape.enable ''
+      kanshi -c /etc/xdg/kanshi/config &
+    '';
+
+    environment.etc."xdg/labwc/shutdown".text = ''
+      systemctl --user stop graphical-session.target
+    '';
 
     environment.etc."xdg/gtk-3.0/settings.ini".text = ''
       [Settings]
@@ -167,6 +173,7 @@ in
       "d /var/lib/regreet  0755 greeter greeter -"
       "d /var/log/regreet  0755 greeter greeter -"
       "d /tmp/.X11-unix   1777 root     root    -"
+      "d /nix/var/nix/daemon-socket 0755 root root -"
     ];
   };
 }

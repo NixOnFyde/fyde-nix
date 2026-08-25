@@ -41,11 +41,6 @@ in
       systemd.services."serial-getty@ttyFIQ0".enable = lib.mkDefault false;
 
       systemd.tmpfiles.rules = [
-        "d /var/lib/regreet 0755 greeter greeter -"
-        "d /var/log/regreet 0755 greeter greeter -"
-
-        "d /tmp/.X11-unix 1777 root root -"
-
         "d /nix/var/nix/daemon-socket 0755 root root -"
       ];
 
@@ -88,6 +83,9 @@ in
         __EGL_VENDOR_LIBRARY_DIRS = "/run/opengl-driver/share/glvnd/egl_vendor.d";
         XCURSOR_THEME = lib.mkDefault cursorTheme;
         XCURSOR_SIZE = lib.mkDefault cursorSize;
+        # GTK4 dmabuf textures render black - Mesa panfrost cannot export panthor
+        # exclusive-VM BOs (drmPrimeHandleToFD EINVAL). Remove when fixed in Mesa.
+        GDK_DISABLE = "dmabuf";
       };
 
       programs.regreet.settings = {

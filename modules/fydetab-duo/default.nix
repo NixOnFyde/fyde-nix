@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
@@ -114,7 +115,14 @@ in
     hardware.fydetabduo.sensors.enable = lib.mkDefault true;
     hardware.fydetabduo.autoRegulatoryDomain.enable = lib.mkDefault true;
 
-    nixpkgs.overlays = [ (import ../../overlays/default.nix) ];
+    nixpkgs.overlays = [
+      (import ../../overlays/default.nix)
+      (final: _prev: let
+        unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
+      in {
+        labwc = unstable.labwc;
+      })
+    ];
 
     environment.systemPackages =
       let

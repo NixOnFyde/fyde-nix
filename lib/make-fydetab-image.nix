@@ -45,6 +45,18 @@ let
       mkdir -p rootImage/var/{lib,log}/regreet
       mkdir -p rootImage/tmp/.X11-unix
 
+      # FHS essentials the seed tree omits. /var/run -> /run is required by
+      # openssh (privsep chroot) and many daemons; /var/empty is openssh's
+      # AuthorizedKeysFile directory.
+      ln -s /run rootImage/var/run
+      mkdir -p rootImage/var/empty
+      chmod 0755 rootImage/var/empty
+
+      # Make sure the root directory is owned by root so systemd-tmpfiles
+      # does not refuse to process rules due to "unsafe path transition"
+      # from a non-root-owned / to system directories.
+      chown -hR 0:0 rootImage
+
       sizeKiB=$(( $(du -sk rootImage | cut -f1) * 5 / 4 + 262144 ))
       truncate -s "''${sizeKiB}K" btrfs-fs.img
 

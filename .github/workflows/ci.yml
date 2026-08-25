@@ -63,15 +63,10 @@ jobs:
             --no-link --print-out-paths)
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
-      # The Nix sandbox builds the seed tree as an unprivileged user, so the
-      # store is owned by uid 1000 (cp cannot chown), and the seed
-      # does not contain a /var/run link to /run and openssh's /var/empty.
-
-      # We fix all three here with proper root - as the runner is a full VM.
-      # This is what upstream make-disk-image.nix gets "for free" by formatting
-      # inside a VM; our custom partition layout (vendor U-Boot) can't use that,
-      # so we instead heal post-build instead.
-      - name: Heal image ownership & seed dirs
+      # The image builder now chowns the seed tree
+      # to 0:0 before mkfs.btrfs and seeds /var/run + /var/empty, but I
+      # kept a lightweight verify + heal for CI where root is available.
+      - name: Verify image ownership & seed dirs
         run: |
           set -euxo pipefail
           WORK=$(mktemp -d)
