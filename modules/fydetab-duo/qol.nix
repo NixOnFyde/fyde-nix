@@ -40,10 +40,12 @@ in
       serviceConfig = {
         Type = "oneshot";
         ExecStart = [
+          "${pkgs.coreutils}/bin/sleep 1"
+          "${pkgs.util-linux}/bin/swapoff /dev/zram0"
           "${pkgs.kmod}/bin/modprobe -r zram"
         ];
         RemainAfterExit = true;
-        TimeoutSec = 5;
+        TimeoutSec = 10;
       };
     };
 

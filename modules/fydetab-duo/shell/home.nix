@@ -15,7 +15,7 @@ in
     settings = {
       bar = {
         location = "top";
-        scale = 1;
+        scale = 0.8;
         spacing = 4;
         background-opacity = 5;
         button-bg-opacity = 50;
@@ -26,12 +26,11 @@ in
             monitor = "DSI-1";
             left = [
               "dashboard"
-              "window-title"
-            ];
-            center = [
               "cpu"
               "ram"
-              "media"
+            ];
+            center = [
+              "clock"
             ];
             right = [
               "volume"
@@ -40,7 +39,6 @@ in
               "bluetooth"
               "battery"
               "systray"
-              "clock"
               "notifications"
             ];
             show = true;
