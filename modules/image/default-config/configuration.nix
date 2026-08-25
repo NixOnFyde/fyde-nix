@@ -6,20 +6,29 @@
 #
 # DESKTOP SHELL
 #
-# The full desktop environment (labwc, wayle, vicinae, ghostty, greeter,
-# wallpaper, keybindings, idle lock, etc.) is gated behind the following
-# option: hardware.fydetabduo.shell.enable = true.
+# The full desktop environment (labwc, wayle, vicinae, alacritty, greeter,
+# wallpaper, keybindings, idle lock, etc.) is made of independent parts
+# defined under modules/fydetab-duo/shell/.
 #
-# That option is in `modules/fydetab-duo/shell/default.nix` and
-# pulls in ALL the system-level desktop packages, fonts, theming,
-# pipewire audio, and the greeter.
+#   master:      hardware.fydetabduo.shell.enable
+#   pieces:      hardware.fydetabduo.shell.{desktop,packages,audio,power,security}.enable
 #
-# WARNING - Therefore, removing said line below gives you a
-# headless system with just hardware support.
+# Each piece defaults to following the master, so `shell.enable = true`
+# turns on the WHOLE desktop experience (what the shipped image uses, see
+# below). To include only selected pieces you can either
+#   - set the master true and turn specific pieces off, or
+#   - leave the master off and enable only the pieces you want, e.g.
+#       hardware.fydetabduo.shell.desktop.enable = true;
+#       hardware.fydetabduo.shell.packages.enable  = true;  # no audio/power/security
 #
-# The per-user config (wayle bar layout, vicinae settings, ghostty,
-# swayidle) is a separate Home Manager module accessible via
-# `fyde-nix.homeManagerModules.default`.
+# WARNING - Turning the master (or all pieces) off gives you a headless
+# system with just hardware support.
+#
+# The per-user config (wayle bar layout, vicinae settings, swayidle) is a
+# separate Home Manager module imported below via
+# `fyde-nix.homeManagerModules.default`; each of those has its own toggle
+# (services.wayle.enable, programs.vicinae.enable, services.swayidle.enable)
+# under the user in the home-manager block.
 { inputs, fyde-nix, ... }:
 
 {
@@ -31,8 +40,14 @@
   hardware.fydetabduo.sensors.autoRotate = true;
 
   # Desktop shell
-  # Enable this to get the full FydeTab experience.
-  # Disable for headless / minimal setups.
+  # Enable the FULL desktop experience (all parts for a whole shell).
+  #
+  # To select only specific parts instead, comment out the master and
+  # enable only the pieces you want, e.g.:
+  #   hardware.fydetabduo.shell.desktop.enable = true;
+  #   hardware.fydetabduo.shell.packages.enable = true;
+  #   hardware.fydetabduo.shell.audio.enable   = true;
+  #   # power + security left off
   hardware.fydetabduo.shell.enable = true;
 
   # Boot
@@ -72,6 +87,11 @@
     users.user = {
       home.stateVersion = "26.05";
       home.enableNixpkgsReleaseCheck = false;
+
+      # Optional: pick only some per-user shell parts. Everything here is on
+      # by default once the module is imported; uncomment to opt specific
+      # parts out, e.g. drop swayidle:
+      # services.swayidle.enable = false;
 
       xdg.userDirs = {
         enable = true;
