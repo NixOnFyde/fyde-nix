@@ -4,6 +4,8 @@
   bash,
   coreutils,
   util-linux,
+  gawk,
+  diffutils,
   replaceVars,
   runCommand,
   idblock,
@@ -36,6 +38,8 @@ stdenvNoCC.mkDerivation {
         path = lib.makeBinPath [
           coreutils
           util-linux
+          gawk
+          diffutils
         ];
       }
     } $out/bin/fydetab-update-bootchain

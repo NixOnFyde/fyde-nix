@@ -8,6 +8,9 @@ let
   cfg = config.hardware.fydetabduo;
 
   wakeScreenHook = pkgs.writeShellScript "60-fydetab-wake-screen" ''
+    # systemd-sleep runs hooks with a minimal PATH; coreutils has cat/head/sleep.
+    export PATH=${pkgs.coreutils}/bin
+
     STATE=/run/fydetab-pwrkey-count
 
     count() {
