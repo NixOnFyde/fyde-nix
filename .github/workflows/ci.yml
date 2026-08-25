@@ -68,6 +68,11 @@ jobs:
           LOOP=$(sudo losetup -Pf --show "$WORK/img.img")
           MNT=$(mktemp -d)
           sudo mount "${LOOP}p3" "$MNT"
+          # The image builder chowns the seed tree to 0:0, but some
+          # sandboxes are not able to chown to uid 0 and the
+          # derivation tolerates that; fix up both the store and the
+          # image root here where root is available.
+          sudo chown root:root "$MNT"
           sudo chown -R root:root "$MNT/nix/store"
           sudo rm -rf "$MNT/var/run"
 
