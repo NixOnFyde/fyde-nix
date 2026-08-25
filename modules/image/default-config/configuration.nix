@@ -27,7 +27,9 @@
 
   # Device hardware enablement
   hardware.fydetabduo.enable = true;
-  hardware.fydetabduo.landscape.enable = true;
+  hardware.fydetabduo.landscape.enable = false;
+  hardware.fydetabduo.sensors.autoRotate = true;
+  hardware.fydetabduo.display.scale = 1.25;
 
   # Desktop shell
   # Enable this to get the full FydeTab experience.

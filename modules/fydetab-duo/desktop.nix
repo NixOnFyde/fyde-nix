@@ -10,9 +10,14 @@ let
   cursorTheme = "Bibata-Modern-Ice";
   cursorSize = "24";
 
+  kanshiBase = ''
+    profile {
+      output DSI-1 scale ${toString config.hardware.fydetabduo.display.scale}
+    }
+  '';
   kanshiLandscape = ''
     profile {
-      output DSI-1 transform 270
+      output DSI-1 scale ${toString config.hardware.fydetabduo.display.scale} transform 270
     }
   '';
   labwcCalibrationMatrix = "0 1 0 -1 0 1";
@@ -28,7 +33,22 @@ in
 
       Compositors with built-in output handling (e.g., niri, GNOME, KDE) can
       disable this and configure rotation themselves.
+
+      Mutually exclusive with sensors.autoRotate.
     '';
+  };
+
+  options.hardware.fydetabduo.display = {
+    scale = lib.mkOption {
+      type = lib.types.numbers.between 1.0 2.0;
+      default = 1.25;
+      description = ''
+        Display scale factor for the DSI panel. The FydeTab Duo has a
+        2000x1200 display at ~10.4 inches (~224 PPI). A scale of 1.25
+        gives an effective 1600x960 logical resolution. Increase to 1.5
+        for larger UI elements.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -119,12 +139,12 @@ in
           '';
         in
         lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/xdg/labwc-greeter -S ${greetd-start}";
-    })
 
-    (lib.mkIf cfg.landscape.enable {
-      environment.etc."xdg/kanshi/config".text = kanshiLandscape;
-      environment.etc."xdg/kanshi/greeter-config".text = kanshiLandscape;
+      # kanshi: always write config with scale (transform added by landscape block)
+      environment.etc."xdg/kanshi/config".text = kanshiBase;
+      environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
 
+      # labwc rc.xml: always active (keybinds, theme)
       environment.etc."xdg/labwc/rc.xml".text = ''
         <?xml version="1.0"?>
         <labwc_config>
@@ -153,6 +173,11 @@ in
               <action name="Execute" command="brightnessctl s 5%-"/>
             </keybind>
           </keyboard>
+        </labwc_config>
+      '';
+      environment.etc."xdg/labwc-greeter/rc.xml".text = ''
+        <?xml version="1.0"?>
+        <labwc_config>
           <libinput>
             <device category="himax-touchscreen">
               <calibrationMatrix>${labwcCalibrationMatrix}</calibrationMatrix>
@@ -160,9 +185,42 @@ in
           </libinput>
         </labwc_config>
       '';
-      environment.etc."xdg/labwc-greeter/rc.xml".text = ''
+    })
+
+    (lib.mkIf cfg.landscape.enable {
+      # Override kanshi config to include landscape transform
+      environment.etc."xdg/kanshi/config".text = kanshiLandscape;
+      environment.etc."xdg/kanshi/greeter-config".text = kanshiLandscape;
+
+      # Add calibration matrix for landscape mode
+      environment.etc."xdg/labwc/rc.xml".text = lib.mkForce ''
         <?xml version="1.0"?>
         <labwc_config>
+          <theme>
+            <name>FydeTab</name>
+            <cornerradius>8</cornerradius>
+          </theme>
+          <keyboard>
+            <default />
+            <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
+            <keybind key="W-d"><action name="Execute" command="vicinae toggle"/></keybind>
+            <keybind key="Print"><action name="Execute" command="sh -c 'mkdir -p $HOME/Pictures &amp;&amp; grim -g &quot;$(slurp)&quot; $HOME/Pictures/Screenshot-$(date +%s).png'"/></keybind>
+            <keybind key="XF86AudioRaiseVolume">
+              <action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0"/>
+            </keybind>
+            <keybind key="XF86AudioLowerVolume">
+              <action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"/>
+            </keybind>
+            <keybind key="XF86AudioMute">
+              <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"/>
+            </keybind>
+            <keybind key="XF86MonBrightnessUp">
+              <action name="Execute" command="brightnessctl s +5%"/>
+            </keybind>
+            <keybind key="XF86MonBrightnessDown">
+              <action name="Execute" command="brightnessctl s 5%-"/>
+            </keybind>
+          </keyboard>
           <libinput>
             <device category="himax-touchscreen">
               <calibrationMatrix>${labwcCalibrationMatrix}</calibrationMatrix>
