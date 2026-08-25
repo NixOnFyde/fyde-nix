@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: ci-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: false
+  cancel-in-progress: false # Just in case
 
 jobs:
   build:
@@ -89,37 +89,36 @@ jobs:
           sudo mkdir -p "$MNT/var/empty"
           sudo chmod 0755 "$MNT/var/empty"
 
+          # Verify before discarding the mount
           sample=$(find "$MNT/nix/store" -maxdepth 1 -name '*logrotate*' | head -1)
-          [ "$(sudo stat -c %u "$sample")" = 0          # Verify before discarding the mount
- ]
+          [ "$(sudo stat -c %u "$sample")" = 0 ]
           [ -L "$MNT/var/run" ] && [ "$(sudo readlink "$MNT/var/run")" = /run ]
           [ -d "$MNT/var/empty" ]
 
+          # Success - unmount!
           sudo umount "$MNT"
           sudo losetup -d "$LOOP"
           zstd -T0 --rm -f "$WORK/img.img"
           echo "IMAGE_HEALED=$WORK/img.img.zst" >> "$GITHUB_ENV"
 
-               # Success - unmount!
- - name: Verify image is formed correctly
+      - name: Verify image is formed correctly
         run: |
+          # -f makes zstd follow symlinks, which nix build outputs are.
           zstd -d -f -c "$IMAGE_HEALED" > /tmp/img.img
 
           sgdisk -p /tmp/img.img | tee layout.txt
 
+          # ESP must contain the GPT legacy_boot bit or vendor U-Boot will
+          # skip the medium. sgdisk -p also does not print attributes; so
+          # properly query them.
           sgdisk --attributes=2:show /tmp/img.img \
-            | grep -qi "legacy BIOS bootable" ||           # -f makes zstd follow symlinks, which nix build outputs are.
-{
+            | grep -qi "legacy BIOS bootable" || {
             echo "::error::ESP missing legacy_boot attribute"; exit 1; }
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
         with:
-          na          # ESP must contain the GPT legacy_boot bit or vendor U-Boot will
-          # skip the medium. sgdisk -p also does not print attributes; so
-          # properly query them.
-me: fydetab-duo-nixos.img.zst
+          name: fydetab-duo-nixos.img.zst
           path: ${{ env.IMAGE_HEALED }}
           if-no-files-found: error
-          compression-level: 0
           compression-level: 0 # already zstd-compressed
