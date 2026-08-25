@@ -6,6 +6,12 @@
 }:
 let
   cfg = config.hardware.fydetabduo.sensors;
+  rot8-wrapper = pkgs.writeShellScript "rot8-wrapper" ''
+    export WAYLAND_DISPLAY=wayland-0
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+    exec ${lib.getExe pkgs.rot8}
+  '';
 in
 {
   options.hardware.fydetabduo.sensors.enable = lib.mkOption {
@@ -49,14 +55,10 @@ in
         after = [ "graphical-session.target" ];
         partOf = [ "graphical-session.target" ];
         serviceConfig = {
-          ExecStart = lib.getExe pkgs.rot8;
+          Type = "simple";
+          ExecStart = "${rot8-wrapper}";
           Restart = "on-failure";
-          RestartSec = 5;
-          Environment = [
-            "WAYLAND_DISPLAY=wayland-0"
-            "XDG_RUNTIME_DIR=/run/user/%U"
-            "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus"
-          ];
+          RestartSec = 10;
         };
       };
 
