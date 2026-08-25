@@ -6,13 +6,6 @@
 }:
 let
   cfg = config.hardware.fydetabduo.sensors;
-  rot8-wrapper = pkgs.writeShellScript "rot8-wrapper" ''
-    export WAYLAND_DISPLAY=wayland-0
-    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-    export PATH="${lib.makeBinPath [ pkgs.wlr-randr pkgs.coreutils ]}"
-    exec ${lib.getExe pkgs.rot8}
-  '';
 in
 {
   options.hardware.fydetabduo.sensors.enable = lib.mkOption {
@@ -49,17 +42,6 @@ in
         pkgs.rot8
         pkgs.wlr-randr
       ];
-
-      systemd.user.services.rot8 = {
-        description = "Auto-rotate outputs from the accelerometer";
-        wantedBy = [ "graphical-session.target" ];
-        serviceConfig = {
-          Type = "simple";
-          ExecStart = "${rot8-wrapper}";
-          Restart = "on-failure";
-          RestartSec = 10;
-        };
-      };
 
       # Allow users in wheel to claim iio-sensor-proxy without polkit auth
       environment.etc."polkit-1/rules.d/50-iio-sensor-proxy.rules".text = ''

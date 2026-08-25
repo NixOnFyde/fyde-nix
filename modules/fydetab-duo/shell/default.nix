@@ -141,6 +141,7 @@ in
       systemctl --user --no-block start labwc-session.target
       dbus-update-activation-environment --systemd --all
       kanshi -c /etc/xdg/kanshi/config &
+      ${lib.optionalString config.hardware.fydetabduo.sensors.autoRotate "${pkgs.rot8}/bin/rot8 &"}
     '';
 
     environment.etc."xdg/labwc/shutdown".text = ''
