@@ -43,7 +43,8 @@
   networking.modemmanager.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
-  # Locale
+  # Locale & timezone
+  time.timeZone = "Europe/London";
   console.keyMap = "uk";
   environment.sessionVariables.XKB_DEFAULT_LAYOUT = "gb";
 
@@ -69,6 +70,11 @@
     users.user = {
       home.stateVersion = "26.05";
       home.enableNixpkgsReleaseCheck = false;
+
+      xdg.userDirs = {
+        enable = true;
+        createDirectories = true;
+      };
     };
   };
 

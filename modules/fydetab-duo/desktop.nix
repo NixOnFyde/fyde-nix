@@ -134,7 +134,7 @@ in
           </theme>
           <keyboard>
             <default />
-            <keybind key="W-Return"><action name="Execute" command="ghostty"/></keybind>
+            <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
             <keybind key="W-d"><action name="Execute" command="vicinae toggle"/></keybind>
             <keybind key="Print"><action name="Execute" command="sh -c 'mkdir -p $HOME/Pictures &amp;&amp; grim -g &quot;$(slurp)&quot; $HOME/Pictures/Screenshot-$(date +%s).png'"/></keybind>
             <keybind key="XF86AudioRaiseVolume">

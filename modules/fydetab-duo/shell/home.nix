@@ -16,6 +16,7 @@ in
       bar = {
         location = "top";
         scale = 0.8;
+        spacing = 4;
         layout = [
           {
             monitor = "DSI-1";
@@ -25,10 +26,15 @@ in
             ];
             center = [ "clock" ];
             right = [
+              "cpu"
+              "ram"
+              "media"
               "volume"
+              "brightness"
               "network"
               "bluetooth"
               "battery"
+              "systray"
               "notifications"
             ];
             show = true;
@@ -48,10 +54,11 @@ in
       modules = {
         clock.format = "%a %d %b %H:%M";
         battery.low-threshold = 15;
+        cpu.show-per-core = false;
       };
 
       styling = {
-        rounding = "none";
+        rounding = 10;
         scale = 1.0;
 
         palette = {
@@ -68,9 +75,15 @@ in
         };
       };
 
+      osd = {
+        enable = true;
+        timeout = 2000;
+      };
+
       wallpaper = {
         engine-enabled = true;
-        transition-type = "none";
+        transition-type = "fade";
+        transition-duration-ms = 500;
 
         monitors = [
           {
@@ -94,6 +107,15 @@ in
     settings = {
       close_on_focus_loss = true;
       pop_to_root_on_close = true;
+
+      telemetry.system_info = false;
+
+      favorites = [
+        "system:run"
+        "files:search"
+        "clipboard:history"
+        "power:power-off"
+      ];
 
       font = {
         rendering = "native";
