@@ -2,7 +2,7 @@
   config,
   lib,
   pkgs,
-  self ? null,
+  fyde-nix ? null,
   ...
 }:
 let
@@ -175,9 +175,8 @@ in
       "nixos/hardware-configuration.nix".source = ./default-config/hardware-configuration.nix;
 
       # flake.nix - pinned to the specific commit this image was built from.
-      "nixos/flake.nix".source = pkgs.substituteAll {
-        src = ./default-config/flake.nix;
-        FYDE_NIX_REV = if builtins.isAttrs self then self.rev or "main" else "main";
+      "nixos/flake.nix".source = pkgs.replaceVars ./default-config/flake.nix {
+        FYDE_NIX_REV = if builtins.isAttrs fyde-nix then fyde-nix.rev or "main" else "main";
       };
 
       # flake.lock - auto-generated from the repo's own lock file.
@@ -187,18 +186,18 @@ in
       # build environment without any manual stuff.
       "nixos/flake.lock".source =
         let
-          fydeRev = if builtins.isAttrs self then self.rev or "main" else "main";
-          fydeHash = if builtins.isAttrs self then self.narHash or "" else "";
-          fydeLastModified = if builtins.isAttrs self then self.lastModifiedDate or 0 else 0;
+          fydeRev = if builtins.isAttrs fyde-nix then fyde-nix.rev or "main" else "main";
+          fydeHash = if builtins.isAttrs fyde-nix then fyde-nix.narHash or "" else "";
+          fydeLastModified = if builtins.isAttrs fyde-nix then fyde-nix.lastModifiedDate or 0 else 0;
         in
         pkgs.runCommand "flake.lock" { nativeBuildInputs = [ pkgs.jq ]; } ''
-          cp ${../../../flake.lock} $out
+          cp ${../../flake.lock} $out
           jq \
             --arg rev "${fydeRev}" \
             --arg hash "${fydeHash}" \
             --arg lm "${toString fydeLastModified}" \
             '
-            .root.inputs["fyde-nix"] = "fyde-nix"
+            .nodes.root.inputs["fyde-nix"] = "fyde-nix"
             | .["fyde-nix"] = {
                 "locked": {
                   "lastModified": ($lm | tonumber),

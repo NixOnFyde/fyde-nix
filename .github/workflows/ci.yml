@@ -1,23 +1,17 @@
-name: "Build & cache image"
+name: "Build & release image"
 
 on:
-  workflow_run:
-    workflows: ["Lint"]
-    types: [completed]
+  push:
+    tags: ["v*"]
 
 concurrency:
-  group: ci-${{ github.event.workflow_run.head_branch }}
+  group: ci-${{ github.ref_name }}
   cancel-in-progress: false # Just in case
 
 jobs:
   build:
     name: Build & cache
     runs-on: ubuntu-24.04-arm
-
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
 
     steps:
       - uses: actions/checkout@v7
@@ -117,3 +111,40 @@ jobs:
           path: ${{ env.IMAGE_HEALED }}
           if-no-files-found: error
           compression-level: 0 # already zstd-compressed
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download CI artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: fydetab-duo-nixos.img.zst
+
+      - name: Calculate checksums
+        run: |
+          mv img.img.zst fydetab-duo-nixos.img.zst
+
+          # GitHub release assets must be <2GB; split if needed.
+          SIZE=$(stat -c %s fydetab-duo-nixos.img.zst)
+          if [ "$SIZE" -gt 2147483648 ]; then
+            # MUST BE 2000M NOT 2GB AS LIMIT IS 2GB SO MUST BE <2GB
+            split -b 2000M fydetab-duo-nixos.img.zst fydetab-duo-nixos.img.zst.part-
+            rm fydetab-duo-nixos.img.zst
+          fi
+
+          sha256sum fydetab-duo-nixos.img.zst* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Release image
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            fydetab-duo-nixos.img.zst*
+            SHA256SUMS
