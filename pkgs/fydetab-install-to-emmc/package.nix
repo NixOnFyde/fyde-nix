@@ -5,6 +5,7 @@
   runCommand,
   coreutils,
   util-linux,
+  gnused,
   parted,
   gptfdisk,
   dosfstools,
@@ -18,6 +19,7 @@ let
   binPath = lib.makeBinPath [
     coreutils
     util-linux
+    gnused
     parted
     gptfdisk
     dosfstools
