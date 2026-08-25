@@ -1,0 +1,78 @@
+{
+  config,
+  lib,
+  ...
+}:
+let
+  shell = config.hardware.fydetabduo.shell;
+in
+{
+  options.hardware.fydetabduo.shell.desktop.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = shell.enable;
+    description = ''
+      The compositor & greeter parts of the desktop shell: labwc, regreet,
+      the vicinae input server, and the labwc menu/autostart/shutdown / GTK
+      config files. Defaults to following hardware.fydetabduo.shell.enable;
+      set it independently to include or exclude just this part.
+    '';
+  };
+
+  config = lib.mkIf shell.desktop.enable {
+    # Desktop compositor & greeter
+    programs.labwc.enable = true;
+    programs.regreet.enable = true;
+    programs.vicinae.input-server.enable = true;
+
+    environment.pathsToLink = [ "/share/backgrounds" ];
+
+    environment.etc."xdg/labwc/menu.xml".text = ''
+      <?xml version="1.0"?>
+      <openbox_menu>
+        <menu id="root-menu">
+          <item label="Browser" icon="librewolf">
+            <action name="Execute" command="librewolf"/>
+          </item>
+          <item label="Files" icon="system-file-manager">
+            <action name="Execute" command="thunar"/>
+          </item>
+          <item label="Terminal" icon="utilities-terminal">
+            <action name="Execute" command="alacritty"/>
+          </item>
+          <separator/>
+          <item label="Screenshot" icon="camera-photo">
+            <action name="Execute" command="sh -c 'grim -g &quot;$(slurp)&quot; ~/Pictures/Screenshot-$(date +%s).png'"/>
+          </item>
+          <separator/>
+          <item label="Log Out" icon="system-log-out">
+            <action name="Exit"/>
+          </item>
+          <item label="Power Off" icon="system-shutdown">
+            <action name="Execute" command="systemctl poweroff"/>
+          </item>
+        </menu>
+      </openbox_menu>
+    '';
+
+    environment.etc."xdg/labwc/autostart".text = ''
+      systemctl --user --no-block start labwc-session.target
+      dbus-update-activation-environment --systemd --all
+      kanshi -c /etc/xdg/kanshi/config &
+    '';
+
+    environment.etc."xdg/labwc/shutdown".text = ''
+      systemctl --user stop graphical-session.target
+    '';
+
+    environment.etc."xdg/gtk-3.0/settings.ini".text = ''
+      [Settings]
+      gtk-icon-theme-name=Papirus
+      gtk-theme-name=Adwaita-dark
+    '';
+    environment.etc."xdg/gtk-4.0/settings.ini".text = ''
+      [Settings]
+      gtk-icon-theme-name=Papirus
+      gtk-theme-name=Adwaita-dark
+    '';
+  };
+}
