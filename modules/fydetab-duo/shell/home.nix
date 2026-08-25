@@ -15,7 +15,7 @@ in
     settings = {
       bar = {
         location = "top";
-        scale = 0.65;
+        scale = 1;
         spacing = 4;
         background-opacity = 5;
         button-bg-opacity = 50;
