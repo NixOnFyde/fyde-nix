@@ -121,8 +121,8 @@
 
       # Location for the wayle weather bar module - defaults to London, UK.
       # You should override for your own location, to fix the weather module.
-      fydetabShell.wayle.weather.latitude = 51.5;
-      fydetabShell.wayle.weather.longitude = -0.1;
+      fydetabShell.wayle.weather.latitude = "51.5";
+      fydetabShell.wayle.weather.longitude = "-0.1";
 
       xdg.userDirs = {
         enable = true;

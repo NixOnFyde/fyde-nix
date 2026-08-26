@@ -11,7 +11,7 @@ in
 {
   options.fydetabShell.wayle.weather = {
     latitude = lib.mkOption {
-      type = lib.types.nullOr lib.types.float;
+      type = lib.types.nullOr lib.types.str;
       default = null;
       description = ''
         Latitude for the wayle weather module, e.g. 51.5 for London.
@@ -19,7 +19,7 @@ in
       '';
     };
     longitude = lib.mkOption {
-      type = lib.types.nullOr lib.types.float;
+      type = lib.types.nullOr lib.types.str;
       default = null;
       description = ''
         Longitude for the wayle weather module, e.g. -0.1 for London.
@@ -224,7 +224,7 @@ in
             time-format = "24h";
           }
           // lib.optionalAttrs (weather.latitude != null && weather.longitude != null) {
-            location = "${toString weather.latitude},${toString weather.longitude}";
+            location = "${weather.latitude},${weather.longitude}";
           };
 
           custom = [
