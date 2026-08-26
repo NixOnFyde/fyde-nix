@@ -128,16 +128,20 @@ in
       after = [ "graphical-session.target" ];
       wantedBy = [ "graphical-session.target" ];
       serviceConfig = {
-        Type = "oneshot";
+        Type = "simple";
         ExecStart = pkgs.writeShellScript "fydetab-auto-profile" ''
           set -euo pipefail
 
+          UPOWER="${pkgs.upower}/bin/upower"
+          SUDO="${pkgs.sudo}/bin/sudo"
+          PERF="/run/current-system/sw/bin/fydetab-perf"
+          PPD="${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
           STATE_FILE="/run/tablet-mode/auto-profile-state"
           HIGH=${toString autoCfg.highThreshold}
           LOW=${toString autoCfg.lowThreshold}
 
           get_battery_pct() {
-            upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null \
+            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null \
               | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
           }
 
@@ -162,17 +166,17 @@ in
             echo "$target" > "$STATE_FILE"
 
             case "$target" in
-              performance) sudo -n fydetab-perf on  ;;
-              balanced)    sudo -n fydetab-perf off ;;
-              power-saver) sudo -n power-profiles-daemon power-saver 2>/dev/null || true ;;
+              performance) "$SUDO" -n "$PERF" on  ;;
+              balanced)    "$SUDO" -n "$PERF" off ;;
+              power-saver) "$SUDO" -n "$PPD" power-saver 2>/dev/null || true ;;
             esac
           }
 
           # Apply on startup
           apply_profile
 
-          # Listen to and react to battery changes
-          ${pkgs.upower}/bin/upower --monitor | while IFS= read -r _; do
+          # React to battery changes
+          "$UPOWER" --monitor | while IFS= read -r _; do
             apply_profile
           done
         '';
