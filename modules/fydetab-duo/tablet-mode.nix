@@ -28,6 +28,9 @@ let
   # Uses mobintl layout in portrait, deskintl in landscape when built.
   monitorScript = pkgs.writeShellScript "tablet-mode-monitor" ''
     WVKBD="${pkgs.wvkbd}/bin/wvkbd-mobintl"
+    INOTIFYWAIT="${pkgs.inotify-tools}/bin/inotifywait"
+    KILLALL="${pkgs.procps}/bin/killall"
+    PGREP="${pkgs.procps}/bin/pgrep"
     STATE_FILE="${stateFile}"
 
     # Initialise state file on first run
@@ -44,12 +47,12 @@ let
       state=$(cat "$STATE_FILE")
 
       if [ "$state" = "attached" ]; then
-        killall -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
+        $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
-        if ! pgrep -x wvkbd-mobintl >/dev/null 2>&1; then
+        if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
           $WVKBD --hidden --auto -l mobintl --landscape-layers deskintl &
         else
-          killall -USR2 wvkbd-mobintl 2>/dev/null || true  # show
+          $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi
       fi
     }
@@ -59,7 +62,7 @@ let
 
     # Watch for udev writes
     while true; do
-      inotifywait -qq -e modify "$STATE_FILE"
+      $INOTIFYWAIT -qq -e modify "$STATE_FILE"
       act
     done
   '';
@@ -100,7 +103,7 @@ in
       wantedBy = [ "graphical-session.target" ];
       serviceConfig = {
         ExecStart = "${monitorScript}";
-        ExecStop = "${pkgs.procps}/bin/pkill -USR1 wvkbd-mobintl || true";
+        ExecStop = "${pkgs.procps}/bin/killall -USR1 wvkbd-mobintl || true";
         Restart = "on-failure";
         RestartSec = 10;
       };
