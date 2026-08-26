@@ -231,7 +231,8 @@ in
           custom = [
             {
               id = "auto-rotate";
-              interval-ms = 3000;
+              mode = "poll";
+              interval-ms = 1000;
               command = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
               left-click = ''
                 if systemctl --user is-active rot8 >/dev/null 2>&1; then
@@ -250,6 +251,7 @@ in
             }
             {
               id = "storage";
+              mode = "poll";
               interval-ms = 10000;
 
               # eMMC (mmcblk1) has no temperature sensor
@@ -260,11 +262,38 @@ in
               label-color = "fg-default";
             }
             {
-              # Performance mode (CPU + GPU performance governor).
-              # Runs fydetab-perf using passwordless sudo (see shell/power.nix).
+              # Performance mode: watch the auto-profile state file for changes.
+              # Falls back to fydetab-perf status if auto-profile is off.
               id = "performance";
-              interval-ms = 3000;
-              command = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              mode = "watch";
+              restart-policy = "on-failure";
+              command = pkgs.writeShellScript "wayle-perf-watch" ''
+                STATE="/run/tablet-mode/auto-profile-state"
+                PERF="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+
+                emit() {
+                  if [ -f "$STATE" ] && [ "$(cat "$STATE")" = "performance" ]; then
+                    printf '{"state":"On"}\n'
+                  elif [ "$(cat "$PERF" 2>/dev/null)" = "performance" ]; then
+                    printf '{"state":"On"}\n'
+                  else
+                    printf '{"state":"Off"}\n'
+                  fi
+                }
+
+                # Emit initial state
+                emit
+
+                # Watch for changes to either source
+                while true; do
+                  if [ -f "$STATE" ]; then
+                    ${pkgs.inotify-tools}/bin/inotifywait -qq -e modify "$STATE" 2>/dev/null || sleep 3
+                  else
+                    sleep 3
+                  fi
+                  emit
+                done
+              '';
               left-click = ''
                 if [ "$(fydetab-perf status)" = on ]; then
                   sudo -n fydetab-perf off
@@ -281,9 +310,30 @@ in
               label-color = "fg-default";
             }
             {
+              # Tablet mode: watch /run/tablet-mode/ for fs events.
               id = "tablet-mode";
-              interval-ms = 3000;
-              command = ''[ -f /run/tablet-mode/manual-off ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';
+              mode = "watch";
+              restart-policy = "on-failure";
+              command = pkgs.writeShellScript "wayle-tablet-watch" ''
+                DIR="/run/tablet-mode"
+                mkdir -p "$DIR"
+
+                emit() {
+                  if [ -f "$DIR/manual-off" ]; then
+                    printf '{"state":"Off"}\n'
+                  else
+                    printf '{"state":"On"}\n'
+                  fi
+                }
+
+                # Emit initial state
+                emit
+
+                # Watch for creates/deletes/modifies in the state directory
+                ${pkgs.inotify-tools}/bin/inotifywait -m -e create,delete,modify "$DIR" 2>/dev/null | while IFS= read -r _; do
+                  emit
+                done
+              '';
               left-click = ''
                 if [ -f /run/tablet-mode/manual-off ]; then
                   rm -f /run/tablet-mode/manual-off

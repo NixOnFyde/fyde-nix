@@ -6,16 +6,38 @@
 }:
 let
   shell = config.hardware.fydetabduo.shell;
+  autoCfg = shell.power.autoProfile;
 in
 {
-  options.hardware.fydetabduo.shell.power.enable = lib.mkOption {
-    type = lib.types.bool;
-    default = shell.enable;
-    description = ''
-      Power management (upower + power-profiles-daemon for battery
-      reporting). Defaults to following hardware.fydetabduo.shell.enable;
-      set it independently to include or exclude just this part.
-    '';
+  options.hardware.fydetabduo.shell.power = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = shell.enable;
+      description = ''
+        Power management (upower + power-profiles-daemon for battery
+        reporting). Defaults to following hardware.fydetabduo.shell.enable;
+        set it independently to include or exclude just this part.
+      '';
+    };
+
+    autoProfile = {
+      enable = lib.mkEnableOption ''
+        Automatically switch power profiles based on battery percentage.
+        - Above highThreshold: performance (CPU/GPU performance governor)
+        - Between low and high: balanced (schedutil / simple_ondemand)
+        - Below lowThreshold: power-saver (power-profiles-daemon power-saver)
+      '';
+      highThreshold = lib.mkOption {
+        type = lib.types.int;
+        default = 50;
+        description = "Battery percentage above which performance mode activates.";
+      };
+      lowThreshold = lib.mkOption {
+        type = lib.types.int;
+        default = 20;
+        description = "Battery percentage below which power-saver mode activates.";
+      };
+    };
   };
 
   config = lib.mkIf shell.power.enable {
@@ -38,9 +60,9 @@ in
     #   fydetab-perf on    -> performance governor on all CPUs + GPU
     #   fydetab-perf off   -> back to schedutil / simple_ondemand
     #   fydetab-perf status-> "on" or "off"
-    # A reboott will restore the default governors.
+    # A reboot will restore the default governors.
     # Passwordless via sudo (NOPASSWD rule below) is used so the wayle
-    # bar toggle can switch it with any other user interaction.
+    # bar toggle can switch it without any user interaction.
     environment.systemPackages = [
       (pkgs.writeShellScriptBin "fydetab-perf" ''
         set -euo pipefail
@@ -89,6 +111,74 @@ in
           }
         ];
       }
+      {
+        groups = [ "wheel" ];
+        commands = [
+          {
+            command = "${pkgs.power-profiles-daemon}/bin/powerprofilesctl";
+            options = [ "NOPASSWD" ];
+          }
+        ];
+      }
     ];
+
+    # Auto power profile switching
+    systemd.user.services.fydetab-auto-profile = lib.mkIf autoCfg.enable {
+      description = "Auto power profile switching based on battery percentage";
+      after = [ "graphical-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = pkgs.writeShellScript "fydetab-auto-profile" ''
+          set -euo pipefail
+
+          STATE_FILE="/run/tablet-mode/auto-profile-state"
+          HIGH=${toString autoCfg.highThreshold}
+          LOW=${toString autoCfg.lowThreshold}
+
+          get_battery_pct() {
+            upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null \
+              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
+          }
+
+          apply_profile() {
+            local current
+            current=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+            local pct
+            pct=$(get_battery_pct)
+            [ -z "$pct" ] && return
+
+            local target
+            if [ "$pct" -ge "$HIGH" ]; then
+              target="performance"
+            elif [ "$pct" -le "$LOW" ]; then
+              target="power-saver"
+            else
+              target="balanced"
+            fi
+
+            [ "$target" = "$current" ] && return
+            mkdir -p "$(dirname "$STATE_FILE")"
+            echo "$target" > "$STATE_FILE"
+
+            case "$target" in
+              performance) sudo -n fydetab-perf on  ;;
+              balanced)    sudo -n fydetab-perf off ;;
+              power-saver) sudo -n power-profiles-daemon power-saver 2>/dev/null || true ;;
+            esac
+          }
+
+          # Apply on startup
+          apply_profile
+
+          # Listen to and react to battery changes
+          ${pkgs.upower}/bin/upower --monitor | while IFS= read -r _; do
+            apply_profile
+          done
+        '';
+        Restart = "on-failure";
+        RestartSec = 5;
+      };
+    };
   };
 }
