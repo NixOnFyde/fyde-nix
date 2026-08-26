@@ -141,7 +141,7 @@ in
           LOW=${toString autoCfg.lowThreshold}
 
           get_battery_pct() {
-            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null \
+            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b 2>/dev/null \
               | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
           }
 
@@ -166,9 +166,9 @@ in
             echo "$target" > "$STATE_FILE"
 
             case "$target" in
-              performance) "$SUDO" -n "$PERF" on  ;;
-              balanced)    "$SUDO" -n "$PERF" off ;;
-              power-saver) "$SUDO" -n "$PPD" power-saver 2>/dev/null || true ;;
+              performance) "$SUDO" -n "$PERF" on  || true ;;
+              balanced)    "$SUDO" -n "$PERF" off || true ;;
+              power-saver) "$SUDO" -n "$PPD" power-saver || true ;;
             esac
           }
 
