@@ -60,14 +60,38 @@ let
       $KILLALL -9 wvkbd-mobintl 2>/dev/null || true
     }
 
+    # Track last state to avoid reacting to our own flag writes.
+    last_kb=""
+    last_flag=""
+
     act() {
-      if [ -f "${manualOff}" ]; then
-        # Wayle toggle OFF: kill wvkbd entirely (--auto would re-show on focus otherwise)
-        kill_wvkbd
+      kb=$(cat "$STATE_FILE" 2>/dev/null)
+      flag_exists="false"
+      [ -f "${manualOff}" ] && flag_exists="true"
+
+      # Skip if nothing changed
+      [ "$kb" = "$last_kb" ] && [ "$flag_exists" = "$last_flag" ] && return
+
+      if [ "$kb" != "$last_kb" ]; then
+        # Keyboard state changed -> keyboard wins
+        last_kb="$kb"
+
+        if [ "$kb" = "attached" ]; then
+          kill_wvkbd
+          touch "${manualOff}"
+        else
+          rm -f "${manualOff}"
+          show_wvkbd
+        fi
       else
-        # Wayle toggle ON (or no interaction): show OSK
-        show_wvkbd
+        # Flag changed by wayle toggle -> toggle wins
+        if [ "$flag_exists" = "true" ]; then
+          kill_wvkbd
+        else
+          show_wvkbd
+        fi
       fi
+      last_flag="$( [ -f "${manualOff}" ] && echo true || echo false )"
     }
 
     # React to initial state
