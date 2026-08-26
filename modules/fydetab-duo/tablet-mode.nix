@@ -2,12 +2,12 @@
   config,
   lib,
   pkgs,
-  nixpkgs-unstable,
+  inputs,
   ...
 }:
 let
   cfg = config.hardware.fydetabduo.tabletMode;
-  pkgsUnstable = import nixpkgs-unstable { system = pkgs.stdenv.hostPlatform.system; };
+  pkgsUnstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.hostPlatform.system; };
 
   stateDir = "/run/tablet-mode";
   stateFile = "${stateDir}/keyboard-state";
