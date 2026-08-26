@@ -55,7 +55,7 @@ let
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
         if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -H 400 -l full --landscape-layers landscape &
+          $WVKBD --hidden --auto -H 400 -L 400 -l full --landscape-layers landscape &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi

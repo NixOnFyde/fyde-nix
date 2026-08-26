@@ -283,17 +283,17 @@ in
             {
               id = "tablet-mode";
               interval-ms = 3000;
-              command = ''systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              command = ''pgrep -x wvkbd-mobintl >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
               left-click = ''
-                if systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1; then
-                  systemctl --user stop tablet-mode-monitor
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "Tablet mode off"
+                if pgrep -x wvkbd-mobintl >/dev/null 2>&1; then
+                  killall -USR1 wvkbd-mobintl 2>/dev/null || true
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK hidden"
                 else
-                  systemctl --user start tablet-mode-monitor
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "Tablet mode on"
+                  wvkbd-mobintl --auto -H 400 -L 400 -l full --landscape-layers landscape &
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK shown"
                 fi
               '';
-              on-action = ''systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              on-action = ''pgrep -x wvkbd-mobintl >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
               format = "{{ state }}";
               icon-name = "input-keyboard-symbolic";
               icon-color = "fg-default";
