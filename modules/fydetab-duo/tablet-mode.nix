@@ -35,6 +35,9 @@ let
     PGREP="${pkgs.procps}/bin/pgrep"
     STATE_FILE="${stateFile}"
 
+    cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; }
+    trap cleanup TERM
+
     # Initialise state file on first run
     if [ ! -f "$STATE_FILE" ]; then
       if grep -q "Fydetab Duo USB Keyboard" /proc/bus/input/devices 2>/dev/null; then
@@ -52,7 +55,7 @@ let
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
         if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -l full --landscape-layers landscape &
+          $WVKBD --hidden --auto -H 400 -l full --landscape-layers landscape &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi
@@ -105,7 +108,6 @@ in
       wantedBy = [ "graphical-session.target" ];
       serviceConfig = {
         ExecStart = "${monitorScript}";
-        ExecStop = "${pkgs.procps}/bin/killall -USR1 wvkbd-mobintl || true";
         Restart = "on-failure";
         RestartSec = 10;
       };
