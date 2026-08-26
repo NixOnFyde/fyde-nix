@@ -2,10 +2,12 @@
   config,
   lib,
   pkgs,
+  nixpkgs-unstable,
   ...
 }:
 let
   cfg = config.hardware.fydetabduo.tabletMode;
+  pkgsUnstable = import nixpkgs-unstable { system = pkgs.stdenv.hostPlatform.system; };
 
   stateDir = "/run/tablet-mode";
   stateFile = "${stateDir}/keyboard-state";
@@ -27,7 +29,7 @@ let
 
   # Uses mobintl layout in portrait, deskintl in landscape when built.
   monitorScript = pkgs.writeShellScript "tablet-mode-monitor" ''
-    WVKBD="${pkgs.wvkbd}/bin/wvkbd-mobintl"
+    WVKBD="${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl"
     INOTIFYWAIT="${pkgs.inotify-tools}/bin/inotifywait"
     KILLALL="${pkgs.procps}/bin/killall"
     PGREP="${pkgs.procps}/bin/pgrep"
@@ -50,7 +52,7 @@ let
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
         if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden -l mobintl &
+          $WVKBD --hidden --auto -l mobintl &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi
@@ -82,7 +84,7 @@ in
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [
-      pkgs.wvkbd
+      pkgsUnstable.wvkbd
       pkgs.inotify-tools
     ];
 
