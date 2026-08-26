@@ -53,7 +53,6 @@ let
 
       if [ "$state" = "attached" ]; then
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
-        rm -f /run/tablet-mode/manual-off                  # resume auto on next detach
       else
         if [ -f /run/tablet-mode/manual-off ]; then
           true  # manual override - don't start wvkbd

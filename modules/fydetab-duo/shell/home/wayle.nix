@@ -268,10 +268,10 @@ in
               left-click = ''
                 if [ "$(fydetab-perf status)" = on ]; then
                   sudo -n fydetab-perf off
-                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode off"
+                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode disabling..."
                 else
                   sudo -n fydetab-perf on
-                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode on"
+                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode enabling..."
                 fi
               '';
               on-action = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
@@ -287,11 +287,12 @@ in
               left-click = ''
                 if [ -f /run/tablet-mode/manual-off ]; then
                   rm -f /run/tablet-mode/manual-off
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK enabled"
+                  wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK enabling..."
                 else
                   touch /run/tablet-mode/manual-off
                   killall -9 wvkbd-mobintl 2>/dev/null || true
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK disabled"
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK disabling..."
                 fi
               '';
               on-action = ''[ -f /run/tablet-mode/manual-off ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';

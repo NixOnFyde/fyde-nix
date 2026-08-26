@@ -30,7 +30,7 @@ in
       <?xml version="1.0"?>
       <openbox_menu>
         <menu id="root-menu">
-          <item label="Launcher" icon="system-run">
+          <item label="Launcher" icon="launch">
             <action name="Execute" command="vicinae toggle"/>
           </item>
           <separator/>
