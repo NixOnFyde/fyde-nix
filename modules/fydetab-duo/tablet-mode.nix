@@ -53,9 +53,12 @@ let
 
       if [ "$state" = "attached" ]; then
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
+        rm -f /run/tablet-mode/manual-off                  # resume auto on next detach
       else
-        if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -H 400 -L 400 -l full --landscape-layers landscape &
+        if [ -f /run/tablet-mode/manual-off ]; then
+          true  # manual override - don't start wvkbd
+        elif ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
+          $WVKBD --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi

@@ -283,17 +283,18 @@ in
             {
               id = "tablet-mode";
               interval-ms = 3000;
-              command = ''pgrep -x wvkbd-mobintl >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              command = ''[ -f /run/tablet-mode/manual-off ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';
               left-click = ''
-                if pgrep -x wvkbd-mobintl >/dev/null 2>&1; then
-                  killall -USR1 wvkbd-mobintl 2>/dev/null || true
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK hidden"
+                if [ -f /run/tablet-mode/manual-off ]; then
+                  rm -f /run/tablet-mode/manual-off
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK enabled"
                 else
-                  wvkbd-mobintl --auto -H 400 -L 400 -l full --landscape-layers landscape &
-                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK shown"
+                  touch /run/tablet-mode/manual-off
+                  killall -9 wvkbd-mobintl 2>/dev/null || true
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK disabled"
                 fi
               '';
-              on-action = ''pgrep -x wvkbd-mobintl >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              on-action = ''[ -f /run/tablet-mode/manual-off ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';
               format = "{{ state }}";
               icon-name = "input-keyboard-symbolic";
               icon-color = "fg-default";
