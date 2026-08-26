@@ -23,6 +23,7 @@ in
     autoProfile = {
       enable = lib.mkEnableOption ''
         Automatically switch power profiles based on battery percentage.
+        - Plugged in: performance
         - Above highThreshold: performance (CPU/GPU performance governor)
         - Between low and high: balanced (schedutil / simple_ondemand)
         - Below lowThreshold: power-saver (power-profiles-daemon power-saver)
@@ -36,6 +37,15 @@ in
         type = lib.types.int;
         default = 20;
         description = "Battery percentage below which power-saver mode activates.";
+      };
+      forcePerformanceOnAC = lib.mkEnableOption ''
+        Always use performance mode when plugged in,
+        regardless of battery percentage.
+      '';
+      pollInterval = lib.mkOption {
+        type = lib.types.int;
+        default = 60;
+        description = "Seconds between battery/AC checks.";
       };
     };
   };
@@ -136,10 +146,19 @@ in
           STATE_FILE="/run/tablet-mode/auto-profile-state"
           HIGH=${toString autoCfg.highThreshold}
           LOW=${toString autoCfg.lowThreshold}
+          POLL=${toString autoCfg.pollInterval}
+          FORCE_PERF_AC=${if autoCfg.forcePerformanceOnAC then "1" else "0"}
 
           get_battery_pct() {
-            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b 2>/dev/null \
-              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}' || true
+            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b \
+              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
+          }
+
+          is_on_ac() {
+            local state
+            state=$("$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b \
+              | awk '/state/{print $2}')
+            [ "$state" = "charging" ] || [ "$state" = "fully-charged" ]
           }
 
           apply_profile() {
@@ -150,7 +169,9 @@ in
             [ -z "$pct" ] && return
 
             local target
-            if [ "$pct" -ge "$HIGH" ]; then
+            if [ "$FORCE_PERF_AC" = "1" ] && is_on_ac; then
+              target="performance"
+            elif [ "$pct" -ge "$HIGH" ]; then
               target="performance"
             elif [ "$pct" -le "$LOW" ]; then
               target="power-saver"
@@ -169,15 +190,9 @@ in
             esac
           }
 
-          # Apply on startup
-          apply_profile
-
-          # React to battery changes but retry on D-Bus failures that are transient
           while true; do
-            "$UPOWER" --monitor 2>/dev/null | while IFS= read -r _; do
-              apply_profile
-            done
-            sleep 5
+            apply_profile
+            sleep "$POLL"
           done
         '';
         Restart = "on-failure";
