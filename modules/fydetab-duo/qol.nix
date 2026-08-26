@@ -32,26 +32,6 @@ in
       enableNotifications = true;
     };
 
-    systemd.services.zram-shutdown = {
-      description = "Forcefully deactivate zram swap before shutdown";
-      unitConfig.DefaultDependencies = false;
-      before = [ "shutdown.target" ];
-      wantedBy = [ "shutdown.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        # Systemd's own swap teardown usually wins at shutdown, so
-        # swapoff then fails with EINVAL - ignore that so the
-        # unit never fails and modprobe -r still runs to unload zram.
-        ExecStart = pkgs.writeShellScript "zram-shutdown" ''
-          ${pkgs.coreutils}/bin/sleep 3
-          ${pkgs.util-linux}/bin/swapoff /dev/zram0 2>/dev/null || true
-          ${pkgs.kmod}/bin/modprobe -r zram 2>/dev/null || true
-        '';
-        RemainAfterExit = true;
-        TimeoutSec = 10;
-      };
-    };
-
     networking.networkmanager.wifi.powersave = lib.mkDefault false;
 
     systemd.user.services.xdg-user-dirs-update = {

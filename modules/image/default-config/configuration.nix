@@ -51,6 +51,7 @@
   #   hardware.fydetabduo.shell.audio.enable   = true;
   #   # power + security left off
   hardware.fydetabduo.shell.enable = true;
+  hardware.fydetabduo.shell.power.autoProfile.enable = true;
 
   # Boot
   boot.loader.fydetabduo.enable = true;
