@@ -27,7 +27,7 @@ let
     fi
   '';
 
-  # Uses mobintl layout in portrait, deskintl in landscape when built.
+  # Uses 'full' layout in portrait, 'landscape' in landscape (wvkbd 0.20).
   monitorScript = pkgs.writeShellScript "tablet-mode-monitor" ''
     WVKBD="${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl"
     INOTIFYWAIT="${pkgs.inotify-tools}/bin/inotifywait"
@@ -52,7 +52,7 @@ let
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
         if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -l mobintl &
+          $WVKBD --hidden --auto -l full --landscape-layers landscape &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi
@@ -75,7 +75,7 @@ in
       Tablet mode: automatically show an on-screen keyboard (wvkbd) when the
       pogo-pin USB keyboard is detached, and hide it when re-attached.
 
-      Uses the mobintl layout in portrait and deskintl in landscape.
+      Uses the full layout in portrait and landscape layout in landscape.
       wvkbd auto-shows when a text field gains focus via zwp_text_input_v3.
 
       Works under any wlroots compositor (labwc, sway, river, niri).
