@@ -69,6 +69,11 @@ in
     systemd.services.growpart.serviceConfig.ExecStart =
       let
         growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart";
+        # The image's GPT only spans the (shrunk) image size; when flashed to
+        # a larger disk (bigger SD, or the inbuilt 256G eMMC) the backup GPT
+        # sits at the end, so growpart sees no free space. Relocate it to the
+        # actual end of the disk first (does nothing when it's already correct).
+        sgdiskBin = lib.getExe' pkgs.gptfdisk "sgdisk";
       in
       lib.mkForce (
         pkgs.writeShellScript "fydetab-growpart" ''
@@ -85,7 +90,10 @@ in
             exit 0
           fi
           disk=$(lsblk -rno PKNAME "$dev")
+          disk="/dev/$disk"
           num=$(cat "/sys/class/block/$(basename "$dev")/partition")
+          ${sgdiskBin} -e "$disk" \
+            || echo "sgdisk -e failed; continuing anyway" >&2
           ${growpartBin} "$disk" "$num"
           rc=$?
           [ "$rc" -eq 1 ] && exit 0
