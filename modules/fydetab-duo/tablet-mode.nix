@@ -84,7 +84,7 @@ in
     ];
 
     systemd.tmpfiles.rules = [
-      "d ${stateDir} 0755 root root -"
+      "d ${stateDir} 0777 root root -"
     ];
 
     # Keyboard attach/detach -> write state file

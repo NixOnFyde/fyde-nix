@@ -8,7 +8,7 @@
 #      edge updates, but note untagged commits may not be fully tested
 #      and could result in bricking. Not recommended except for testing.
 {
-  description = "FydeTab Duo - shipped configuration";
+  description = "FydeTab Duo nixOS configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
