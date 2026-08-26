@@ -1,8 +1,9 @@
 # EXEMPLAR CONFIGURATION
 #
 # Rebuilding with this file untouched reproduces the same system the
-# image was built from. To customise, edit here or add a second
-# file and import it here. Or, make your own from scratch.
+# image was built from, except for the fact that installer-tools
+# is not enabled. To customise, edit here or add a second file and
+# import it here. Or, make your own from scratch.
 #
 # DESKTOP SHELL
 #
