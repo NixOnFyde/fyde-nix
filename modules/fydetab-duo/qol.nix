@@ -43,9 +43,9 @@ in
         # swapoff then fails with EINVAL - ignore that so the
         # unit never fails and modprobe -r still runs to unload zram.
         ExecStart = pkgs.writeShellScript "zram-shutdown" ''
-          ${pkgs.coreutils}/bin/sleep 1
-          ${pkgs.util-linux}/bin/swapoff /dev/zram0 || true
-          ${pkgs.kmod}/bin/modprobe -r zram || true
+          ${pkgs.coreutils}/bin/sleep 3
+          ${pkgs.util-linux}/bin/swapoff /dev/zram0 2>/dev/null || true
+          ${pkgs.kmod}/bin/modprobe -r zram 2>/dev/null || true
         '';
         RemainAfterExit = true;
         TimeoutSec = 10;

@@ -62,14 +62,10 @@ let
 
     act() {
       if [ -f "${manualOff}" ]; then
-        # Manual OFF: kill wvkbd entirely (--auto would re-show on focus otherwise)
-        kill_wvkbd
-      elif [ "$(cat "${stateFile}" 2>/dev/null)" = "attached" ]; then
-        # Keyboard attached, no manual override: kill OSK
-        # Must use kill -9, not USR1 - wvkbd's --auto flag otherwise annoyingly re-shows on focus.
+        # Wayle toggle OFF: kill wvkbd entirely (--auto would re-show on focus otherwise)
         kill_wvkbd
       else
-        # Keyboard detached, no manual override: show OSK
+        # Wayle toggle ON (or no interaction): show OSK
         show_wvkbd
       fi
     }

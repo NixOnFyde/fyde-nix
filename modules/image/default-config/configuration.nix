@@ -72,6 +72,7 @@
     extraGroups = [
       "wheel"
       "networkmanager"
+      "input"
     ];
     initialPassword = "fydetab";
   };
