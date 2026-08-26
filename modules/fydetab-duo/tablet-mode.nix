@@ -50,7 +50,7 @@ let
         $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
       else
         if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -l mobintl &
+          $WVKBD --hidden -l mobintl &
         else
           $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
         fi
