@@ -81,6 +81,7 @@
         system = "aarch64-linux";
         specialArgs = {
           inherit inputs;
+          nixpkgs-unstable = inputs.nixpkgs-unstable;
           fyde-nix = self;
         };
         modules = [
