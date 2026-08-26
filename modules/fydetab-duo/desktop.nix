@@ -34,8 +34,8 @@ let
   # Do NOT add a static libinput calibration matrix here: it cannot be
   # updated at runtime and breaks as soon as the output rotates.
   touchMapToOutput = ''
-    <touch mapToOutput="${panelName}" />
-    <tablet mapToOutput="${panelName}" />
+    <touch deviceName="himax-touchscreen" mapToOutput="${panelName}" />
+    <tablet deviceName="himax-stylus" mapToOutput="${panelName}" />
   '';
 in
 {
@@ -153,6 +153,7 @@ in
         <labwc_config>
           <theme>
             <name>FydeTab</name>
+            <icon>Papirus</icon>
             <cornerradius>8</cornerradius>
           </theme>
           <menu>
@@ -201,6 +202,7 @@ in
         <labwc_config>
           <theme>
             <name>FydeTab</name>
+            <icon>Papirus</icon>
             <cornerradius>8</cornerradius>
           </theme>
           <menu>

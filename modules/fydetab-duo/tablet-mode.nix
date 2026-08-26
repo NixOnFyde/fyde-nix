@@ -47,20 +47,26 @@ let
       fi
     fi
 
-    act() {
-      local state
-      state=$(cat "$STATE_FILE")
-
-      if [ "$state" = "attached" ]; then
-        $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true   # hide
+    show_wvkbd() {
+      if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
+        $WVKBD --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
       else
-        if [ -f /run/tablet-mode/manual-off ]; then
-          true  # manual override - don't start wvkbd
-        elif ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
-          $WVKBD --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
-        else
-          $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true  # show
-        fi
+        $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true
+      fi
+    }
+
+    hide_wvkbd() {
+      $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true
+    }
+
+    act() {
+      # Manual override using the wayle bar toggle takes priority over the keyboard state.
+      # Flag present  = tablet-mode OFF -> always hide OSK.
+      # Flag absent   = tablet-mode ON  -> always show OSK.
+      if [ -f /run/tablet-mode/manual-off ]; then
+        hide_wvkbd
+      else
+        show_wvkbd
       fi
     }
 
