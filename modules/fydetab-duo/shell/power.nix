@@ -130,10 +130,7 @@ in
       serviceConfig = {
         Type = "simple";
         ExecStart = pkgs.writeShellScript "fydetab-auto-profile" ''
-          set -euo pipefail
-
           UPOWER="${pkgs.upower}/bin/upower"
-          SUDO="${pkgs.sudo}/bin/sudo"
           PERF="/run/current-system/sw/bin/fydetab-perf"
           PPD="${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
           STATE_FILE="/run/tablet-mode/auto-profile-state"
@@ -142,7 +139,7 @@ in
 
           get_battery_pct() {
             "$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b 2>/dev/null \
-              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
+              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}' || true
           }
 
           apply_profile() {
@@ -166,18 +163,21 @@ in
             echo "$target" > "$STATE_FILE"
 
             case "$target" in
-              performance) "$SUDO" -n "$PERF" on  || true ;;
-              balanced)    "$SUDO" -n "$PERF" off || true ;;
-              power-saver) "$SUDO" -n "$PPD" power-saver || true ;;
+              performance) sudo -n "$PERF" on  || true ;;
+              balanced)    sudo -n "$PERF" off || true ;;
+              power-saver) sudo -n "$PPD" power-saver || true ;;
             esac
           }
 
           # Apply on startup
           apply_profile
 
-          # React to battery changes
-          "$UPOWER" --monitor | while IFS= read -r _; do
-            apply_profile
+          # React to battery changes but retry on D-Bus failures that are transient
+          while true; do
+            "$UPOWER" --monitor 2>/dev/null | while IFS= read -r _; do
+              apply_profile
+            done
+            sleep 5
           done
         '';
         Restart = "on-failure";
