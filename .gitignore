@@ -6,6 +6,4 @@ result-*
 __pycache__/
 *.pyc
 
-store/*
-
 .*/
