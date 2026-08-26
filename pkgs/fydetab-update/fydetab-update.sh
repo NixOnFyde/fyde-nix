@@ -27,7 +27,7 @@ options:
              changing anything
   -h, --help show this help
 
-Run as root (the script re-executes itself with sudo if needed).
+Run as root.
 Requires network access to fetch tags and the new fyde-nix.
 EOF
 }
@@ -90,10 +90,6 @@ main() {
   esac
 
   if [ "$(id -u)" -ne 0 ]; then
-    if command -v sudo >/dev/null 2>&1; then
-      echo "==> not root, re-running with sudo"
-      exec sudo "$0" "$@"
-    fi
     echo "error: run as root (e.g. sudo fydetab-update)" >&2
     exit 1
   fi
@@ -131,7 +127,7 @@ main() {
 
   if [ "$check_mode" -eq 1 ]; then
     if [ "$up_to_date" -eq 1 ]; then
-      echo "==> no update available: device is at or newer than the latest tag (never downgrades)"
+      echo "==> no update available: device is at or newer than the latest tag (never downgrade)"
     else
       echo "==> update available: $tag"
     fi
@@ -139,7 +135,7 @@ main() {
   fi
 
   if [ "$up_to_date" -eq 1 ]; then
-    echo "==> already at or newer than the latest tag; nothing to do (never downgrades)"
+    echo "==> already at or newer than the latest tag; nothing to do (never downgrade)"
     exit 0
   fi
 
