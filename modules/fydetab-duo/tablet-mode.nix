@@ -11,6 +11,7 @@ let
 
   stateDir = "/run/tablet-mode";
   stateFile = "${stateDir}/keyboard-state";
+  manualOff = "${stateDir}/manual-off";
 
   udevHelper = pkgs.writeShellScript "tablet-mode-udev" ''
     STATE_FILE="${stateFile}"
@@ -60,10 +61,7 @@ let
     }
 
     act() {
-      # Manual override using the wayle bar toggle takes priority over the keyboard state.
-      # Flag present  = tablet-mode OFF -> always hide OSK.
-      # Flag absent   = tablet-mode ON  -> always show OSK.
-      if [ -f /run/tablet-mode/manual-off ]; then
+      if [ -f "${manualOff}" ]; then
         hide_wvkbd
       else
         show_wvkbd
@@ -73,9 +71,11 @@ let
     # React to initial state
     act
 
-    # Watch for udev writes
+    # Watch keyboard-state (udev writes) and manual-off (wayle toggle).
+    # inotifywait on the directory will catch creates/deletes of manual-off
+    # as well as writes to keyboard-state.
     while true; do
-      $INOTIFYWAIT -qq -e modify "$STATE_FILE"
+      $INOTIFYWAIT -qq -e modify,create,delete "${stateDir}"
       act
     done
   '';

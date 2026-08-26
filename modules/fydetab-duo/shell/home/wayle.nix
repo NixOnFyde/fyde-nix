@@ -287,11 +287,9 @@ in
               left-click = ''
                 if [ -f /run/tablet-mode/manual-off ]; then
                   rm -f /run/tablet-mode/manual-off
-                  wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
                   notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK enabling..."
                 else
                   touch /run/tablet-mode/manual-off
-                  killall -9 wvkbd-mobintl 2>/dev/null || true
                   notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK disabling..."
                 fi
               '';
