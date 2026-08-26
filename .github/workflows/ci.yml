@@ -27,6 +27,8 @@ jobs:
         with:
           name: fyde-nix
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          # Exclude large image artifacts from automatic push
+          pushFilter: "(-btrfs-fs\\.img$|-fydetab-duo-nixos\\.img\\.zst$)"
 
       # Keep revisions is set to 1 to prevent uploading so much to Cachix
       # that we go past their 5GB free limit (definitely didn't accidentally
@@ -43,8 +45,11 @@ jobs:
           KERNEL=$(nix build --impure .#packages.aarch64-linux.linux-fydetab \
             --no-link --print-out-paths)
 
-          cachix push fyde-nix "$SYSTEM"
-          cachix push fyde-nix "$KERNEL"
+          # Push everything except the large image artifacts, to keep
+          # within the free cachix limit.
+          nix-store -qR "$SYSTEM" "$KERNEL" \
+            | grep -v -E '(btrfs-fs\.img$|fydetab-duo-nixos\.img\.zst$)' \
+            | cachix push fyde-nix
 
           cachix pin fyde-nix system "$SYSTEM" --keep-revisions 1
           cachix pin fyde-nix kernel "$KERNEL" --keep-revisions 1

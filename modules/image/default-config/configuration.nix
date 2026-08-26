@@ -36,10 +36,23 @@
   imports = [ ./hardware-configuration.nix ];
 
   # Device hardware enablement
-  hardware.fydetabduo.enable = true;
-  hardware.fydetabduo.landscape.enable = true;
-  hardware.fydetabduo.sensors.autoRotate = true;
-  hardware.fydetabduo.tabletMode.enable = true;
+  hardware = {
+    fydetabduo = {
+      enable = true;
+
+      # Does not force landscape, but makes the default orientation landscape.
+      landscape.enable = true;
+
+      # This will dynamically override the above setting when rotation is detected.
+      # Can also be toggle in the wayle bar
+      sensors.autoRotate = true;
+
+      # This does not toggle tablet mode on or off, but rather the
+      # ability of tablet mode to toggle on keyboard state change, on or off.
+      # Can also be toggle in the wayle bar
+      tabletMode.enable = true;
+    };
+  };
 
   # Desktop shell
   # Enable the FULL desktop experience (all parts for a whole shell).
@@ -50,9 +63,17 @@
   #   hardware.fydetabduo.shell.packages.enable = true;
   #   hardware.fydetabduo.shell.audio.enable   = true;
   #   # power + security left off
-  hardware.fydetabduo.shell.enable = true;
-  hardware.fydetabduo.shell.power.autoProfile.enable = true;
-  hardware.fydetabduo.shell.power.autoProfile.forcePerformanceOnAC = true;
+  hardware.fydetabduo.shell = {
+    enable = true;
+
+    power.autoProfile = {
+      # Automatically change power profile based on current charge.
+      enable = true;
+
+      # Force performance mode when plugged into AC power.
+      forcePerformanceOnAC = true;
+    };
+  };
 
   # Boot
   boot.loader.fydetabduo.enable = true;
@@ -95,7 +116,7 @@
 
       # Optional: pick only some per-user shell parts. Everything here is on
       # by default once the module is imported; uncomment to opt specific
-      # parts out, e.g. drop swayidle:
+      # parts out, e.g., drop swayidle:
       # services.swayidle.enable = false;
 
       # Location for the wayle weather bar module - defaults to London, UK.
