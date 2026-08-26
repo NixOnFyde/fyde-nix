@@ -49,6 +49,7 @@ in
               monitor = "DSI-1";
               left = [
                 "dashboard"
+                "clock"
                 "custom-auto-rotate"
                 "custom-tablet-mode"
                 "systray"
@@ -66,7 +67,6 @@ in
                 "network"
                 "bluetooth"
                 "battery"
-                "clock"
                 "notifications"
               ];
               show = true;
