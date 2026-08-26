@@ -56,14 +56,20 @@ let
       fi
     }
 
-    hide_wvkbd() {
-      $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true
+    kill_wvkbd() {
+      $KILLALL -9 wvkbd-mobintl 2>/dev/null || true
     }
 
     act() {
       if [ -f "${manualOff}" ]; then
-        hide_wvkbd
+        # Manual OFF: kill wvkbd entirely (--auto would re-show on focus otherwise)
+        kill_wvkbd
+      elif [ "$(cat "${stateFile}" 2>/dev/null)" = "attached" ]; then
+        # Keyboard attached, no manual override: kill OSK
+        # Must use kill -9, not USR1 - wvkbd's --auto flag otherwise annoyingly re-shows on focus.
+        kill_wvkbd
       else
+        # Keyboard detached, no manual override: show OSK
         show_wvkbd
       fi
     }
