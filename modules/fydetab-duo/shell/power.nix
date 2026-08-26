@@ -140,7 +140,6 @@ in
       serviceConfig = {
         Type = "simple";
         ExecStart = pkgs.writeShellScript "fydetab-auto-profile" ''
-          UPOWER="${pkgs.upower}/bin/upower"
           PERF="/run/current-system/sw/bin/fydetab-perf"
           PPD="${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
           STATE_FILE="/run/tablet-mode/auto-profile-state"
@@ -148,17 +147,17 @@ in
           LOW=${toString autoCfg.lowThreshold}
           POLL=${toString autoCfg.pollInterval}
           FORCE_PERF_AC=${if autoCfg.forcePerformanceOnAC then "1" else "0"}
+          BAT_CAPACITY="/sys/class/power_supply/sbs-5-000b/capacity"
+          BAT_STATUS="/sys/class/power_supply/sbs-5-000b/status"
 
           get_battery_pct() {
-            "$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b \
-              | awk '/percentage/{gsub(/%/,"",$2); print int($2)}'
+            cat "$BAT_CAPACITY" 2>/dev/null
           }
 
           is_on_ac() {
-            local state
-            state=$("$UPOWER" -i /org/freedesktop/UPower/devices/battery_sbs_5_000b \
-              | awk '/state/{print $2}')
-            [ "$state" = "charging" ] || [ "$state" = "fully-charged" ]
+            local s
+            s=$(cat "$BAT_STATUS" 2>/dev/null)
+            [ "$s" = "Charging" ] || [ "$s" = "Full" ]
           }
 
           apply_profile() {
