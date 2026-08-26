@@ -155,6 +155,9 @@ in
             <name>FydeTab</name>
             <cornerradius>8</cornerradius>
           </theme>
+          <menu>
+            <showIcons>yes</showIcons>
+          </menu>
           <keyboard>
             <default />
             <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
@@ -200,6 +203,9 @@ in
             <name>FydeTab</name>
             <cornerradius>8</cornerradius>
           </theme>
+          <menu>
+            <showIcons>yes</showIcons>
+          </menu>
           <keyboard>
             <default />
             <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
