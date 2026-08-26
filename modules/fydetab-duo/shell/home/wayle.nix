@@ -49,12 +49,14 @@ in
               monitor = "DSI-1";
               left = [
                 "dashboard"
+                "custom-performance"
+                "custom-auto-rotate"
+                "custom-tablet-mode"
+              ];
+              center = [
                 "cpu"
                 "ram"
                 "custom-storage"
-              ];
-              center = [
-                "clock"
                 "weather"
               ];
               right = [
@@ -65,8 +67,7 @@ in
                 "network"
                 "bluetooth"
                 "battery"
-                "custom-performance"
-                "custom-auto-rotate"
+                "clock"
                 "notifications"
               ];
               show = true;
@@ -276,6 +277,25 @@ in
               on-action = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
               format = "{{ state }}";
               icon-name = "media-seek-forward-symbolic";
+              icon-color = "fg-default";
+              label-color = "fg-default";
+            }
+            {
+              id = "tablet-mode";
+              interval-ms = 3000;
+              command = ''systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              left-click = ''
+                if systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1; then
+                  systemctl --user stop tablet-mode-monitor
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "Tablet mode off"
+                else
+                  systemctl --user start tablet-mode-monitor
+                  notify-send -a wayle -u low -t 2500 "Tablet mode" "Tablet mode on"
+                fi
+              '';
+              on-action = ''systemctl --user is-active tablet-mode-monitor >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              format = "{{ state }}";
+              icon-name = "input-keyboard-symbolic";
               icon-color = "fg-default";
               label-color = "fg-default";
             }

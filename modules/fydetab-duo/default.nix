@@ -17,6 +17,7 @@ in
     ./es8388-audio.nix
     ./input.nix
     ./sensors.nix
+    ./tablet-mode.nix
     ./wifi-regdom.nix
     ./qol.nix
     ./desktop.nix

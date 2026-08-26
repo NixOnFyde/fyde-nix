@@ -38,6 +38,7 @@
   hardware.fydetabduo.enable = true;
   hardware.fydetabduo.landscape.enable = true;
   hardware.fydetabduo.sensors.autoRotate = true;
+  hardware.fydetabduo.tabletMode.enable = true;
 
   # Desktop shell
   # Enable the FULL desktop experience (all parts for a whole shell).
