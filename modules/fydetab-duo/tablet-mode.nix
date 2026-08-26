@@ -32,8 +32,8 @@ let
   monitorScript = pkgs.writeShellScript "tablet-mode-monitor" ''
     WVKBD="${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl"
     INOTIFYWAIT="${pkgs.inotify-tools}/bin/inotifywait"
-    KILLALL="${pkgs.procps}/bin/killall"
-    PGREP="${pkgs.procps}/bin/pgrep"
+    KILLALL="${pkgs.toybox}/bin/killall"
+    PGREP="${pkgs.toybox}/bin/pgrep"
     STATE_FILE="${stateFile}"
 
     cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; exit 0; }
