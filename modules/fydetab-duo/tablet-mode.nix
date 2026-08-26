@@ -35,12 +35,12 @@ let
     PGREP="${pkgs.procps}/bin/pgrep"
     STATE_FILE="${stateFile}"
 
-    cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; }
+    cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; exit 0; }
     trap cleanup TERM
 
     # Initialise state file on first run
     if [ ! -f "$STATE_FILE" ]; then
-      if grep -q "Fydetab Duo USB Keyboard" /proc/bus/input/devices 2>/dev/null; then
+      if [ -d /sys/bus/usb/devices/*/idVendor ] && grep -qr "05ac" /sys/bus/usb/devices/*/idVendor 2>/dev/null; then
         echo "attached" > "$STATE_FILE"
       else
         echo "detached" > "$STATE_FILE"
