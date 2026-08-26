@@ -52,6 +52,7 @@
   #   # power + security left off
   hardware.fydetabduo.shell.enable = true;
   hardware.fydetabduo.shell.power.autoProfile.enable = true;
+  hardware.fydetabduo.shell.power.autoProfile.forcePerformanceOnAC = true;
 
   # Boot
   boot.loader.fydetabduo.enable = true;

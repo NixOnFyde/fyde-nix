@@ -49,9 +49,9 @@ in
               monitor = "DSI-1";
               left = [
                 "dashboard"
-                "custom-performance"
                 "custom-auto-rotate"
                 "custom-tablet-mode"
+                "systray"
               ];
               center = [
                 "cpu"
@@ -60,7 +60,6 @@ in
                 "weather"
               ];
               right = [
-                "systray"
                 "volume"
                 "microphone"
                 "brightness"
@@ -258,54 +257,6 @@ in
               command = "df -h / | awk 'NR==2{print $5}' ";
               format = "{{ output }}";
               icon-name = "drive-harddisk-symbolic";
-              icon-color = "fg-default";
-              label-color = "fg-default";
-            }
-            {
-              # Performance mode: watch the auto-profile state file for changes.
-              # Falls back to fydetab-perf status if auto-profile is off.
-              id = "performance";
-              mode = "watch";
-              restart-policy = "on-failure";
-              command = pkgs.writeShellScript "wayle-perf-watch" ''
-                STATE="/run/tablet-mode/auto-profile-state"
-                PERF="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-
-                emit() {
-                  if [ -f "$STATE" ] && [ "$(cat "$STATE")" = "performance" ]; then
-                    printf '{"state":"On"}\n'
-                  elif [ "$(cat "$PERF" 2>/dev/null)" = "performance" ]; then
-                    printf '{"state":"On"}\n'
-                  else
-                    printf '{"state":"Off"}\n'
-                  fi
-                }
-
-                # Emit initial state
-                emit
-
-                # Watch for changes to either source
-                while true; do
-                  if [ -f "$STATE" ]; then
-                    ${pkgs.inotify-tools}/bin/inotifywait -qq -e modify "$STATE" 2>/dev/null || sleep 3
-                  else
-                    sleep 3
-                  fi
-                  emit
-                done
-              '';
-              left-click = ''
-                if [ "$(fydetab-perf status)" = on ]; then
-                  sudo -n fydetab-perf off
-                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode disabling..."
-                else
-                  sudo -n fydetab-perf on
-                  notify-send -a wayle -u low -t 2500 "Performance" "Performance mode enabling..."
-                fi
-              '';
-              on-action = ''[ "$(fydetab-perf status)" = on ] && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
-              format = "{{ state }}";
-              icon-name = "media-seek-forward-symbolic";
               icon-color = "fg-default";
               label-color = "fg-default";
             }
