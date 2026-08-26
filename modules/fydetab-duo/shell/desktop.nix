@@ -30,6 +30,10 @@ in
       <?xml version="1.0"?>
       <openbox_menu>
         <menu id="root-menu">
+          <item label="Launcher" icon="system-run">
+            <action name="Execute" command="vicinae toggle"/>
+          </item>
+          <separator/>
           <item label="Browser" icon="librewolf">
             <action name="Execute" command="librewolf"/>
           </item>
@@ -39,7 +43,22 @@ in
           <item label="Terminal" icon="utilities-terminal">
             <action name="Execute" command="alacritty"/>
           </item>
+          <item label="Documents" icon="system-file-manager">
+            <action name="Execute" command="evince"/>
+          </item>
+          <item label="Images" icon="image-viewer">
+            <action name="Execute" command="gwenview"/>
+          </item>
+          <item label="Video" icon="multimedia-video-player">
+            <action name="Execute" command="haruna"/>
+          </item>
+          <item label="System Monitor" icon="utilities-system-monitor">
+            <action name="Execute" command="alacritty -e btop"/>
+          </item>
           <separator/>
+          <item label="Network" icon="network-wireless">
+            <action name="Execute" command="alacritty -e nmtui"/>
+          </item>
           <item label="Screenshot" icon="camera-photo">
             <action name="Execute" command="sh -c 'grim -g &quot;$(slurp)&quot; ~/Pictures/Screenshot-$(date +%s).png'"/>
           </item>
