@@ -25,6 +25,7 @@ Working:
 
 - Accelerometer
 - Audio with and without wired headphones
+- Automatic power profiles based of battery percentage + charging stage
 - Bluetooth
 - Brightness and volume keys (with OSD)
 - Camera
@@ -36,6 +37,7 @@ Working:
 - USB-C DisplayPort / HDMI
 - WiFi
 - wlroots compositors auto-rotate (greeter defaults to landscape however for ease of use)
+- wlroots compositors tablet mode (with on-screen keyboard support for any orientation)
 
 ## Docs
 
