@@ -3,6 +3,7 @@ name: "Build & release image"
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: # Allows triggering from the GitHub UI
 
 concurrency:
   group: ci-${{ github.ref_name }}
