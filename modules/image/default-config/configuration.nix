@@ -51,6 +51,11 @@
       # ability of tablet mode to toggle on keyboard state change, on or off.
       # Can also be toggle in the wayle bar
       tabletMode.enable = true;
+
+      # Even without this option enabled the modem is detected automatically as it
+      # is a USB 2.0 device. However, this enables integration for the in-built
+      # modem module with ModemManager and NetworkManager.
+      modem.enable = true;
     };
   };
 

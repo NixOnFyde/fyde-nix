@@ -19,6 +19,7 @@ in
     ./sensors.nix
     ./tablet-mode.nix
     ./wifi-regdom.nix
+    ./modem.nix
     ./qol.nix
     ./desktop.nix
     ./shell
@@ -115,6 +116,7 @@ in
     hardware.fydetabduo.audio.enable = lib.mkDefault true;
     hardware.fydetabduo.sensors.enable = lib.mkDefault true;
     hardware.fydetabduo.autoRegulatoryDomain.enable = lib.mkDefault true;
+    hardware.fydetabduo.modem.enable = lib.mkDefault true;
 
     nixpkgs.overlays = [
       (import ../../overlays/default.nix)
