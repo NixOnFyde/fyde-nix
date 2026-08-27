@@ -11,7 +11,7 @@ in
     type = lib.types.bool;
     default = shell.enable;
     description = ''
-      The compositor & greeter parts of the desktop shell: labwc, regreet,
+      The compositor & greeter parts of the desktop shell: labwc, nwg-hello,
       the vicinae input server, and the labwc menu/autostart/shutdown / GTK
       config files. Defaults to following hardware.fydetabduo.shell.enable;
       set it independently to include or exclude just this part.
@@ -21,10 +21,15 @@ in
   config = lib.mkIf shell.desktop.enable {
     # Desktop compositor & greeter
     programs.labwc.enable = true;
-    programs.regreet.enable = true;
     programs.vicinae.input-server.enable = true;
 
-    environment.pathsToLink = [ "/share/backgrounds" ];
+    # Link the .desktop session files into the store path that nwg-hello's
+    # default session_dirs look up (/run/current-system/sw/share/...), so
+    # the greeter's session list properly populates.
+    environment.pathsToLink = [
+      "/share/backgrounds"
+      "/share/wayland-sessions"
+    ];
 
     environment.etc."xdg/labwc/menu.xml".text = ''
       <?xml version="1.0"?>

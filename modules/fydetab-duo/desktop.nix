@@ -76,13 +76,11 @@ in
       ];
 
       systemd.sockets.dbus.wantedBy = [ "sockets.target" ];
+      services.greetd.enable = true;
       systemd.services.greetd.after = [ "dbus.service" ];
       systemd.services.greetd.wants = [ "dbus.service" ];
 
-      systemd.services.greetd.environment.XDG_DATA_DIRS =
-        lib.mkDefault "${config.services.displayManager.sessionData.desktops}/share";
-
-      users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
+      users.users.greeter.home = lib.mkDefault "/var/lib/nwg-hello";
 
       systemd.services.fydetab-opengl-link = {
         description = "Ensure /run/opengl-driver points at Mesa";
@@ -102,7 +100,10 @@ in
 
       systemd.services.accounts-daemon.after = [ "systemd-logind.service" ];
 
-      environment.systemPackages = [ pkgs.bibata-cursors ];
+      environment.systemPackages = [
+        pkgs.bibata-cursors
+        pkgs.nwg-hello
+      ];
       environment.sessionVariables = {
         __EGL_VENDOR_LIBRARY_DIRS = "/run/opengl-driver/share/glvnd/egl_vendor.d";
         XCURSOR_THEME = lib.mkDefault cursorTheme;
@@ -112,37 +113,116 @@ in
         GDK_DISABLE = "dmabuf";
       };
 
-      programs.regreet.settings = {
-        GTK = {
-          cursor_theme = cursorTheme;
-          icon_theme = "Papirus";
-          theme = "Adwaita-dark";
-          application_prefer_dark_theme = true;
-        };
-        appearance = {
-          background = "${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg";
-          background_fit = "Cover";
-        };
-        commands = {
-          reboot = [
-            "systemctl"
-            "reboot"
+      # nwg-hello greeter. Runs under its own labwc session so we reuse the panel
+      # transform (kanshi) and touch/stylus mapping we already configure.
+      environment.etc."nwg-hello/nwg-hello.json".source = pkgs.writeText "nwg-hello.json" (
+        builtins.toJSON {
+          # Point at the session files we provide via /etc and at the
+          # system profile path so sessions installed as NixOS packages
+          # (and linked via pathsToLink) are also discovered.
+          session_dirs = [
+            "/etc/nwg-hello/sessions"
+            "/run/current-system/sw/share/wayland-sessions"
           ];
-          poweroff = [
-            "systemctl"
-            "poweroff"
-          ];
-        };
-      };
+          custom_sessions = [ ];
+          monitor_nums = [ ];
+          form_on_monitors = [ ];
+          delay_secs = 0;
+          cmd-sleep = "systemctl suspend";
+          cmd-reboot = "systemctl reboot";
+          cmd-poweroff = "systemctl poweroff";
+          gtk-theme = "Adwaita-dark";
+          gtk-icon-theme = "Papirus";
+          gtk-cursor-theme = cursorTheme;
+          prefer-dark-theme = true;
+          template-name = "";
+          time-format = "%H:%M";
+          date-format = "%A, %d %B";
+          layer = "overlay";
+          keyboard-mode = "on_demand";
+          lang = "";
+          avatar-show = false;
+          avatar-size = 100;
+          avatar-border-width = 1;
+          avatar-border-color = "#eee";
+          avatar-corner-radius = 15;
+          avatar-circle = true;
+          env-vars = [ ];
+        }
+      );
+
+      # Provide the labwc session .desktop file for nwg-hello (and any
+      # other greeter that scans wayland-sessions). NixOS doesn't always
+      # link these into /run/current-system/sw so we do it ourselves.
+      environment.etc."nwg-hello/sessions/labwc.desktop".text = ''
+        [Desktop Entry]
+        Name=labwc
+        Comment=A wayland stacking compositor
+        Exec=labwc
+        Icon=labwc
+        Type=Application
+        DesktopNames=labwc;wlroots
+      '';
+
+      # Full-bleed FydeTab wallpaper.
+      environment.etc."nwg-hello/nwg-hello.css".text = ''
+        window {
+          background-image: url("${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg");
+          background-size: auto 100%;
+        }
+
+        #form-wrapper {
+          background-color: rgba(0, 0, 0, 0.35);
+          border-radius: 16px;
+        }
+
+        entry, button {
+          background-color: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          border-radius: 18px;
+          padding: 12px;
+          color: #ffffff;
+        }
+
+        button:hover { background-color: rgba(255, 255, 255, 0.22); }
+
+        #power-button {
+          border-radius: 18px;
+          background: none;
+          border: none;
+        }
+        #power-button:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+        #welcome-label { font-size: 40px; font-weight: bold; color: #ffffff; }
+        #clock-label   { font-family: monospace; font-size: 26px; color: #ffffff; }
+        #date-label    { font-family: monospace; font-size: 16px; color: rgba(255, 255, 255, 0.85); }
+        #form-label    { color: #ffffff; }
+      '';
+
+      # labwc session for the greeter keeping our landscape/rotate + touch mapping.
+      environment.etc."nwg-hello/labwc-config/autostart".text = ''
+        # Apply the same output transform the desktop shell gets (270 for
+        # landscape, none for portrait) so the greeter renders upright.
+        ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
+
+        # Run nwg-hello in the foreground; once it exits (a user logged in)
+        # tear the compositor down so greetd starts the actual session.
+        exec ${pkgs.nwg-hello}/bin/nwg-hello -c /etc/nwg-hello/nwg-hello.json -s /etc/nwg-hello/nwg-hello.css; ${pkgs.labwc}/bin/labwc --exit
+      '';
+
+      environment.etc."nwg-hello/labwc-config/rc.xml".text = ''
+        <?xml version="1.0"?>
+        <labwc_config>
+          <theme>
+            <name>FydeTab</name>
+            <cornerradius>8</cornerradius>
+          </theme>
+          ${touchMapToOutput}
+        </labwc_config>
+      '';
 
       services.greetd.settings.default_session.command =
-        let
-          greetd-start = pkgs.writeShellScript "fydetab-greetd-start" ''
-            ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
-            exec ${pkgs.regreet}/bin/regreet
-          '';
-        in
-        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/xdg/labwc-greeter -S ${greetd-start}";
+        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/nwg-hello/labwc-config";
 
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
@@ -180,12 +260,6 @@ in
               <action name="Execute" command="brightnessctl s 5%-"/>
             </keybind>
           </keyboard>
-          ${touchMapToOutput}
-        </labwc_config>
-      '';
-      environment.etc."xdg/labwc-greeter/rc.xml".text = ''
-        <?xml version="1.0"?>
-        <labwc_config>
           ${touchMapToOutput}
         </labwc_config>
       '';
