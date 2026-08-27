@@ -111,7 +111,6 @@ in
 
     hardware.fydetabduo.bluetooth.enable = lib.mkDefault true;
     hardware.fydetabduo.deepSuspend.enable = lib.mkDefault true;
-    hardware.fydetabduo.wakeScreenFix.enable = lib.mkDefault true;
     hardware.fydetabduo.displayInitFix.enable = lib.mkDefault true;
     hardware.fydetabduo.audio.enable = lib.mkDefault true;
     hardware.fydetabduo.sensors.enable = lib.mkDefault true;
