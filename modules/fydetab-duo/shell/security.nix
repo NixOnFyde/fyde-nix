@@ -41,8 +41,8 @@ in
     security.pam.services.login.enableGnomeKeyring = true;
 
     systemd.tmpfiles.rules = [
-      "d /var/lib/nwg-hello  0755 greeter greeter -"
-      "d /var/log/nwg-hello  0755 greeter greeter -"
+      "d /var/lib/regreet  0755 greeter greeter -"
+      "d /var/log/regreet  0755 greeter greeter -"
       "d /tmp/.X11-unix   1777 root     root    -"
       "d /nix/var/nix/daemon-socket 0755 root root -"
     ];

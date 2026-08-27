@@ -42,7 +42,7 @@ let
       # Seed runtime dirs that the greeter needs before first activation.
       # systemd-tmpfiles creates these on boot, but the greeter starts
       # before tmpfiles has finished on a fresh image.
-      mkdir -p rootImage/var/{lib,log}/nwg-hello
+      mkdir -p rootImage/var/{lib,log}/regreet
       mkdir -p rootImage/tmp/.X11-unix
 
       # FHS essentials the seed tree omits. /var/run -> /run is required by

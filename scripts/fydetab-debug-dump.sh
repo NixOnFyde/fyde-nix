@@ -43,9 +43,9 @@ output_log_file="/boot/fydetab-debug.txt"
 
   echo
   echo "=# runtime dirs"
-  ls -la /var/lib/nwg-hello /var/log/nwg-hello /run/dbus /run/greetd /run/user 2>&1 || true
+  ls -la /var/lib/regreet /var/log/regreet /run/dbus /run/greetd /run/user 2>&1 || true
 
   echo
-  echo "=# nwg-hello log"
-  cat /var/log/nwg-hello/log 2>&1 || true
+  echo "=# regreet log"
+  cat /var/log/regreet/*.log 2>&1 || true
 } >"$output_log_file" 2>&1
