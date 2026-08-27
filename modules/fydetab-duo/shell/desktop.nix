@@ -48,7 +48,7 @@ in
           <item label="Terminal" icon="utilities-terminal">
             <action name="Execute" command="alacritty"/>
           </item>
-          <item label="Documents" icon="system-file-manager">
+          <item label="Documents" icon="document-viewer">
             <action name="Execute" command="evince"/>
           </item>
           <item label="Images" icon="image-viewer">

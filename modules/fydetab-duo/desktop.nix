@@ -176,7 +176,7 @@ in
           border-radius: 16px;
         }
 
-        entry, button {
+        entry, button, combobox, scale {
           background-color: rgba(255, 255, 255, 0.12);
           border: 1px solid rgba(255, 255, 255, 0.35);
           border-radius: 18px;
@@ -185,6 +185,43 @@ in
         }
 
         button:hover { background-color: rgba(255, 255, 255, 0.22); }
+
+        #form-combo button,
+        #form-combo button *,
+        #form-combo button label {
+          background: rgba(255, 255, 255, 0.12);
+          background-color: rgba(255, 255, 255, 0.12);
+          color: #ffffff !important;
+        }
+
+        #form-combo treeview.view {
+          background-color: rgba(30, 30, 30, 0.85);
+          color: #ffffff;
+        }
+
+        #form-combo treeview.view row:selected {
+          background-color: rgba(255, 255, 255, 0.18);
+          color: #ffffff;
+        }
+
+        #form-combo cellview {
+          color: #ffffff;
+        }
+
+        menu,
+        menuitem,
+        modelbutton {
+          background-color: rgba(30, 30, 30, 0.85);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          padding: 8px;
+        }
+
+        menuitem:hover,
+        modelbutton:hover {
+          background-color: rgba(255, 255, 255, 0.18);
+        }
 
         #power-button {
           border-radius: 18px;
