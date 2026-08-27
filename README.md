@@ -1,6 +1,6 @@
 # fyde-nix - NixOS for the FydeTab Duo
 
-[![Build & release image](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml/badge.svg)](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Kernel: Rockchip 6.12 BSP](https://img.shields.io/badge/Kernel-Rockchip_6.12_BSP-blue) [![Build & release image](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml/badge.svg)](https://github.com/NixOnFyde/fyde-nix/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <!-- toc -->
 
