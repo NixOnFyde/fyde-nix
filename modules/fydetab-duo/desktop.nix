@@ -131,26 +131,136 @@ in
       environment.etc."greetd/regreet.css".text = ''
         window {
           background-image: url("${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg");
-          background-size: auto 100%;
+          background-size: cover;
+          background-position: center;
         }
 
-        .greeter, .greeter box, .greeter box center {
+        frame.background {
+          background-color: rgba(0, 0, 0, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 24px;
+          padding: 32px;
+        }
+
+        label {
+          color: rgba(255, 255, 255, 0.85);
+          font-size: 14px;
+          font-weight: bold;
+        }
+
+        entry, combobox {
+          background-color: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          padding: 10px 14px;
+          color: #ffffff;
+          caret-color: #ffffff;
+          min-height: 20px;
+        }
+
+        entry:focus, combobox:focus {
+          border-color: rgba(255, 255, 255, 0.5);
+          background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        entry placeholder {
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        combobox arrow {
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        combobox window {
+          background-color: rgba(30, 30, 30, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 12px;
+        }
+
+        combobox window listview {
           background-color: transparent;
         }
 
-        .greeter entry, .greeter button {
-          background-color: rgba(255, 255, 255, 0.12);
-          border: 1px solid rgba(255, 255, 255, 0.35);
-          border-radius: 18px;
-          padding: 12px;
+        combobox window listview row {
+          padding: 8px 14px;
+          color: rgba(255, 255, 255, 0.85);
+        }
+
+        combobox window listview row:selected {
+          background-color: rgba(255, 255, 255, 0.15);
           color: #ffffff;
         }
 
-        .greeter entry:focus { border-color: rgba(255, 255, 255, 0.6); }
-        .greeter button:hover { background-color: rgba(255, 255, 255, 0.22); }
+        togglebutton {
+          background-color: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+          padding: 8px;
+          color: rgba(255, 255, 255, 0.7);
+        }
 
-        .greeter label {
+        togglebutton:hover {
+          background-color: rgba(255, 255, 255, 0.15);
           color: #ffffff;
+        }
+
+        togglebutton:checked {
+          background-color: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.4);
+          color: #ffffff;
+        }
+
+        button.suggested-action {
+          background-color: rgba(99, 179, 237, 0.9);
+          background-image: none;
+          color: #ffffff;
+          font-weight: bold;
+          font-size: 15px;
+          border: none;
+          border-radius: 12px;
+          padding: 12px 32px;
+          min-height: 20px;
+        }
+
+        button.suggested-action:hover {
+          background-color: rgba(99, 179, 237, 1.0);
+        }
+
+        button.suggested-action:active {
+          background-color: rgba(66, 153, 225, 0.9);
+        }
+
+        button:not(.suggested-action):not(.destructive-action) {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          padding: 12px 24px;
+        }
+
+        button:not(.suggested-action):not(.destructive-action):hover {
+          background-color: rgba(255, 255, 255, 0.18);
+        }
+
+        button.destructive-action {
+          background-color: rgba(229, 62, 62, 0.15);
+          color: rgba(255, 150, 150, 0.9);
+          border: 1px solid rgba(229, 62, 62, 0.25);
+          border-radius: 12px;
+          padding: 12px 24px;
+          font-size: 14px;
+        }
+
+        button.destructive-action:hover {
+          background-color: rgba(229, 62, 62, 0.3);
+          color: #ffffff;
+        }
+
+        infobar {
+          background-color: rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 12px;
+          color: rgba(255, 255, 255, 0.9);
         }
       '';
 
