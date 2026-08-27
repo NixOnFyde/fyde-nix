@@ -21,10 +21,14 @@ in
   config = lib.mkIf shell.desktop.enable {
     # Desktop compositor & greeter
     programs.labwc.enable = true;
-    programs.regreet.enable = true;
     programs.vicinae.input-server.enable = true;
 
-    environment.pathsToLink = [ "/share/backgrounds" ];
+    # Link the .desktop session files into the store path so regreet's
+    # session list properly populates.
+    environment.pathsToLink = [
+      "/share/backgrounds"
+      "/share/wayland-sessions"
+    ];
 
     environment.etc."xdg/labwc/menu.xml".text = ''
       <?xml version="1.0"?>
@@ -43,7 +47,7 @@ in
           <item label="Terminal" icon="utilities-terminal">
             <action name="Execute" command="alacritty"/>
           </item>
-          <item label="Documents" icon="system-file-manager">
+          <item label="Documents" icon="document-viewer">
             <action name="Execute" command="evince"/>
           </item>
           <item label="Images" icon="image-viewer">

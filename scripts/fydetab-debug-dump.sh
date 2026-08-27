@@ -14,7 +14,6 @@ output_log_file="/boot/fydetab-debug.txt"
 
   monitored_units=(
     greetd
-    regreet-session
     dbus-broker
     dbus.socket
     nscd
@@ -42,14 +41,11 @@ output_log_file="/boot/fydetab-debug.txt"
   findmnt -no SOURCE,FSTYPE,OPTIONS / || true
   findmnt -no OPTIONS /nix/store || true
 
-  ls -la /var/lib/regreet/regreet.strace 2>&1 || true
-  cp /var/lib/regreet/regreet.strace /boot/regreet.strace 2>/dev/null || true
-
   echo
   echo "=# runtime dirs"
   ls -la /var/lib/regreet /var/log/regreet /run/dbus /run/greetd /run/user 2>&1 || true
 
   echo
   echo "=# regreet log"
-  cat /var/log/regreet/log 2>&1 || true
+  cat /var/log/regreet/*.log 2>&1 || true
 } >"$output_log_file" 2>&1
