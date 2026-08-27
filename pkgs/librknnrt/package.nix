@@ -20,28 +20,28 @@ stdenvNoCC.mkDerivation {
     install -Dm644 ${
       fetchurl {
         url = "${src_base}/aarch64/librknnrt.so";
-        hash = "1s1qqyx95v02ci9zn2s19r52dmb2v7wnl3xxna8n0pxqhnfc27yk";
+        hash = "sha256-1s1qqyx95v02ci9zn2s19r52dmb2v7wnl3xxna8n0pxqhnfc27yk";
       }
     } $out/lib/librknnrt.so
 
     install -Dm644 ${
       fetchurl {
         url = "${src_base}/include/rknn_api.h";
-        hash = "16msvqhiplm33srfkgkq9zcx6lh2lr77gbg4s5gili8vyjk133n4";
+        hash = "sha256-16msvqhiplm33srfkgkq9zcx6lh2lr77gbg4s5gili8vyjk133n4";
       }
     } $out/include/rknn_api.h
 
     install -Dm644 ${
       fetchurl {
         url = "${src_base}/include/rknn_custom_op.h";
-        hash = "19naihxjxk991xvplv0r65ajic126dlalqiivhqwli521kd86ndg";
+        hash = "sha256-19naihxjxk991xvplv0r65ajic126dlalqiivhqwli521kd86ndg";
       }
     } $out/include/rknn_custom_op.h
 
     install -Dm644 ${
       fetchurl {
         url = "${src_base}/include/rknn_matmul_api.h";
-        hash = "0hjd9bqnffn8k1x1m4zm01fhjxyv65knp692n830mqwd26kxkbda";
+        hash = "sha256-0hjd9bqnffn8k1x1m4zm01fhjxyv65knp692n830mqwd26kxkbda";
       }
     } $out/include/rknn_matmul_api.h
 
