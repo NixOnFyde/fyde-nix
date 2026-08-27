@@ -8,7 +8,6 @@ final: _prev: {
   himax-firmware = final.callPackage ../pkgs/himax-firmware/package.nix { };
   brcm-patchram-plus = final.callPackage ../pkgs/brcm-patchram-plus/package.nix { };
   rk-boot-script = final.callPackage ../pkgs/rk-boot-script/package.nix { };
-  fydetab-wake-activity = final.callPackage ../pkgs/fydetab-wake-activity/package.nix { };
 
   fydetab-blob-idblock = final.runCommand "fydetab-idblock.bin" { } ''
     cp ${../blobs/bootchain/idblock.bin} $out
