@@ -76,11 +76,9 @@ in
       ];
 
       systemd.sockets.dbus.wantedBy = [ "sockets.target" ];
+      services.greetd.enable = true;
       systemd.services.greetd.after = [ "dbus.service" ];
       systemd.services.greetd.wants = [ "dbus.service" ];
-
-      systemd.services.greetd.environment.XDG_DATA_DIRS =
-        lib.mkDefault "${config.services.displayManager.sessionData.desktops}/share";
 
       users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
 
@@ -102,7 +100,10 @@ in
 
       systemd.services.accounts-daemon.after = [ "systemd-logind.service" ];
 
-      environment.systemPackages = [ pkgs.bibata-cursors ];
+      environment.systemPackages = [
+        pkgs.bibata-cursors
+        pkgs.regreet
+      ];
       environment.sessionVariables = {
         __EGL_VENDOR_LIBRARY_DIRS = "/run/opengl-driver/share/glvnd/egl_vendor.d";
         XCURSOR_THEME = lib.mkDefault cursorTheme;
@@ -112,37 +113,186 @@ in
         GDK_DISABLE = "dmabuf";
       };
 
-      programs.regreet.settings = {
-        GTK = {
-          cursor_theme = cursorTheme;
-          icon_theme = "Papirus";
-          theme = "Adwaita-dark";
+      # ReGreet greeter. Runs under our own labwc session so we reuse the panel
+      # transform (kanshi) and touch/stylus mapping we already configure.
+      programs.regreet = {
+        enable = true;
+        theme.name = "Adwaita-dark";
+        iconTheme.name = "Papirus";
+        cursorTheme = {
+          name = cursorTheme;
+          package = pkgs.bibata-cursors;
+        };
+        settings.GTK = {
           application_prefer_dark_theme = true;
-        };
-        appearance = {
-          background = "${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg";
-          background_fit = "Cover";
-        };
-        commands = {
-          reboot = [
-            "systemctl"
-            "reboot"
-          ];
-          poweroff = [
-            "systemctl"
-            "poweroff"
-          ];
         };
       };
 
+      environment.etc."greetd/regreet.css".text = ''
+        window {
+          background-image: url("${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg");
+          background-size: cover;
+          background-position: center;
+        }
+
+        frame.background {
+          background-color: rgba(0, 0, 0, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 24px;
+          padding: 16px;
+        }
+
+        label {
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        entry, combobox {
+          background-color: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          border-radius: 10px;
+          padding: 6px 10px;
+          color: #ffffff;
+          caret-color: #ffffff;
+        }
+
+        entry:focus, combobox:focus {
+          border-color: rgba(255, 255, 255, 0.5);
+          background-color: rgba(255, 255, 255, 0.14);
+        }
+
+        entry placeholder {
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        combobox arrow {
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        combobox window {
+          background-color: rgba(30, 30, 30, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+        }
+
+        combobox window listview {
+          background-color: transparent;
+        }
+
+        combobox window listview row {
+          padding: 6px 10px;
+          color: rgba(255, 255, 255, 0.85);
+        }
+
+        combobox window listview row:selected {
+          background-color: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+        }
+
+        togglebutton {
+          background-color: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          padding: 4px;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        togglebutton:hover {
+          background-color: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+        }
+
+        togglebutton:checked {
+          background-color: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.4);
+          color: #ffffff;
+        }
+
+        button.suggested-action {
+          background-color: rgba(99, 179, 237, 0.9);
+          background-image: none;
+          color: #ffffff;
+          font-weight: bold;
+          border: none;
+          border-radius: 10px;
+          padding: 8px 24px;
+        }
+
+        button.suggested-action:hover {
+          background-color: rgba(99, 179, 237, 1.0);
+        }
+
+        button.suggested-action:active {
+          background-color: rgba(66, 153, 225, 0.9);
+        }
+
+        button:not(.suggested-action):not(.destructive-action) {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+          padding: 8px 18px;
+        }
+
+        button:not(.suggested-action):not(.destructive-action):hover {
+          background-color: rgba(255, 255, 255, 0.18);
+        }
+
+        button.destructive-action {
+          background-color: rgba(229, 62, 62, 0.15);
+          color: rgba(255, 150, 150, 0.9);
+          border: 1px solid rgba(229, 62, 62, 0.25);
+          border-radius: 10px;
+          padding: 8px 18px;
+        }
+
+        button.destructive-action:hover {
+          background-color: rgba(229, 62, 62, 0.3);
+          color: #ffffff;
+        }
+
+        infobar {
+          background-color: rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+          color: rgba(255, 255, 255, 0.9);
+        }
+      '';
+
+      # labwc session for the greeter keeping our landscape/rotate + touch mapping.
+      environment.etc."regreet-labwc/autostart".text = ''
+        # Apply the same output transform the desktop shell gets (270 for
+        # landscape, none for portrait) so the greeter renders upright.
+        ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
+
+        # Wait for kanshi to actually apply the output transform so
+        # touch/stylus mapping is correct from the start.
+        for i in $(seq 1 10); do
+          ${pkgs.wlr-randr}/bin/wlr-randr 2>/dev/null | grep -q "Transform: 270" && break
+          sleep 0.1
+        done
+
+        # Launch ReGreet (blocking). When it exits (login succeeded), tear
+        # down the compositor so greetd can start the real session.
+        ${pkgs.regreet}/bin/regreet; ${pkgs.labwc}/bin/labwc --exit
+      '';
+
+      environment.etc."regreet-labwc/rc.xml".text = ''
+        <?xml version="1.0"?>
+        <labwc_config>
+          <theme>
+            <name>FydeTab</name>
+            <icon>Papirus</icon>
+            <cornerradius>8</cornerradius>
+          </theme>
+          <menu>
+            <showIcons>yes</showIcons>
+          </menu>
+          ${touchMapToOutput}
+        </labwc_config>
+      '';
+
       services.greetd.settings.default_session.command =
-        let
-          greetd-start = pkgs.writeShellScript "fydetab-greetd-start" ''
-            ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
-            exec ${pkgs.regreet}/bin/regreet
-          '';
-        in
-        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/xdg/labwc-greeter -S ${greetd-start}";
+        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc";
 
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
@@ -180,12 +330,6 @@ in
               <action name="Execute" command="brightnessctl s 5%-"/>
             </keybind>
           </keyboard>
-          ${touchMapToOutput}
-        </labwc_config>
-      '';
-      environment.etc."xdg/labwc-greeter/rc.xml".text = ''
-        <?xml version="1.0"?>
-        <labwc_config>
           ${touchMapToOutput}
         </labwc_config>
       '';
