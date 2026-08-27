@@ -264,8 +264,15 @@ in
         # landscape, none for portrait) so the greeter renders upright.
         ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
 
+        # Wait for kanshi to actually apply the output transform so
+        # touch/stylus mapping is correct from the start.
+        for i in $(seq 1 10); do
+          ${pkgs.wlr-randr}/bin/wlr-randr 2>/dev/null | grep -q "Transform: 270" && break
+          sleep 0.1
+        done
+
         # Launch ReGreet (blocking). When it exits (login succeeded), tear
-        # down the compositor down so greetd starts the actual session.
+        # down the compositor so greetd can start the real session.
         ${pkgs.regreet}/bin/regreet; ${pkgs.labwc}/bin/labwc --exit
       '';
 
