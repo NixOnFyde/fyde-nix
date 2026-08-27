@@ -136,31 +136,28 @@ in
         }
 
         frame.background {
-          background-color: rgba(0, 0, 0, 0.55);
+          background-color: rgba(0, 0, 0, 0.5);
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 24px;
-          padding: 32px;
+          padding: 16px;
         }
 
         label {
-          color: rgba(255, 255, 255, 0.85);
-          font-size: 14px;
-          font-weight: bold;
+          color: rgba(255, 255, 255, 0.9);
         }
 
         entry, combobox {
-          background-color: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 12px;
-          padding: 10px 14px;
+          background-color: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          border-radius: 10px;
+          padding: 6px 10px;
           color: #ffffff;
           caret-color: #ffffff;
-          min-height: 20px;
         }
 
         entry:focus, combobox:focus {
           border-color: rgba(255, 255, 255, 0.5);
-          background-color: rgba(255, 255, 255, 0.12);
+          background-color: rgba(255, 255, 255, 0.14);
         }
 
         entry placeholder {
@@ -174,7 +171,7 @@ in
         combobox window {
           background-color: rgba(30, 30, 30, 0.95);
           border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 12px;
+          border-radius: 10px;
         }
 
         combobox window listview {
@@ -182,7 +179,7 @@ in
         }
 
         combobox window listview row {
-          padding: 8px 14px;
+          padding: 6px 10px;
           color: rgba(255, 255, 255, 0.85);
         }
 
@@ -194,8 +191,8 @@ in
         togglebutton {
           background-color: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 10px;
-          padding: 8px;
+          border-radius: 8px;
+          padding: 4px;
           color: rgba(255, 255, 255, 0.7);
         }
 
@@ -215,11 +212,9 @@ in
           background-image: none;
           color: #ffffff;
           font-weight: bold;
-          font-size: 15px;
           border: none;
-          border-radius: 12px;
-          padding: 12px 32px;
-          min-height: 20px;
+          border-radius: 10px;
+          padding: 8px 24px;
         }
 
         button.suggested-action:hover {
@@ -234,8 +229,8 @@ in
           background-color: rgba(255, 255, 255, 0.1);
           color: rgba(255, 255, 255, 0.85);
           border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 12px;
-          padding: 12px 24px;
+          border-radius: 10px;
+          padding: 8px 18px;
         }
 
         button:not(.suggested-action):not(.destructive-action):hover {
@@ -246,9 +241,8 @@ in
           background-color: rgba(229, 62, 62, 0.15);
           color: rgba(255, 150, 150, 0.9);
           border: 1px solid rgba(229, 62, 62, 0.25);
-          border-radius: 12px;
-          padding: 12px 24px;
-          font-size: 14px;
+          border-radius: 10px;
+          padding: 8px 18px;
         }
 
         button.destructive-action:hover {
@@ -259,7 +253,7 @@ in
         infobar {
           background-color: rgba(0, 0, 0, 0.6);
           border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 12px;
+          border-radius: 10px;
           color: rgba(255, 255, 255, 0.9);
         }
       '';
