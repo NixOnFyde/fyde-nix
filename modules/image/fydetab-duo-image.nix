@@ -61,7 +61,6 @@ in
     fileSystems."/" = lib.mkDefault {
       device = "/dev/disk/by-label/NIXOS-FYDETAB";
       fsType = "btrfs";
-      options = [ "x-systemd.growfs" ];
     };
 
     boot.growPartition = lib.mkDefault true;
@@ -91,13 +90,33 @@ in
           fi
           disk=$(lsblk -rno PKNAME "$dev")
           disk="/dev/$disk"
-          num=$(cat "/sys/class/block/$(basename "$dev")/partition")
+          devname=$(basename "$dev")
+          num=$(cat "/sys/class/block/$devname/partition")
+
+          # Once the root partition already fills the disk (i.e., after the one-time
+          # grow on first boot post-flash), there is no free space left to claim, so
+          # growing every boot is just wasted time.
+          end_sectors=$(( $(cat "/sys/class/block/$devname/start") + $(cat "/sys/class/block/$devname/size") ))
+          disk_sectors=$(cat "/sys/class/block/$(basename "$disk")/size")
+          if [ "$end_sectors" -ge $((disk_sectors - 2048)) ]; then
+            echo "root partition already fills the disk; skipping growth" >&2
+            exit 0
+          fi
+
           ${sgdiskBin} -e "$disk" \
             || echo "sgdisk -e failed; continuing anyway" >&2
           ${growpartBin} "$disk" "$num"
           rc=$?
-          [ "$rc" -eq 1 ] && exit 0
-          exit "$rc"
+          if [ "$rc" -eq 1 ]; then
+            echo "partition already at full size; skipping growth" >&2
+            exit 0
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "growpart failed with exit code $rc" >&2
+            exit "$rc"
+          fi
+          ${pkgs.btrfs-progs}/bin/btrfs filesystem resize max / 2>/dev/null || true
+          exit 0
         ''
       );
 
