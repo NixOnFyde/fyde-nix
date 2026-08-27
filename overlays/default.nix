@@ -6,6 +6,7 @@ final: _prev: {
 
   ap6275p-firmware = final.callPackage ../pkgs/ap6275p-firmware/package.nix { };
   himax-firmware = final.callPackage ../pkgs/himax-firmware/package.nix { };
+  librknnrt = final.callPackage ../pkgs/librknnrt/package.nix { };
   brcm-patchram-plus = final.callPackage ../pkgs/brcm-patchram-plus/package.nix { };
   rk-boot-script = final.callPackage ../pkgs/rk-boot-script/package.nix { };
 

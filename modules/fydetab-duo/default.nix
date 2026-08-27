@@ -20,6 +20,7 @@ in
     ./tablet-mode.nix
     ./wifi-regdom.nix
     ./modem.nix
+    ./npu.nix
     ./qol.nix
     ./desktop.nix
     ./shell
@@ -107,6 +108,7 @@ in
       builtins.elem (lib.getName pkg) [
         "ap6275p-firmware"
         "himax-firmware"
+        "librknnrt"
       ];
 
     hardware.fydetabduo.bluetooth.enable = lib.mkDefault true;
@@ -116,6 +118,7 @@ in
     hardware.fydetabduo.sensors.enable = lib.mkDefault true;
     hardware.fydetabduo.autoRegulatoryDomain.enable = lib.mkDefault true;
     hardware.fydetabduo.modem.enable = lib.mkDefault true;
+    hardware.fydetabduo.npu.enable = lib.mkDefault true;
 
     nixpkgs.overlays = [
       (import ../../overlays/default.nix)
