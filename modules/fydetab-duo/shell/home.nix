@@ -12,4 +12,6 @@
     ./home/vicinae.nix
     ./home/swayidle.nix
   ];
+
+  services.wl-clip-persist.enable = true;
 }
