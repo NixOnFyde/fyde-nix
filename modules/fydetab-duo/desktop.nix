@@ -80,7 +80,7 @@ in
       systemd.services.greetd.after = [ "dbus.service" ];
       systemd.services.greetd.wants = [ "dbus.service" ];
 
-      users.users.greeter.home = lib.mkDefault "/var/lib/nwg-hello";
+      users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
 
       systemd.services.fydetab-opengl-link = {
         description = "Ensure /run/opengl-driver points at Mesa";
@@ -102,7 +102,7 @@ in
 
       environment.systemPackages = [
         pkgs.bibata-cursors
-        pkgs.nwg-hello
+        pkgs.regreet
       ];
       environment.sessionVariables = {
         __EGL_VENDOR_LIBRARY_DIRS = "/run/opengl-driver/share/glvnd/egl_vendor.d";
@@ -113,70 +113,32 @@ in
         GDK_DISABLE = "dmabuf";
       };
 
-      # nwg-hello greeter. Runs under its own labwc session so we reuse the panel
+      # ReGreet greeter. Runs under our own labwc session so we reuse the panel
       # transform (kanshi) and touch/stylus mapping we already configure.
-      environment.etc."nwg-hello/nwg-hello.json".source = pkgs.writeText "nwg-hello.json" (
-        builtins.toJSON {
-          # Point at the session files we provide via /etc and at the
-          # system profile path so sessions installed as NixOS packages
-          # (and linked via pathsToLink) are also discovered.
-          session_dirs = [
-            "/etc/nwg-hello/sessions"
-            "/run/current-system/sw/share/wayland-sessions"
-          ];
-          custom_sessions = [ ];
-          monitor_nums = [ ];
-          form_on_monitors = [ ];
-          delay_secs = 0;
-          cmd-sleep = "systemctl suspend";
-          cmd-reboot = "systemctl reboot";
-          cmd-poweroff = "systemctl poweroff";
-          gtk-theme = "Adwaita-dark";
-          gtk-icon-theme = "Papirus";
-          gtk-cursor-theme = cursorTheme;
-          prefer-dark-theme = true;
-          template-name = "";
-          time-format = "%H:%M";
-          date-format = "%A, %d %B";
-          layer = "overlay";
-          keyboard-mode = "on_demand";
-          lang = "";
-          avatar-show = false;
-          avatar-size = 100;
-          avatar-border-width = 1;
-          avatar-border-color = "#eee";
-          avatar-corner-radius = 15;
-          avatar-circle = true;
-          env-vars = [ ];
-        }
-      );
+      programs.regreet = {
+        enable = true;
+        theme.name = "Adwaita-dark";
+        iconTheme.name = "Papirus";
+        cursorTheme = {
+          name = cursorTheme;
+          package = pkgs.bibata-cursors;
+        };
+        settings.GTK = {
+          application_prefer_dark_theme = true;
+        };
+      };
 
-      # Provide the labwc session .desktop file for nwg-hello (and any
-      # other greeter that scans wayland-sessions). NixOS doesn't always
-      # link these into /run/current-system/sw so we do it ourselves.
-      environment.etc."nwg-hello/sessions/labwc.desktop".text = ''
-        [Desktop Entry]
-        Name=labwc
-        Comment=A wayland stacking compositor
-        Exec=labwc
-        Icon=labwc
-        Type=Application
-        DesktopNames=labwc;wlroots
-      '';
-
-      # Full-bleed FydeTab wallpaper.
-      environment.etc."nwg-hello/nwg-hello.css".text = ''
+      environment.etc."greetd/regreet.css".text = ''
         window {
           background-image: url("${pkgs.fydetab-wallpaper}/share/backgrounds/fydetab-duo/wallpaper.jpg");
           background-size: auto 100%;
         }
 
-        #form-wrapper {
-          background-color: rgba(0, 0, 0, 0.35);
-          border-radius: 16px;
+        .greeter, .greeter box, .greeter box center {
+          background-color: transparent;
         }
 
-        entry, button, combobox, scale {
+        .greeter entry, .greeter button {
           background-color: rgba(255, 255, 255, 0.12);
           border: 1px solid rgba(255, 255, 255, 0.35);
           border-radius: 18px;
@@ -184,82 +146,42 @@ in
           color: #ffffff;
         }
 
-        button:hover { background-color: rgba(255, 255, 255, 0.22); }
+        .greeter entry:focus { border-color: rgba(255, 255, 255, 0.6); }
+        .greeter button:hover { background-color: rgba(255, 255, 255, 0.22); }
 
-        #form-combo button,
-        #form-combo button *,
-        #form-combo button label {
-          background: rgba(255, 255, 255, 0.12);
-          background-color: rgba(255, 255, 255, 0.12);
-          color: #ffffff !important;
-        }
-
-        #form-combo treeview.view {
-          background-color: rgba(30, 30, 30, 0.85);
+        .greeter label {
           color: #ffffff;
         }
-
-        #form-combo treeview.view row:selected {
-          background-color: rgba(255, 255, 255, 0.18);
-          color: #ffffff;
-        }
-
-        #form-combo cellview {
-          color: #ffffff;
-        }
-
-        menu,
-        menuitem,
-        modelbutton {
-          background-color: rgba(30, 30, 30, 0.85);
-          color: #ffffff;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 12px;
-          padding: 8px;
-        }
-
-        menuitem:hover,
-        modelbutton:hover {
-          background-color: rgba(255, 255, 255, 0.18);
-        }
-
-        #power-button {
-          border-radius: 18px;
-          background: none;
-          border: none;
-        }
-        #power-button:hover { background-color: rgba(255, 255, 255, 0.1); }
-
-        #welcome-label { font-size: 40px; font-weight: bold; color: #ffffff; }
-        #clock-label   { font-family: monospace; font-size: 26px; color: #ffffff; }
-        #date-label    { font-family: monospace; font-size: 16px; color: rgba(255, 255, 255, 0.85); }
-        #form-label    { color: #ffffff; }
       '';
 
       # labwc session for the greeter keeping our landscape/rotate + touch mapping.
-      environment.etc."nwg-hello/labwc-config/autostart".text = ''
+      environment.etc."regreet-labwc/autostart".text = ''
         # Apply the same output transform the desktop shell gets (270 for
         # landscape, none for portrait) so the greeter renders upright.
         ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
 
-        # Run nwg-hello in the foreground; once it exits (a user logged in)
-        # tear the compositor down so greetd starts the actual session.
-        exec ${pkgs.nwg-hello}/bin/nwg-hello -c /etc/nwg-hello/nwg-hello.json -s /etc/nwg-hello/nwg-hello.css; ${pkgs.labwc}/bin/labwc --exit
+        # Launch ReGreet (blocking). When it exits (login succeeded), tear
+        # down the compositor down so greetd starts the actual session.
+        ${pkgs.regreet}/bin/regreet; ${pkgs.labwc}/bin/labwc --exit
       '';
 
-      environment.etc."nwg-hello/labwc-config/rc.xml".text = ''
+      environment.etc."regreet-labwc/rc.xml".text = ''
         <?xml version="1.0"?>
         <labwc_config>
           <theme>
             <name>FydeTab</name>
+            <icon>Papirus</icon>
             <cornerradius>8</cornerradius>
           </theme>
+          <menu>
+            <showIcons>yes</showIcons>
+          </menu>
           ${touchMapToOutput}
         </labwc_config>
       '';
 
       services.greetd.settings.default_session.command =
-        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/nwg-hello/labwc-config";
+        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc";
 
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
