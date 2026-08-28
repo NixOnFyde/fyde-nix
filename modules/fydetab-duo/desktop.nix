@@ -294,6 +294,13 @@ in
           ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
         fi
 
+        # Manual toggle: spawn the OSK if not running, otherwise toggle
+        # visibility. The greeter has no wayle/tablet-mode monitor, so this
+        # gesture is the only way to get the OSK here. Mirrors the
+        # tablet-mode gesture (killall -USR2 toggles if running, else spawn).
+        ${pkgs.lisgd}/bin/lisgd -d /dev/input/event9 -o 3 -t 150 \
+          -g "1,DU,B,*,R,${pkgs.toybox}/bin/killall -USR2 wvkbd-mobintl 2>/dev/null || ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &" &
+
         # Launch ReGreet (blocking). When it exits (login succeeded), tear
         # down the compositor so greetd can start the real session.
         ${pkgs.regreet}/bin/regreet; kill %1 2>/dev/null; ${pkgs.labwc}/bin/labwc --exit
