@@ -62,6 +62,35 @@ index 9e6f1d2..dba99e5 100644
  }
  
  #ifndef FPGA_PLATFORM
+diff --git a/drivers/rknpu/rknpu_gem.c b/drivers/rknpu/rknpu_gem.c
+index f1346f9..d2a157c 100644
+--- a/drivers/rknpu/rknpu_gem.c
++++ b/drivers/rknpu/rknpu_gem.c
+@@ -16,7 +16,7 @@
+ #include <linux/iommu.h>
+ #include <linux/pfn_t.h>
+ #include <linux/version.h>
+-#include <linux/version_compat_defs.h>
++/* version_compat_defs.h removed: vm_flags_set/clear are in mm.h on 6.3+ */
+ #include <asm/cacheflush.h>
+ 
+ #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+@@ -1519,6 +1519,7 @@ void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
+ }
+ #endif
+ 
++#if KERNEL_VERSION(6, 6, 0) > LINUX_VERSION_CODE
+ int rknpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+ {
+ 	int ret = -EINVAL;
+@@ -1529,6 +1530,7 @@ int rknpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+ 
+ 	return rknpu_gem_mmap_obj(obj, vma);
+ }
++#endif
+ 
+ static int rknpu_cache_sync_with_sg(struct rknpu_device *rknpu_dev,
+ 				    struct rknpu_gem_object *rknpu_obj,
 diff --git a/drivers/rknpu/rknpu_iommu.c b/drivers/rknpu/rknpu_iommu.c
 index a3efb1e..eedd05b 100644
 --- a/drivers/rknpu/rknpu_iommu.c
