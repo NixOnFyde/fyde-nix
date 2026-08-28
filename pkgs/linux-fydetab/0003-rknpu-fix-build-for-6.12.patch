@@ -32,3 +32,124 @@ index 9e6f1d2..dba99e5 100644
  }
  
  #ifndef FPGA_PLATFORM
+diff --git a/drivers/rknpu/rknpu_iommu.c b/drivers/rknpu/rknpu_iommu.c
+index a3efb1e..eedd05b 100644
+--- a/drivers/rknpu/rknpu_iommu.c
++++ b/drivers/rknpu/rknpu_iommu.c
+@@ -112,9 +112,6 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
+ 
+ 	for_each_sg(sg, s, nents, i) {
+ 		/* Restore this segment's original unaligned fields first */
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-		dma_addr_t s_dma_addr = sg_dma_address(s);
+-#endif
+ 		unsigned int s_iova_off = sg_dma_address(s);
+ 		unsigned int s_length = sg_dma_len(s);
+ 		unsigned int s_iova_len = s->length;
+@@ -122,21 +119,6 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
+ 		sg_dma_address(s) = DMA_MAPPING_ERROR;
+ 		sg_dma_len(s) = 0;
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-		if (sg_is_dma_bus_address(s)) {
+-			if (i > 0)
+-				cur = sg_next(cur);
+-
+-			sg_dma_unmark_bus_address(s);
+-			sg_dma_address(cur) = s_dma_addr;
+-			sg_dma_len(cur) = s_length;
+-			sg_dma_mark_bus_address(cur);
+-			count++;
+-			cur_len = 0;
+-			continue;
+-		}
+-#endif
+-
+ 		s->offset += s_iova_off;
+ 		s->length = s_length;
+ 
+@@ -179,20 +161,6 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
+ 	struct scatterlist *s;
+ 	int i;
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-	for_each_sg(sg, s, nents, i) {
+-		if (sg_is_dma_bus_address(s)) {
+-			sg_dma_unmark_bus_address(s);
+-		} else {
+-			if (sg_dma_address(s) != DMA_MAPPING_ERROR)
+-				s->offset += sg_dma_address(s);
+-			if (sg_dma_len(s))
+-				s->length = sg_dma_len(s);
+-		}
+-		sg_dma_address(s) = DMA_MAPPING_ERROR;
+-		sg_dma_len(s) = 0;
+-	}
+-#else
+ 	for_each_sg(sg, s, nents, i) {
+ 		if (sg_dma_address(s) != DMA_MAPPING_ERROR)
+ 			s->offset += sg_dma_address(s);
+@@ -201,7 +169,6 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
+ 		sg_dma_address(s) = DMA_MAPPING_ERROR;
+ 		sg_dma_len(s) = 0;
+ 	}
+-#endif
+ }
+ 
+ int rknpu_iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
+@@ -274,7 +241,7 @@ int rknpu_iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
+ 		goto out_restore_sg;
+ 	}
+ 
+-	ret = iommu_map_sg(domain, iova, sg, nents, prot);
++	ret = iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
+ 	if (ret < 0 || ret < iova_len) {
+ 		LOG_ERROR("failed to map SG: %zd\n", ret);
+ 		goto out_free_iova;
+@@ -311,38 +278,6 @@ void rknpu_iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+ 	if (iova_aligned)
+ 		return dma_unmap_sg(dev, sg, nents, dir);
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-	/*
+-	 * The scatterlist segments are mapped into a single
+-	 * contiguous IOVA allocation, the start and end points
+-	 * just have to be determined.
+-	 */
+-	for_each_sg(sg, tmp, nents, i) {
+-		if (sg_is_dma_bus_address(tmp)) {
+-			sg_dma_unmark_bus_address(tmp);
+-			continue;
+-		}
+-
+-		if (sg_dma_len(tmp) == 0)
+-			break;
+-
+-		start = sg_dma_address(tmp);
+-		break;
+-	}
+-
+-	nents -= i;
+-	for_each_sg(tmp, tmp, nents, i) {
+-		if (sg_is_dma_bus_address(tmp)) {
+-			sg_dma_unmark_bus_address(tmp);
+-			continue;
+-		}
+-
+-		if (sg_dma_len(tmp) == 0)
+-			break;
+-
+-		end = sg_dma_address(tmp) + sg_dma_len(tmp);
+-	}
+-#else
+ 	start = sg_dma_address(sg);
+ 	for_each_sg(sg_next(sg), tmp, nents - 1, i) {
+ 		if (sg_dma_len(tmp) == 0)
+@@ -350,7 +285,6 @@ void rknpu_iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+ 		sg = tmp;
+ 	}
+ 	end = sg_dma_address(sg) + sg_dma_len(sg);
+-#endif
+ 
+ 	dma_addr = start;
+ 	size = end - start;
