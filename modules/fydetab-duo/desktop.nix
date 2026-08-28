@@ -273,8 +273,8 @@ in
           sleep 0.1
         done
 
-        # Launch the on-screen keyboard so users can type their password
-        # on the touchscreen. Skip if a USB keyboard is connected (HID
+        # Launch the OSK so users can type their password on the
+        # touchscreen. Skip if a USB keyboard is connected (HID
         # boot interface: class 03, subclass 01, protocol 01 = keyboard).
         has_kb=false
 
@@ -290,7 +290,8 @@ in
         done
 
         if [ "$has_kb" = false ]; then
-          ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto &
+          # Only spawn if NO keyboard connected
+          ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
         fi
 
         # Launch ReGreet (blocking). When it exits (login succeeded), tear
