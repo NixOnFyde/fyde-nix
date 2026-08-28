@@ -2,10 +2,12 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
   cfg = config.hardware.fydetabduo;
+  pkgsUnstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.hostPlatform.system; };
 
   cursorTheme = "Bibata-Modern-Ice";
   cursorSize = "24";
@@ -271,9 +273,29 @@ in
           sleep 0.1
         done
 
+        # Launch the on-screen keyboard so users can type their password
+        # on the touchscreen. Skip if a USB keyboard is connected (HID
+        # boot interface: class 03, subclass 01, protocol 01 = keyboard).
+        has_kb=false
+
+        for intf in /sys/bus/usb/devices/*:*.*; do
+          [ -f "$intf/bInterfaceClass" ] || continue
+          cls=$(cat "$intf/bInterfaceClass" 2>/dev/null)
+          proto=$(cat "$intf/bInterfaceProtocol" 2>/dev/null)
+
+          if [ "$cls" = "03" ] && [ "$proto" = "01" ]; then
+            has_kb=true
+            break
+          fi
+        done
+
+        if [ "$has_kb" = false ]; then
+          ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto &
+        fi
+
         # Launch ReGreet (blocking). When it exits (login succeeded), tear
         # down the compositor so greetd can start the real session.
-        ${pkgs.regreet}/bin/regreet; ${pkgs.labwc}/bin/labwc --exit
+        ${pkgs.regreet}/bin/regreet; kill %1 2>/dev/null; ${pkgs.labwc}/bin/labwc --exit
       '';
 
       environment.etc."regreet-labwc/rc.xml".text = ''
