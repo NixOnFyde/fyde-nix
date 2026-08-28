@@ -2803,10 +2803,10 @@ index 000000000..d8db3a34c
 +EXPORT_SYMBOL(rknpu_devfreq_remove);
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
 new file mode 100644
-index 000000000..9e6f1d28a
+index 000000000..000000001
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -0,0 +1,1698 @@
+@@ -0,0 +1,1606 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -3783,64 +3783,11 @@ index 000000000..9e6f1d28a
 +	rknpu_devfreq_lock(rknpu_dev);
 +#endif
 +
-+	if (rknpu_dev->multiple_domains) {
-+		if (rknpu_dev->genpd_dev_npu0) {
-+#if KERNEL_VERSION(5, 5, 0) < LINUX_VERSION_CODE
-+			ret = pm_runtime_resume_and_get(
-+				rknpu_dev->genpd_dev_npu0);
-+#else
-+			ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
-+#endif
-+			if (ret < 0) {
-+				LOG_DEV_ERROR(
-+					dev,
-+					"failed to get pm runtime for npu0, ret: %d\n",
-+					ret);
-+				goto out;
-+			}
-+		}
-+		if (rknpu_dev->genpd_dev_npu1) {
-+#if KERNEL_VERSION(5, 5, 0) < LINUX_VERSION_CODE
-+			ret = pm_runtime_resume_and_get(
-+				rknpu_dev->genpd_dev_npu1);
-+#else
-+			ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu1);
-+#endif
-+			if (ret < 0) {
-+				LOG_DEV_ERROR(
-+					dev,
-+					"failed to get pm runtime for npu1, ret: %d\n",
-+					ret);
-+				goto out;
-+			}
-+		}
-+		if (rknpu_dev->genpd_dev_npu2) {
-+#if KERNEL_VERSION(5, 5, 0) < LINUX_VERSION_CODE
-+			ret = pm_runtime_resume_and_get(
-+				rknpu_dev->genpd_dev_npu2);
-+#else
-+			ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu2);
-+#endif
-+			if (ret < 0) {
-+				LOG_DEV_ERROR(
-+					dev,
-+					"failed to get pm runtime for npu2, ret: %d\n",
-+					ret);
-+				goto out;
-+			}
-+		}
-+	}
-+	ret = pm_runtime_get_sync(dev);
-+	if (ret < 0) {
-+		LOG_DEV_ERROR(dev,
-+			      "failed to get pm runtime for rknpu, ret: %d\n",
-+			      ret);
-+	}
++	ret = 0;
 +
 +	if (rknpu_dev->config->state_init != NULL)
 +		rknpu_dev->config->state_init(rknpu_dev);
 +
-+out:
 +#ifndef FPGA_PLATFORM
 +	rknpu_devfreq_unlock(rknpu_dev);
 +#endif
@@ -3850,48 +3797,9 @@ index 000000000..9e6f1d28a
 +
 +static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 +{
-+	struct device *dev = rknpu_dev->dev;
-+
 +#ifndef FPGA_PLATFORM
-+	int ret;
-+	bool val;
-+
 +	rknpu_devfreq_lock(rknpu_dev);
 +#endif
-+
-+	pm_runtime_put_sync(dev);
-+
-+	if (rknpu_dev->multiple_domains) {
-+#ifndef FPGA_PLATFORM
-+		/*
-+		 * Because IOMMU's runtime suspend callback is asynchronous,
-+		 * So it may be executed after the NPU is turned off after PD/CLK/VD,
-+		 * and the runtime suspend callback has a register access.
-+		 * If the PD/VD/CLK is closed, the register access will crash.
-+		 * As a workaround, it's safe to close pd stuff until iommu disabled.
-+		 * If pm runtime framework can handle this issue in the future, remove
-+		 * this.
-+		 */
-+		ret = readx_poll_timeout(rockchip_iommu_is_enabled, dev, val,
-+					 !val, NPU_MMU_DISABLED_POLL_PERIOD_US,
-+					 NPU_MMU_DISABLED_POLL_TIMEOUT_US);
-+		if (ret) {
-+			LOG_DEV_ERROR(dev, "iommu still enabled\n");
-+			pm_runtime_get_sync(dev);
-+			rknpu_devfreq_unlock(rknpu_dev);
-+			return ret;
-+		}
-+#else
-+		if (rknpu_dev->iommu_en)
-+			msleep(20);
-+#endif
-+		if (rknpu_dev->genpd_dev_npu2)
-+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu2);
-+		if (rknpu_dev->genpd_dev_npu1)
-+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu1);
-+		if (rknpu_dev->genpd_dev_npu0)
-+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu0);
-+	}
 +
 +#ifndef FPGA_PLATFORM
 +	rknpu_devfreq_unlock(rknpu_dev);
@@ -4087,9 +3995,9 @@ index 000000000..9e6f1d28a
 +	struct resource *res = NULL;
 +	struct rknpu_device *rknpu_dev = NULL;
 +	struct device *dev = &pdev->dev;
-+	struct device *virt_dev = NULL;
 +	const struct of_device_id *match = NULL;
 +	const struct rknpu_config *config = NULL;
++	struct device *virt_dev = NULL;
 +	int ret = -EINVAL, i = 0;
 +
 +	if (!pdev->dev.of_node) {

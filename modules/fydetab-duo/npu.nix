@@ -21,6 +21,7 @@ in
 
     environment.sessionVariables.LD_LIBRARY_PATH = [
       "${pkgs.librknnrt}/lib"
+      "${pkgs.stdenv.cc.cc.lib}/lib"
     ];
   };
 }
