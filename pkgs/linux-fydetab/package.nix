@@ -16,6 +16,10 @@ let
       name = "rknpu-add-npu-driver";
       patch = ./0002-rknpu-add-npu-driver.patch;
     }
+    {
+      name = "rknpu-fix-build-for-6.12";
+      patch = ./0003-rknpu-fix-build-for-6.12.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
