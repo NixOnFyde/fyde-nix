@@ -28,6 +28,9 @@ let
     fi
   '';
 
+  # Touchscreen device for lisgd swipe gestures.
+  touchscreenDev = "/dev/input/event9";
+
   # Uses 'full' layout in portrait, 'landscape' in landscape (wvkbd 0.20).
   monitorScript = pkgs.writeShellScript "tablet-mode-monitor" ''
     WVKBD="${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl"
@@ -36,7 +39,17 @@ let
     PGREP="${pkgs.toybox}/bin/pgrep"
     STATE_FILE="${stateFile}"
 
-    cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; exit 0; }
+    # Swipe up from bottom edge toggles wvkbd (fallback if user
+    # wants to manually get it).
+    ${pkgs.lisgd}/bin/lisgd -d ${touchscreenDev} -o 3 -t 150 \
+      -g "1,DU,B,*,R,${pkgs.toybox}/bin/killall -USR2 wvkbd-mobintl 2>/dev/null || ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &" &
+    LISGD_PID=$!
+
+    cleanup() {
+      kill $LISGD_PID 2>/dev/null || true
+      $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true
+      exit 0
+    }
     trap cleanup TERM
 
     # Initialise state file on first run
@@ -122,6 +135,7 @@ in
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [
       pkgsUnstable.wvkbd
+      pkgs.lisgd
       pkgs.inotify-tools
     ];
 
