@@ -1,5 +1,5 @@
 {
-  stdenvNoCC,
+  stdenv,
   fetchurl,
   lib,
 }:
@@ -7,13 +7,15 @@
 let
   src_base = "https://raw.githubusercontent.com/NixOnFyde/rknn-toolkit2/59a913d172e7f5ff03c9076e2ec7b1b1288ffd08/rknpu2/runtime/Linux/librknn_api";
 in
-stdenvNoCC.mkDerivation {
+stdenv.mkDerivation {
   pname = "librknnrt";
   version = "2024-10-01";
 
   dontUnpack = true;
   dontConfigure = true;
   dontBuild = true;
+
+  propagatedBuildInputs = [ stdenv.cc.cc.lib ];
 
   installPhase = ''
     runHook preInstall
