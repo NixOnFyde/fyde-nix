@@ -63,7 +63,7 @@ index 9e6f1d2..dba99e5 100644
  
  #ifndef FPGA_PLATFORM
 diff --git a/drivers/rknpu/rknpu_gem.c b/drivers/rknpu/rknpu_gem.c
-index f1346f9..d2a157c 100644
+index f1346f9..5e7f4e0 100644
 --- a/drivers/rknpu/rknpu_gem.c
 +++ b/drivers/rknpu/rknpu_gem.c
 @@ -16,7 +16,7 @@
@@ -71,26 +71,37 @@ index f1346f9..d2a157c 100644
  #include <linux/pfn_t.h>
  #include <linux/version.h>
 -#include <linux/version_compat_defs.h>
-+/* version_compat_defs.h removed: vm_flags_set/clear are in mm.h on 6.3+ */
++#include <linux/vmalloc.h>
  #include <asm/cacheflush.h>
  
  #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
-@@ -1519,6 +1519,7 @@ void rknpu_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
- }
- #endif
+@@ -448,7 +448,7 @@ static int rknpu_iommu_map_with_cache_sgt(struct iommu_domain *domain,
+ 		cache_start = rknpu_dev->nbuf_start + s->offset;
+ 		size = length < s->length ? length : s->length;
+ 		ret = iommu_map(domain, iova_start, cache_start, size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 		if (ret) {
+ 			LOG_ERROR("cache iommu_map error: %d\n", ret);
+ 			return ret;
+@@ -548,7 +548,7 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
+ 	if (!rknpu_obj->cache_with_sgt)
+ 		ret = iommu_map(domain, rknpu_obj->iova_start,
+ 				cache_start + cache_offset, cache_size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 	else
+ 		ret = rknpu_iommu_map_with_cache_sgt(domain, rknpu_dev,
+ 						     rknpu_obj, cache_size);
+@@ -594,7 +594,7 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
+ 		size = (length < s->length) ? length : s->length;
  
-+#if KERNEL_VERSION(6, 6, 0) > LINUX_VERSION_CODE
- int rknpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
- {
- 	int ret = -EINVAL;
-@@ -1529,6 +1530,7 @@ int rknpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
- 
- 	return rknpu_gem_mmap_obj(obj, vma);
- }
-+#endif
- 
- static int rknpu_cache_sync_with_sg(struct rknpu_device *rknpu_dev,
- 				    struct rknpu_gem_object *rknpu_obj,
+ 		ret = iommu_map(domain, offset, sg_phys(s), size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 		if (ret) {
+ 			LOG_ERROR("ddr iommu_map error: %d\n", ret);
+ 			goto sgl_unmap;
 diff --git a/drivers/rknpu/rknpu_iommu.c b/drivers/rknpu/rknpu_iommu.c
 index a3efb1e..eedd05b 100644
 --- a/drivers/rknpu/rknpu_iommu.c
