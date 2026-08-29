@@ -2806,7 +2806,7 @@ new file mode 100644
 index 000000000..000000001
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -0,0 +1,1606 @@
+@@ -0,0 +1,1623 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -4210,6 +4210,19 @@ index 000000000..000000001
 +	if (ret)
 +		goto err_remove_drv;
 +
++	/* Power on the genpd power domain so the NPU MMIO registers are
++	 * accessible.  rknpu_power_on() only enables the device's own
++	 * regulators and clocks; without this the bus-interface power
++	 * domain stays off and any regmap read (e.g. from OPP init)
++	 * causes an SError.
++	 */
++	ret = pm_runtime_get_sync(dev);
++	if (ret < 0) {
++		LOG_DEV_ERROR(dev, "failed to power on genpd: %d\n", ret);
++		pm_runtime_put_noidle(dev);
++		goto err_power_off;
++	}
++
 +#ifndef FPGA_PLATFORM
 +	rknpu_devfreq_init(rknpu_dev);
 +#endif
@@ -4265,6 +4278,10 @@ index 000000000..000000001
 +#ifndef FPGA_PLATFORM
 +	rknpu_devfreq_remove(rknpu_dev);
 +#endif
++
++err_power_off:
++	pm_runtime_put_sync_suspend(dev);
++	rknpu_power_off(rknpu_dev);
 +
 +err_remove_drv:
 +#ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
