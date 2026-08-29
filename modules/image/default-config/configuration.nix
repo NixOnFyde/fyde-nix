@@ -5,11 +5,25 @@
 # is not enabled. To customise, edit here or add a second file and
 # import it here. Or, make your own from scratch.
 #
-# DESKTOP SHELL
+# HARDWARE vs DESKTOP SHELL
 #
-# The full desktop environment (labwc, wayle, vicinae, alacritty, greeter,
-# wallpaper, keybindings, idle lock, etc.) is made of independent parts
-# defined under modules/fydetab-duo/shell/.
+# fyde-nix provides two NixOS modules for the FydeTab Duo:
+#
+#   fydetabduo          -- Full module: hardware + desktop shell (labwc, wayle,
+#                          vicinae, alacritty, greeter, wallpaper, keybindings,
+#                          idle lock, etc.). This is what this exemplar config
+#                          uses. It is a single import that gives you a complete
+#                          working system.
+#
+#   fydetabduo-hardware -- Hardware-only: kernel, GPU, WiFi, BT, audio,
+#                          touchscreen, accelerometer, tablet-mode, modem,
+#                          boot-loader, suspend, QoL. Everything you need to
+#                          run the FydeTab, but NO desktop shell. Use this
+#                          when you want to use your own compositor (niri,
+#                          sway, GNOME, etc.) instead of labwc.
+#
+# The desktop shell is made of independent parts under
+# modules/fydetab-duo/shell/:
 #
 #   master:      hardware.fydetabduo.shell.enable
 #   pieces:      hardware.fydetabduo.shell.{desktop,packages,audio,power,security}.enable

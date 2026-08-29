@@ -7,6 +7,15 @@
 #      to latest main HEAD. Only do this if you want the latest bleeding-
 #      edge updates, but note untagged commits may not be fully tested
 #      and could result in bricking. Not recommended except for testing.
+#
+# HARDWARE-ONLY MODULE
+#
+# If you want to use your own compositor (niri, sway, GNOME, etc.)
+# instead of the default labwc shell, replace fydetabduo with
+# fydetabduo-hardware in the modules list below. This gives you all
+# the hardware features (kernel, GPU, WiFi, BT, audio, touchscreen,
+# tablet-mode, etc.) without the desktop shell. You then configure
+# your own compositor, greeter, and shell separately.
 {
   description = "FydeTab Duo nixOS configuration";
 
