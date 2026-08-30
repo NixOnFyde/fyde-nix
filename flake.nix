@@ -71,6 +71,7 @@
 
       nixosModules = {
         fydetabduo = ./modules/fydetab-duo;
+        fydetabduo-hardware = ./modules/fydetab-duo/hardware.nix;
         fydetabduo-image = ./modules/image/fydetab-duo-image.nix;
         default = self.nixosModules.fydetabduo;
       };
