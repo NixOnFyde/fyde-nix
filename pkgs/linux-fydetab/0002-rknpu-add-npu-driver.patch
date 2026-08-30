@@ -2806,7 +2806,7 @@ new file mode 100644
 index 000000000..000000001
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -0,0 +1,1623 @@
+@@ -0,0 +1,1640 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -4215,11 +4215,25 @@ index 000000000..000000001
 +	 * regulators and clocks; without this the bus-interface power
 +	 * domain stays off and any regmap read (e.g. from OPP init)
 +	 * causes an SError.
++	 *
++	 * For multi-domain devices genpd_dev_pm_attach() on purpose
++	 * skips setting dev->pm_domain (it can only attach one domain
++	 * per device -- see drivers/pmdomain/core.c).  Use the virtual
++	 * device created by dev_pm_domain_attach_by_name() whose
++	 * pm_domain is correctly wired to PD_NPUTOP.
 +	 */
-+	ret = pm_runtime_get_sync(dev);
++	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0) {
++		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
++		ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
++	} else {
++		ret = pm_runtime_get_sync(dev);
++	}
 +	if (ret < 0) {
 +		LOG_DEV_ERROR(dev, "failed to power on genpd: %d\n", ret);
-+		pm_runtime_put_noidle(dev);
++		if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
++			pm_runtime_put_noidle(rknpu_dev->genpd_dev_npu0);
++		else
++			pm_runtime_put_noidle(dev);
 +		goto err_power_off;
 +	}
 +
@@ -4280,7 +4294,10 @@ index 000000000..000000001
 +#endif
 +
 +err_power_off:
-+	pm_runtime_put_sync_suspend(dev);
++	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
++		pm_runtime_put_sync_suspend(rknpu_dev->genpd_dev_npu0);
++	else
++		pm_runtime_put_sync_suspend(dev);
 +	rknpu_power_off(rknpu_dev);
 +
 +err_remove_drv:
