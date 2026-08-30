@@ -175,6 +175,25 @@ in
       '';
     };
 
+    # Make /etc/nixos/ config files always editable.
+    # environment.etc creates symlinks on every activation (boot or
+    # nixos-rebuild). This script converts them to proper copies immediately
+    # so users can always edit /etc/nixos/ directly. When the user edits a
+    # file and rebuilds, the build consumes the real file; activation then
+    # recreates the symlink (pointing to the new build output with the same
+    # content), and this script makes it editable again.
+    system.activationScripts.nixos-config-editable = lib.mkAfter ''
+      nixosdir="/etc/nixos"
+      [ -d "$nixosdir" ] || exit 0
+
+      for f in "$nixosdir"/*; do
+        [ -L "$f" ] || continue
+        target=$(readlink -f "$f")
+        rm "$f"
+        cp "$target" "$f"
+      done
+    '';
+
     system.build.image =
       let
         inherit (config.hardware.fydetabduo.bootchain)
