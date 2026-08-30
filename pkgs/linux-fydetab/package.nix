@@ -20,10 +20,6 @@ let
       name = "rknpu-fix-build-for-6.12";
       patch = ./0003-rknpu-fix-build-for-6.12.patch;
     }
-    {
-      name = "pmdomain-rockchip-add-npu-settle-delay";
-      patch = ./0004-pmdomain-rockchip-add-npu-settle-delay.patch;
-    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
