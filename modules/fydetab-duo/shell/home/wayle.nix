@@ -87,7 +87,7 @@ in
           dashboard.icon-color = "blue";
 
           clock = {
-            format = "%a %d %b %H:%M";
+            format = "%a %d %B %Y - %T";
             icon-show = false;
             label-color = "fg-default";
           };
