@@ -161,7 +161,7 @@ index c258b1ed7..72b3f8c06 100644
 +{
 +	static void __iomem *npu_base;
 +
-+	if (!power_on || strcmp(pd->genpd.name, "npu0"))
++	if (!power_on || strcmp(pd->genpd.name, "nputop"))
 +		return;
 +	if (!npu_base)
 +		npu_base = ioremap(0xfdab0000, 0x4000);
@@ -219,7 +219,7 @@ index c258b1ed7..72b3f8c06 100644
  	return 0;
  
 -err_unprepare_clocks:
-+ err_unprepare_clocks:
++err_unprepare_clocks:
  	clk_bulk_unprepare(pd->num_clks, pd->clks);
 +	reset_control_put(pd->resets);
  err_put_clocks:
