@@ -1,0 +1,51 @@
+diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
+--- a/drivers/rknpu/rknpu_drv.c
++++ b/drivers/rknpu/rknpu_drv.c
+@@ -435,7 +435,8 @@
+ 	platform_set_drvdata(pdev, rknpu_dev);
+ 
+-	pm_runtime_enable(dev);
++	if (!pm_runtime_enabled(dev))
++		pm_runtime_enable(dev);
+ 
+ 	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+ 				       "#power-domain-cells") > 1) {
+@@ -472,7 +473,8 @@
+ 	 * pm_domain is correctly wired to PD_NPUTOP.
+ 	 */
+ 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0) {
+-		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
++		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
++			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
+ 		ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
+ 	} else {
+ 		ret = pm_runtime_get_sync(dev);
+@@ -553,6 +555,7 @@
+ err_power_off:
+ 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
+ 		pm_runtime_put_sync_suspend(rknpu_dev->genpd_dev_npu0);
+ 	else
+ 		pm_runtime_put_sync_suspend(dev);
++	pm_runtime_disable(dev);
+ 	rknpu_power_off(rknpu_dev);
+ 
+@@ -570,6 +573,8 @@
+ #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
+ 	misc_deregister(&(rknpu_dev->miscdev));
+ #endif
+ 
++	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
++		pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
+ 	return ret;
+ }
+ 
+@@ -622,7 +627,9 @@
+ 
+ 	if (rknpu_dev->multiple_domains) {
+-		if (rknpu_dev->genpd_dev_npu0)
++		if (rknpu_dev->genpd_dev_npu0) {
++			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
+ 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
++		}
+ 		if (rknpu_dev->genpd_dev_npu1)
+ 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
