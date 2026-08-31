@@ -70,6 +70,11 @@
       # is a USB 2.0 device. However, this enables integration for the in-built
       # modem module with ModemManager and NetworkManager.
       modem.enable = true;
+
+      # Enables the RK3588S NPU using the vendor rknpu driver and librknnrt
+      # runtime. Provides /dev/dri/renderD129 and the RKNN C API for
+      # INT8/INT4/FP16 inference on the three NPU cores.
+      npu.enable = true;
     };
   };
 

@@ -1,0 +1,225 @@
+diff --git a/drivers/rknpu/rknpu_devfreq.c b/drivers/rknpu/rknpu_devfreq.c
+index d8db3a3..33d13f8 100644
+--- a/drivers/rknpu/rknpu_devfreq.c
++++ b/drivers/rknpu/rknpu_devfreq.c
+@@ -297,7 +297,6 @@ static const struct rockchip_opp_data rk3588_npu_opp_data = {
+ };
+ 
+ static const struct rockchip_opp_data rv1126b_npu_opp_data = {
+-	.is_use_pvtpll = true,
+ 	.get_soc_info = rv1126b_npu_get_soc_info,
+ 	.set_soc_info = rk3588_npu_set_soc_info,
+ #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+@@ -474,7 +473,7 @@ int rknpu_devfreq_runtime_suspend(struct device *dev)
+ 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+ 	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
+ 
+-	if (rockchip_opp_is_use_pvtpll(opp_info)) {
++	if ((false)) {
+ 		if (clk_set_rate(opp_info->clk, POWER_DOWN_FREQ))
+ 			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
+ 	}
+@@ -502,7 +501,7 @@ int rknpu_devfreq_runtime_resume(struct device *dev)
+ 	if (opp_info->data && opp_info->data->set_read_margin)
+ 		opp_info->data->set_read_margin(dev, opp_info,
+ 						opp_info->target_rm);
+-	if (rockchip_opp_is_use_pvtpll(opp_info)) {
++	if ((false)) {
+ 		if (clk_set_rate(opp_info->clk, rknpu_dev->current_freq))
+ 			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
+ 	}
+diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
+index 9e6f1d2..994193a 100644
+--- a/drivers/rknpu/rknpu_drv.c
++++ b/drivers/rknpu/rknpu_drv.c
+@@ -759,11 +759,6 @@ static struct drm_driver rknpu_drm_driver = {
+ 	.gem_prime_import = drm_gem_prime_import,
+ #endif
+ 	.gem_prime_import_sg_table = rknpu_gem_prime_import_sg_table,
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-	.gem_prime_mmap = drm_gem_prime_mmap,
+-#else
+-	.gem_prime_mmap = rknpu_gem_prime_mmap,
+-#endif
+ 	.ioctls = rknpu_ioctls,
+ 	.num_ioctls = ARRAY_SIZE(rknpu_ioctls),
+ 	.fops = &rknpu_drm_driver_fops,
+@@ -1560,7 +1531,7 @@ err_remove_drv:
+ 	return ret;
+ }
+ 
+-static int rknpu_remove(struct platform_device *pdev)
++static void rknpu_remove(struct platform_device *pdev)
+ {
+ 	struct rknpu_device *rknpu_dev = platform_get_drvdata(pdev);
+ 	int i = 0;
+@@ -1620,8 +1591,6 @@ static int rknpu_remove(struct platform_device *pdev)
+ 	}
+ 
+ 	pm_runtime_disable(&pdev->dev);
+-
+-	return 0;
+ }
+ 
+ #ifndef FPGA_PLATFORM
+diff --git a/drivers/rknpu/rknpu_gem.c b/drivers/rknpu/rknpu_gem.c
+index f1346f9..5e7f4e0 100644
+--- a/drivers/rknpu/rknpu_gem.c
++++ b/drivers/rknpu/rknpu_gem.c
+@@ -16,7 +16,7 @@
+ #include <linux/iommu.h>
+ #include <linux/pfn_t.h>
+ #include <linux/version.h>
+-#include <linux/version_compat_defs.h>
++#include <linux/vmalloc.h>
+ #include <asm/cacheflush.h>
+ 
+ #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+@@ -448,7 +448,7 @@ static int rknpu_iommu_map_with_cache_sgt(struct iommu_domain *domain,
+ 		cache_start = rknpu_dev->nbuf_start + s->offset;
+ 		size = length < s->length ? length : s->length;
+ 		ret = iommu_map(domain, iova_start, cache_start, size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 		if (ret) {
+ 			LOG_ERROR("cache iommu_map error: %d\n", ret);
+ 			return ret;
+@@ -548,7 +548,7 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
+ 	if (!rknpu_obj->cache_with_sgt)
+ 		ret = iommu_map(domain, rknpu_obj->iova_start,
+ 				cache_start + cache_offset, cache_size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 	else
+ 		ret = rknpu_iommu_map_with_cache_sgt(domain, rknpu_dev,
+ 						     rknpu_obj, cache_size);
+@@ -594,7 +594,7 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
+ 		size = (length < s->length) ? length : s->length;
+ 
+ 		ret = iommu_map(domain, offset, sg_phys(s), size,
+-				IOMMU_READ | IOMMU_WRITE);
++				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+ 		if (ret) {
+ 			LOG_ERROR("ddr iommu_map error: %d\n", ret);
+ 			goto sgl_unmap;
+diff --git a/drivers/rknpu/rknpu_iommu.c b/drivers/rknpu/rknpu_iommu.c
+index a3efb1e..eedd05b 100644
+--- a/drivers/rknpu/rknpu_iommu.c
++++ b/drivers/rknpu/rknpu_iommu.c
+@@ -112,9 +112,6 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
+ 
+ 	for_each_sg(sg, s, nents, i) {
+ 		/* Restore this segment's original unaligned fields first */
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-		dma_addr_t s_dma_addr = sg_dma_address(s);
+-#endif
+ 		unsigned int s_iova_off = sg_dma_address(s);
+ 		unsigned int s_length = sg_dma_len(s);
+ 		unsigned int s_iova_len = s->length;
+@@ -122,21 +119,6 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
+ 		sg_dma_address(s) = DMA_MAPPING_ERROR;
+ 		sg_dma_len(s) = 0;
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-		if (sg_is_dma_bus_address(s)) {
+-			if (i > 0)
+-				cur = sg_next(cur);
+-
+-			sg_dma_unmark_bus_address(s);
+-			sg_dma_address(cur) = s_dma_addr;
+-			sg_dma_len(cur) = s_length;
+-			sg_dma_mark_bus_address(cur);
+-			count++;
+-			cur_len = 0;
+-			continue;
+-		}
+-#endif
+-
+ 		s->offset += s_iova_off;
+ 		s->length = s_length;
+ 
+@@ -179,20 +161,6 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
+ 	struct scatterlist *s;
+ 	int i;
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-	for_each_sg(sg, s, nents, i) {
+-		if (sg_is_dma_bus_address(s)) {
+-			sg_dma_unmark_bus_address(s);
+-		} else {
+-			if (sg_dma_address(s) != DMA_MAPPING_ERROR)
+-				s->offset += sg_dma_address(s);
+-			if (sg_dma_len(s))
+-				s->length = sg_dma_len(s);
+-		}
+-		sg_dma_address(s) = DMA_MAPPING_ERROR;
+-		sg_dma_len(s) = 0;
+-	}
+-#else
+ 	for_each_sg(sg, s, nents, i) {
+ 		if (sg_dma_address(s) != DMA_MAPPING_ERROR)
+ 			s->offset += sg_dma_address(s);
+@@ -201,7 +169,6 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
+ 		sg_dma_address(s) = DMA_MAPPING_ERROR;
+ 		sg_dma_len(s) = 0;
+ 	}
+-#endif
+ }
+ 
+ int rknpu_iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
+@@ -274,7 +241,7 @@ int rknpu_iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
+ 		goto out_restore_sg;
+ 	}
+ 
+-	ret = iommu_map_sg(domain, iova, sg, nents, prot);
++	ret = iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
+ 	if (ret < 0 || ret < iova_len) {
+ 		LOG_ERROR("failed to map SG: %zd\n", ret);
+ 		goto out_free_iova;
+@@ -311,38 +278,6 @@ void rknpu_iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+ 	if (iova_aligned)
+ 		return dma_unmap_sg(dev, sg, nents, dir);
+ 
+-#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+-	/*
+-	 * The scatterlist segments are mapped into a single
+-	 * contiguous IOVA allocation, the start and end points
+-	 * just have to be determined.
+-	 */
+-	for_each_sg(sg, tmp, nents, i) {
+-		if (sg_is_dma_bus_address(tmp)) {
+-			sg_dma_unmark_bus_address(tmp);
+-			continue;
+-		}
+-
+-		if (sg_dma_len(tmp) == 0)
+-			break;
+-
+-		start = sg_dma_address(tmp);
+-		break;
+-	}
+-
+-	nents -= i;
+-	for_each_sg(tmp, tmp, nents, i) {
+-		if (sg_is_dma_bus_address(tmp)) {
+-			sg_dma_unmark_bus_address(tmp);
+-			continue;
+-		}
+-
+-		if (sg_dma_len(tmp) == 0)
+-			break;
+-
+-		end = sg_dma_address(tmp) + sg_dma_len(tmp);
+-	}
+-#else
+ 	start = sg_dma_address(sg);
+ 	for_each_sg(sg_next(sg), tmp, nents - 1, i) {
+ 		if (sg_dma_len(tmp) == 0)
+@@ -350,7 +285,6 @@ void rknpu_iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+ 		sg = tmp;
+ 	}
+ 	end = sg_dma_address(sg) + sg_dma_len(sg);
+-#endif
+ 
+ 	dma_addr = start;
+ 	size = end - start;
