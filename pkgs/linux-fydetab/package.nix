@@ -98,9 +98,9 @@ linuxKernel.buildLinux rec {
     BRIDGE_NETFILTER = module;
     IP6_NF_MATCH_RT = module;
 
-    ROCKCHIP_RKNPU = yes;
-    ROCKCHIP_RKNPU_DRM_GEM = yes;
-    ROCKCHIP_RKNPU_DEBUG_FS = yes;
+    ROCKCHIP_RKNPU = module;
+    ROCKCHIP_RKNPU_DRM_GEM = module;
+    ROCKCHIP_RKNPU_DEBUG_FS = module;
   };
 
   extraMeta = {
