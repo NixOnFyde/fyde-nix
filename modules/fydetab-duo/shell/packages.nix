@@ -46,7 +46,7 @@ in
       grim
       haruna
       helix
-      hyprpolkitagent
+      lxqt.lxqt-policykit-agent
       iio-sensor-proxy
       kdePackages.gwenview
       kanshi

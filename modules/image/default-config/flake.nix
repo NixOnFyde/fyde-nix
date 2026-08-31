@@ -8,14 +8,36 @@
 #      edge updates, but note untagged commits may not be fully tested
 #      and could result in bricking. Not recommended except for testing.
 #
-# HARDWARE-ONLY MODULE
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULAR IMPORTS
+# ─────────────────────────────────────────────────────────────────────────────
 #
-# If you want to use your own compositor (niri, sway, GNOME, etc.)
-# instead of the default labwc shell, replace fydetabduo with
-# fydetabduo-hardware in the modules list below. This gives you all
-# the hardware features (kernel, GPU, WiFi, BT, audio, touchscreen,
-# tablet-mode, etc.) without the desktop shell. You then configure
-# your own compositor, greeter, and shell separately.
+# This config uses the full bundle (fydetabduo), but you can cherry-pick parts:
+#
+#   BUNDLES:
+#     fyde-nix.nixosModules.fydetabduo           -- everything
+#     fyde-nix.nixosModules.fydetabduo-hardware  -- no desktop shell
+#
+#   INDIVIDUAL:
+#     fyde-nix.nixosModules.base                 -- kernel + firmware
+#     fyde-nix.nixosModules.bluetooth            -- bluetooth
+#     fyde-nix.nixosModules.npu                  -- NPU
+#     fyde-nix.nixosModules.shell-audio          -- PipeWire
+#     ... (see full list in configuration.nix)
+#
+# Example: hardware only + niri compositor:
+#
+#   modules = [
+#     fyde-nix.nixosModules.base
+#     fyde-nix.nixosModules.bluetooth
+#     fyde-nix.nixosModules.audio
+#     fyde-nix.nixosModules.input
+#     fyde-nix.nixosModules.npu
+#     fyde-nix.nixosModules.qol
+#     fyde-nix.nixosModules.boot-loader
+#     ./my-niri-config.nix
+#   ];
+# ─────────────────────────────────────────────────────────────────────────────
 {
   description = "FydeTab Duo nixOS configuration";
 
