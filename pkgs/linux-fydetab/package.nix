@@ -20,6 +20,10 @@ let
       name = "rknpu-fix-build-for-6.12";
       patch = ./0003-rknpu-fix-build-for-6.12.patch;
     }
+    {
+      name = "rknpu-fix-pm_runtime-cleanup";
+      patch = ./0004-rknpu-fix-pm_runtime-cleanup.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
@@ -99,8 +103,8 @@ linuxKernel.buildLinux rec {
     IP6_NF_MATCH_RT = module;
 
     ROCKCHIP_RKNPU = module;
-    ROCKCHIP_RKNPU_DRM_GEM = module;
-    ROCKCHIP_RKNPU_DEBUG_FS = module;
+    ROCKCHIP_RKNPU_DRM_GEM = yes;
+    ROCKCHIP_RKNPU_DEBUG_FS = yes;
   };
 
   extraMeta = {
