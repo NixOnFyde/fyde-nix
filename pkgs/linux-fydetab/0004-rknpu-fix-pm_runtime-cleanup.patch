@@ -1,7 +1,7 @@
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
 --- a/drivers/rknpu/rknpu_drv.c
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -435,7 +435,8 @@
+@@ -435,6 +435,7 @@
  	platform_set_drvdata(pdev, rknpu_dev);
  
 -	pm_runtime_enable(dev);
@@ -20,17 +20,15 @@ diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
  		ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
  	} else {
  		ret = pm_runtime_get_sync(dev);
-@@ -553,6 +555,7 @@
- err_power_off:
- 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
- 		pm_runtime_put_sync_suspend(rknpu_dev->genpd_dev_npu0);
- 	else
- 		pm_runtime_put_sync_suspend(dev);
-+	pm_runtime_disable(dev);
+@@ -555,6 +557,7 @@
+ 	pm_runtime_put_sync_suspend(dev);
  	rknpu_power_off(rknpu_dev);
  
-@@ -570,6 +573,8 @@
- #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
++	pm_runtime_disable(dev);
+ err_remove_drv:
+ #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
+ 	rknpu_drm_remove(rknpu_dev);
+@@ -573,6 +576,8 @@
  	misc_deregister(&(rknpu_dev->miscdev));
  #endif
  
@@ -39,8 +37,7 @@ diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
  	return ret;
  }
  
-@@ -622,7 +627,9 @@
- 
+@@ -627,5 +632,7 @@
  	if (rknpu_dev->multiple_domains) {
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
