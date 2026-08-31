@@ -1,70 +1,21 @@
 From b89911d7f89c304183a609d7122a7fcee26b04ee Mon Sep 17 00:00:00 2001
 From: Jiaxing Hu <huhuvmb88@outlook.com>
 Date: Sat, 29 Aug 2026 19:24:48 +0100
-Subject: [PATCH] pmdomain/rockchip: full NPU power-on fix for RK3588
+Subject: [PATCH] pmdomain/rockchip: add settle delay for NPU power domains
+
+Add a short delay after leaving idle mode for NPU-related power
+domains on RK3588. The NPU hardware needs time to stabilize after
+the power domain transitions before registers can be safely accessed.
 
 ---
- arch/arm64/boot/dts/rockchip/rk3588-base.dtsi | 19 +++-
- drivers/pmdomain/rockchip/pm-domains.c        | 98 ++++++++++++++++++-
- 2 files changed, 109 insertions(+), 8 deletions(-)
+ drivers/pmdomain/rockchip/pm-domains.c | 35 ++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
 
-diff --git a/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi b/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
-index 261d0c326..467ab4c92 100644
---- a/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
-+++ b/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
-@@ -851,7 +851,14 @@ power-domain@RK3588_PD_NPUTOP {
- 					clocks = <&cru HCLK_NPU_ROOT>,
- 						 <&cru PCLK_NPU_ROOT>,
- 						 <&cru CLK_NPU_DSU0>,
--						 <&cru HCLK_NPU_CM0_ROOT>;
-+						 <&cru HCLK_NPU_CM0_ROOT>,
-+						 <&cru ACLK_NPU0>,
-+						 <&cru ACLK_NPU1>,
-+						 <&cru ACLK_NPU2>,
-+						 <&cru HCLK_NPU0>,
-+						 <&cru HCLK_NPU1>,
-+						 <&cru HCLK_NPU2>;
-+					resets = <&cru SRST_A_RKNN_DSU0>;
- 					pm_qos = <&qos_npu0_mwr>,
- 						 <&qos_npu0_mro>,
- 						 <&qos_mcu_npu>;
-@@ -863,7 +870,10 @@ power-domain@RK3588_PD_NPU1 {
- 						reg = <RK3588_PD_NPU1>;
- 						clocks = <&cru HCLK_NPU_ROOT>,
- 							 <&cru PCLK_NPU_ROOT>,
--							 <&cru CLK_NPU_DSU0>;
-+							 <&cru CLK_NPU_DSU0>,
-+							 <&cru ACLK_NPU1>,
-+							 <&cru HCLK_NPU1>;
-+						resets = <&cru SRST_A_RKNN1_BIU>;
- 						pm_qos = <&qos_npu1>;
- 						#power-domain-cells = <0>;
- 					};
-@@ -871,7 +881,10 @@ power-domain@RK3588_PD_NPU2 {
- 						reg = <RK3588_PD_NPU2>;
- 						clocks = <&cru HCLK_NPU_ROOT>,
- 							 <&cru PCLK_NPU_ROOT>,
--							 <&cru CLK_NPU_DSU0>;
-+							 <&cru CLK_NPU_DSU0>,
-+							 <&cru ACLK_NPU2>,
-+							 <&cru HCLK_NPU2>;
-+						resets = <&cru SRST_A_RKNN2_BIU>;
- 						pm_qos = <&qos_npu2>;
- 						#power-domain-cells = <0>;
- 					};
 diff --git a/drivers/pmdomain/rockchip/pm-domains.c b/drivers/pmdomain/rockchip/pm-domains.c
-index c258b1ed7..72b3f8c06 100644
+index c258b1ed7..d5e2e2598 100644
 --- a/drivers/pmdomain/rockchip/pm-domains.c
 +++ b/drivers/pmdomain/rockchip/pm-domains.c
-@@ -17,6 +17,7 @@
- #include <linux/of_address.h>
- #include <linux/of_clk.h>
- #include <linux/clk.h>
-+#include <linux/reset.h>
- #include <linux/regmap.h>
- #include <linux/mfd/syscon.h>
- #include <soc/rockchip/pm_domains.h>
-@@ -53,6 +54,7 @@ struct rockchip_domain_info {
+@@ -53,6 +53,7 @@ struct rockchip_domain_info {
  	u32 pwr_offset;
  	u32 mem_offset;
  	u32 req_offset;
@@ -72,15 +23,7 @@ index c258b1ed7..72b3f8c06 100644
  };
  
  struct rockchip_pmu_info {
-@@ -93,6 +95,7 @@ struct rockchip_pm_domain {
- 	u32 *qos_save_regs[MAX_QOS_REGS_NUM];
- 	int num_clks;
- 	struct clk_bulk_data *clks;
-+	struct reset_control *resets;
- };
- 
- struct rockchip_pmu {
-@@ -148,6 +151,25 @@ struct rockchip_pmu {
+@@ -148,6 +149,25 @@ struct rockchip_pmu {
  	.active_wakeup = wakeup,			\
  }
  
@@ -106,44 +49,7 @@ index c258b1ed7..72b3f8c06 100644
  #define DOMAIN_M_O_R_G(_name, p_offset, pwr, status, m_offset, m_status, r_status, r_offset, req, idle, ack, g_mask, wakeup)	\
  {							\
  	.name = _name,					\
-@@ -167,6 +189,26 @@ struct rockchip_pmu {
- 	.active_wakeup = wakeup,			\
- }
- 
-+#define DOMAIN_M_O_R_G_DELAY(_name, p_offset, pwr, status, m_offset, m_status, r_status, r_offset, req, idle, ack, g_mask, wakeup, delay)	\
-+{							\
-+	.name = _name,					\
-+	.pwr_offset = p_offset,				\
-+	.pwr_w_mask = (pwr) << 16,			\
-+	.pwr_mask = (pwr),				\
-+	.status_mask = (status),			\
-+	.mem_offset = m_offset,				\
-+	.mem_status_mask = (m_status),			\
-+	.repair_status_mask = (r_status),		\
-+	.req_offset = r_offset,				\
-+	.req_w_mask = (req) << 16,			\
-+	.req_mask = (req),				\
-+	.idle_mask = (idle),				\
-+	.clk_ungate_mask = (g_mask),			\
-+	.ack_mask = (ack),				\
-+	.active_wakeup = wakeup,			\
-+	.delay_us = (delay),				\
-+}
-+
- #define DOMAIN_RK3036(_name, req, ack, idle, wakeup)		\
- {							\
- 	.name = _name,				\
-@@ -201,6 +243,9 @@ struct rockchip_pmu {
- #define DOMAIN_RK3576(name, p_offset, pwr, status, r_status, r_offset, req, idle, g_mask, wakeup)	\
- 	DOMAIN_M_O_R_G(name, p_offset, pwr, status, 0, r_status, r_status, r_offset, req, idle, idle, g_mask, wakeup)
- 
-+#define DOMAIN_RK3576_DELAY(name, p_offset, pwr, status, r_status, r_offset, req, idle, g_mask, wakeup, delay)	\
-+	DOMAIN_M_O_R_G_DELAY(name, p_offset, pwr, status, 0, r_status, r_status, r_offset, req, idle, idle, g_mask, wakeup, delay)
-+
- /*
-  * Dynamic Memory Controller may need to coordinate with us -- see
-  * rockchip_pmu_block().
-@@ -307,6 +352,9 @@ EXPORT_SYMBOL_GPL(rockchip_pmu_unblock);
+@@ -307,6 +327,9 @@ EXPORT_SYMBOL_GPL(rockchip_pmu_unblock);
  #define DOMAIN_RK3588(name, p_offset, pwr, status, m_offset, m_status, r_status, r_offset, req, idle, wakeup)	\
  	DOMAIN_M_O_R(name, p_offset, pwr, status, m_offset, m_status, r_status, r_offset, req, idle, idle, wakeup)
  
@@ -153,79 +59,19 @@ index c258b1ed7..72b3f8c06 100644
  static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
  {
  	struct rockchip_pmu *pmu = pd->pmu;
-@@ -633,6 +681,25 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
- 	}
- }
- 
-+static void rk3588_npu_pd_arm(struct rockchip_pm_domain *pd, bool power_on)
-+{
-+	static void __iomem *npu_base;
-+
-+	if (!power_on || strcmp(pd->genpd.name, "nputop"))
-+		return;
-+	if (!npu_base)
-+		npu_base = ioremap(0xfdab0000, 0x4000);
-+	if (!npu_base)
-+		return;
-+	readl(npu_base + 0x0);
-+	writel(0xdeadb000, npu_base + 0x2000);
-+	readl(npu_base + 0x2000);
-+	writel(0xdeadb000, npu_base + 0x2100);
-+	readl(npu_base + 0x2100);
-+	writel(0, npu_base + 0x2000);
-+	writel(0, npu_base + 0x2100);
-+}
-+
- static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
- {
- 	struct rockchip_pmu *pmu = pd->pmu;
-@@ -663,7 +730,18 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
+@@ -663,7 +686,11 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
  			/* if powering up, leave idle mode */
  			rockchip_pmu_set_idle_request(pd, false);
  
 +			if (pd->info->delay_us)
 +				udelay(pd->info->delay_us);
 +
-+			if (pd->resets) {
-+				reset_control_assert(pd->resets);
-+				udelay(10);
-+				reset_control_deassert(pd->resets);
-+			}
-+
  			rockchip_pmu_restore_qos(pd);
 +
-+			rk3588_npu_pd_arm(pd, power_on);
  		}
  
  		rockchip_pmu_ungate_clk(pd, false);
-@@ -865,6 +943,15 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
- 	if (error)
- 		goto err_put_clocks;
- 
-+	pd->resets = of_reset_control_array_get_optional_exclusive(node);
-+	if (IS_ERR(pd->resets)) {
-+		error = PTR_ERR(pd->resets);
-+		dev_err(pmu->dev, "%pOFn: failed to get resets: %d\n",
-+			node, error);
-+		pd->resets = NULL;
-+		goto err_unprepare_clocks;
-+	}
-+
- 	pd->num_qos = of_count_phandle_with_args(node, "pm_qos",
- 						 NULL);
- 
-@@ -921,8 +1008,9 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
- 	pmu->genpd_data.domains[id] = &pd->genpd;
- 	return 0;
- 
--err_unprepare_clocks:
-+err_unprepare_clocks:
- 	clk_bulk_unprepare(pd->num_clks, pd->clks);
-+	reset_control_put(pd->resets);
- err_put_clocks:
- 	clk_bulk_put(pd->num_clks, pd->clks);
- 	return error;
-@@ -1301,11 +1389,11 @@ static const struct rockchip_domain_info rk3576_pm_domains[] = {
+@@ -1301,11 +1328,11 @@ static const struct rockchip_domain_info rk3576_pm_domains[] = {
  
  static const struct rockchip_domain_info rk3588_pm_domains[] = {
  	[RK3588_PD_GPU]		= DOMAIN_RK3588("gpu",     0x0, BIT(0),  0,       0x0, 0,       BIT(1),  0x0, BIT(0),  BIT(0),  false),
@@ -243,4 +89,3 @@ index c258b1ed7..72b3f8c06 100644
  	[RK3588_PD_RKVDEC0]	= DOMAIN_RK3588("rkvdec0", 0x0, BIT(8),  0,       0x0, BIT(16), BIT(7),  0x0, BIT(6),  BIT(6),  false),
 -- 
 2.47.3
-
