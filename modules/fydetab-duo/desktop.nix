@@ -79,7 +79,10 @@ in
 
       systemd.sockets.dbus.wantedBy = [ "sockets.target" ];
       services.greetd.enable = true;
-      systemd.services.greetd.after = [ "dbus.service" "systemd-logind.service" ];
+      systemd.services.greetd.after = [
+        "dbus.service"
+        "systemd-logind.service"
+      ];
       systemd.services.greetd.wants = [ "dbus.service" ];
 
       users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
