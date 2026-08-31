@@ -20,6 +20,7 @@
     ./tablet-mode.nix
     ./wifi-regdom.nix
     ./modem.nix
+    ./npu.nix
     ./qol.nix
 
     # Desktop shell (labwc, greeter, wayle, vicinae, etc.)

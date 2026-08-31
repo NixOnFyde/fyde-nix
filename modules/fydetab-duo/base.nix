@@ -99,6 +99,7 @@ in
       builtins.elem (lib.getName pkg) [
         "ap6275p-firmware"
         "himax-firmware"
+        "librknnrt"
       ];
 
     hardware.fydetabduo.bluetooth.enable = lib.mkDefault true;

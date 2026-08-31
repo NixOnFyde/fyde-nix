@@ -12,6 +12,14 @@ let
       name = "selinux-drop-duplicate-DONTAUDIT-definition";
       patch = ./0001-selinux-drop-duplicate-DONTAUDIT-definition.patch;
     }
+    {
+      name = "rknpu-add-npu-driver";
+      patch = ./0002-rknpu-add-npu-driver.patch;
+    }
+    {
+      name = "rknpu-fix-build-for-6.12";
+      patch = ./0003-rknpu-fix-build-for-6.12.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
@@ -89,6 +97,10 @@ linuxKernel.buildLinux rec {
     NETFILTER_XT_MATCH_HL = module;
     BRIDGE_NETFILTER = module;
     IP6_NF_MATCH_RT = module;
+
+    ROCKCHIP_RKNPU = yes;
+    ROCKCHIP_RKNPU_DRM_GEM = yes;
+    ROCKCHIP_RKNPU_DEBUG_FS = yes;
   };
 
   extraMeta = {
