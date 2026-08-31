@@ -233,7 +233,7 @@ in
         let
           fydeRev = if builtins.isAttrs fyde-nix then fyde-nix.rev or "main" else "main";
           fydeHash = if builtins.isAttrs fyde-nix then fyde-nix.narHash or "" else "";
-          fydeLastModified = if builtins.isAttrs fyde-nix then fyde-nix.lastModifiedDate or 0 else 0;
+          fydeLastModified = if builtins.isAttrs fyde-nix then fyde-nix.lastModified or 0 else 0;
         in
         pkgs.runCommand "flake.lock" { nativeBuildInputs = [ pkgs.jq ]; } ''
           cp ${../../flake.lock} $out

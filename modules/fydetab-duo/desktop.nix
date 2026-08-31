@@ -269,6 +269,23 @@ in
         # have fully processed before the greeter tries to open devices.
         ${pkgs.systemd}/bin/udevadm settle
 
+        # Wait for the touchscreen device node to be present and readable.
+        # The himax driver registers input9/input10 early (~8s), but logind
+        # can take 30-60s to assign the device to the greeter session. This
+        # poll avoids the long delay by making sure the device is accessible.
+
+        for i in $(seq 1 100); do
+          if [ -e /dev/input/event9 ] && [ -r /dev/input/event9 ]; then
+            break
+          fi
+          sleep 0.2
+        done
+
+        # Force logind to re-evaluate seat devices so the touchscreen is
+        # given to the greeter session immediately, not 30-60s later.
+        ${pkgs.systemd}/bin/udevadm trigger --subsystem-match=input
+        ${pkgs.systemd}/bin/udevadm settle
+
         # Apply the same output transform the desktop shell gets (270 for
         # landscape, none for portrait) so the greeter renders upright.
         ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
