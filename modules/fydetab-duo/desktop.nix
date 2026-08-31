@@ -79,7 +79,7 @@ in
 
       systemd.sockets.dbus.wantedBy = [ "sockets.target" ];
       services.greetd.enable = true;
-      systemd.services.greetd.after = [ "dbus.service" ];
+      systemd.services.greetd.after = [ "dbus.service" "systemd-logind.service" ];
       systemd.services.greetd.wants = [ "dbus.service" ];
 
       users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
@@ -262,6 +262,10 @@ in
 
       # labwc session for the greeter keeping our landscape/rotate + touch mapping.
       environment.etc."regreet-labwc/autostart".text = ''
+        # Ensure all udev rules (including uaccess tags for touch/stylus)
+        # have fully processed before the greeter tries to open devices.
+        ${pkgs.systemd}/bin/udevadm settle
+
         # Apply the same output transform the desktop shell gets (270 for
         # landscape, none for portrait) so the greeter renders upright.
         ${pkgs.kanshi}/bin/kanshi -c /etc/xdg/kanshi/greeter-config >/dev/null 2>&1 &
