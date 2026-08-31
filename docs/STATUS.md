@@ -61,4 +61,5 @@ The image boots from internal storage. The columns use:
 | Backlight + battery reporting                                      | `working`  | brightnessctl work; sysfs capacity/charging correct                                                                |
 | Hardware buttons                                                   | `working`  | volume rocker emits KEY_VOLUMEUP/DOWN (adc-keys); power key wakes; keys linked with wpctl/brightnessctl with wayle |
 | Fingerprint reader (microarray/madev)                              | `no plans` | madev builds but no FOSS userspace stack exists; would need a RE'd libfprint driver                                |
+| NPU (RK3588S, 6 TOPS)                                              | `working`  | vendor rknpu driver (built-in), librknnrt runtime; rknn_init + model load confirmed myself                         |
 | eMMC boot using community imagebuild bootchain + imagebuild layout | `working`  | NixOS boots from internal storage; blobs in `blobs/bootchain/`                                                     |
