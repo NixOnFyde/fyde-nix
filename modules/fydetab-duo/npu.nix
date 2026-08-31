@@ -17,6 +17,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    boot.kernelModules = [ "rknpu" ];
+
     environment.systemPackages = [ pkgs.librknnrt ];
 
     environment.sessionVariables.LD_LIBRARY_PATH = [
