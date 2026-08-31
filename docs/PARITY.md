@@ -17,9 +17,9 @@ reference.
 
 | Category    | Done   | Total  | Percent |
 | ----------- | ------ | ------ | ------- |
-| Hardware    | 14     | 16     | 88%     |
+| Hardware    | 15     | 16     | 94%     |
 | Software    | 7      | 14     | 50%     |
-| **Overall** | **21** | **30** | **70%** |
+| **Overall** | **22** | **30** | **73%** |
 
 Hardware parity is nearly complete. Software parity is lower because many
 FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€” or aren't desired (e.g., proprietary).
@@ -43,7 +43,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                   |
 | Backlight + battery         | `working` | `working`  | done    | brightnessctl + sysfs capacity                      |
 | Fingerprint reader          | `working` | `no plans` | blocked | madev builds but no open libfprint driver           |
-| NPU (6 TOPS)                | `working` | `no plans` | blocked | no open userspace for RK3588 NPU                    |
+| NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime             |
 
 ## Software features
 

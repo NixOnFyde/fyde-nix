@@ -12,7 +12,7 @@
 
 <!-- /toc -->
 
-Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The aim is feature parity with Fyde OS, and the current state is **21/30 (70%)** — [full list](docs/PARITY.md).
+Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The aim is feature parity with Fyde OS, and the current state is **22/30 (73%)** — [full list](docs/PARITY.md).
 
 > [!CAUTION]
 > This is an independent project under the MIT license, and is not endorsed in any way by Fyde Innovations. Irrespective of this, while the utmost caution has been undertaken (including the author testing all builds on their own device first), things can and will break. By continuing, you are acknowledging the possibility of said happenings, and agree that adverse outcomes do not fall on us. That being said, we will always try to help where we can.
