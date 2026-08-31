@@ -129,10 +129,14 @@ in
       "d ${stateDir} 0777 root root -"
     ];
 
-    # Keyboard attach/detach -> write state file
+    # The remove rule uses ENV{DEVPATH}=="*05AC*" to match only the Apple
+    # keyboard (vendor ID 05ac) and ignore unrelated input device removals
+    # that occur during shutdown/rebuild (touchscreen, stylus, lid switch, etc.).
+    # DEVPATH is set by the kernel and persists through remove events, unlike ATTRS{}
+    # which goes through sysfs that may be partially torn down.
     services.udev.extraRules = ''
       ACTION=="add",    SUBSYSTEM=="input", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="8502", RUN+="${udevHelper} add"
-      ACTION=="remove", SUBSYSTEM=="input", KERNEL=="event*",                                     RUN+="${udevHelper} remove"
+      ACTION=="remove", SUBSYSTEM=="input", KERNEL=="event*", ENV{DEVPATH}=="*05AC*",          RUN+="${udevHelper} remove"
     '';
 
     # User service: watches state file, and manages wvkbd lifecycle
