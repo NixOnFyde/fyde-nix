@@ -85,6 +85,21 @@ in
       ];
       systemd.services.greetd.wants = [ "dbus.service" ];
 
+      # Trigger udev re-evaluation of input devices as root before greetd
+      # starts, so logind assigns the touchscreen/stylus to the greeter
+      # session immediately instead of 30-60s later.
+      systemd.services.fydetab-input-trigger = {
+        description = "Re-trigger udev for input devices before greeter";
+        wantedBy = [ "greetd.service" ];
+        before = [ "greetd.service" ];
+        after = [ "systemd-udevd.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.systemd}/bin/udevadm trigger --subsystem-match=input";
+          ExecStartPost = "${pkgs.systemd}/bin/udevadm settle";
+        };
+      };
+
       users.users.greeter.home = lib.mkDefault "/var/lib/regreet";
 
       systemd.services.fydetab-opengl-link = {
@@ -280,11 +295,6 @@ in
           fi
           sleep 0.2
         done
-
-        # Force logind to re-evaluate seat devices so the touchscreen is
-        # given to the greeter session immediately, not 30-60s later.
-        ${pkgs.systemd}/bin/udevadm trigger --subsystem-match=input
-        ${pkgs.systemd}/bin/udevadm settle
 
         # Apply the same output transform the desktop shell gets (270 for
         # landscape, none for portrait) so the greeter renders upright.
