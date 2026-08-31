@@ -66,10 +66,6 @@ in
 
       systemd.services."serial-getty@ttyFIQ0".enable = lib.mkDefault false;
 
-      systemd.tmpfiles.rules = [
-        "d /nix/var/nix/daemon-socket 0755 root root -"
-      ];
-
       boot.tmp.useTmpfs = lib.mkDefault true;
 
       nix.settings.experimental-features = lib.mkDefault [
@@ -84,6 +80,18 @@ in
         "systemd-logind.service"
       ];
       systemd.services.greetd.wants = [ "dbus.service" ];
+
+      # PAM keyring for the greeter session so gnome-keyring unlocks on login.
+      security.pam.services.greetd.enableGnomeKeyring = true;
+
+      # PAM for swaylock screen lock (used by swayidle).
+      security.pam.services.swaylock = { };
+
+      systemd.tmpfiles.rules = [
+        "d /var/lib/regreet  0755 greeter greeter -"
+        "d /var/log/regreet  0755 greeter greeter -"
+        "d /tmp/.X11-unix   1777 root     root    -"
+      ];
 
       # Trigger udev re-evaluation of input devices as root before greetd
       # starts, so logind assigns the touchscreen/stylus to the greeter

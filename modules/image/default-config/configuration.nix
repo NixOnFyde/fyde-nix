@@ -5,45 +5,71 @@
 # is not enabled. To customise, edit here or add a second file and
 # import it here. Or, make your own from scratch.
 #
-# HARDWARE vs DESKTOP SHELL
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULAR API
+# ─────────────────────────────────────────────────────────────────────────────
 #
-# fyde-nix provides two NixOS modules for the FydeTab Duo:
+# fyde-nix provides individual NixOS modules for each feature. Import only
+# what you need in your flake, or use the more convenient bundles.
 #
-#   fydetabduo          -- Full module: hardware + desktop shell (labwc, wayle,
-#                          vicinae, alacritty, greeter, wallpaper, keybindings,
-#                          idle lock, etc.). This is what this exemplar config
-#                          uses. It is a single import that gives you a complete
-#                          working system.
+# BUNDLES (import one thing, and get everything in that category):
 #
-#   fydetabduo-hardware -- Hardware-only: kernel, GPU, WiFi, BT, audio,
-#                          touchscreen, accelerometer, tablet-mode, modem,
-#                          boot-loader, suspend, QoL. Everything you need to
-#                          run the FydeTab, but NO desktop shell. Use this
-#                          when you want to use your own compositor (niri,
-#                          sway, GNOME, etc.) instead of labwc.
+#   fydetabduo            base + all hardware + desktop shell
+#   fydetabduo-hardware   base + all hardware, no desktop shell
 #
-# The desktop shell is made of independent parts under
-# modules/fydetab-duo/shell/:
+# INDIVIDUAL MODULES (cherry-pick what you need):
 #
-#   master:      hardware.fydetabduo.shell.enable
-#   pieces:      hardware.fydetabduo.shell.{desktop,packages,audio,power,security}.enable
+#   base                  kernel, firmware, overlays (required by everything)
+#   bluetooth             AP6275P bluetooth over ttyS9
+#   suspend               deep suspend (DRAM self-refresh)
+#   display-fix           fb0 cold-boot fix
+#   audio                 ES8388 codec routing
+#   input                 touchscreen / stylus udev rules + calibration
+#   sensors               lis2dw12 accelerometer + auto-rotate
+#   tablet-mode           OSK show/hide on keyboard attach/detach
+#   wifi                  WiFi regulatory domain from timezone
+#   modem                 Quectel EM05-G LTE via ModemManager
+#   npu                   RK3588S NPU driver + librknnrt
+#   qol                   zram, fstrim, earlyoom, etc.
+#   boot-loader           U-Boot boot.scr generation
+#   desktop               labwc, regreet, kanshi, keybinds
+#   shell                 full desktop shell (umbrella)
+#   shell-desktop         compositor & greeter only
+#   shell-packages        desktop apps & fonts only
+#   shell-audio           PipeWire + rtkit
+#   shell-power           upower + power-profiles-daemon
+#   shell-security        keyring + polkit agent
 #
-# Each piece defaults to following the master, so `shell.enable = true`
-# turns on the WHOLE desktop experience (what the shipped image uses, see
-# below). To include only selected pieces you can either
-#   - set the master true and turn specific pieces off, or
-#   - leave the master off and enable only the pieces you want, e.g.
-#       hardware.fydetabduo.shell.desktop.enable = true;
-#       hardware.fydetabduo.shell.packages.enable  = true;  # no audio/power/security
+# Example: hardware only + your own compositor (niri):
 #
-# WARNING - Turning the master (or all pieces) off gives you a headless
-# system with just hardware support.
+#   imports = [
+#     inputs.fyde-nix.nixosModules.base
+#     inputs.fyde-nix.nixosModules.bluetooth
+#     inputs.fyde-nix.nixosModules.suspend
+#     inputs.fyde-nix.nixosModules.audio
+#     inputs.fyde-nix.nixosModules.input
+#     inputs.fyde-nix.nixosModules.npu
+#     inputs.fyde-nix.nixosModules.qol
+#     inputs.fyde-nix.nixosModules.boot-loader
+#     ./my-niri-config.nix
+#   ];
 #
-# The per-user config (wayle bar layout, vicinae settings, swayidle) is a
-# separate Home Manager module imported below via
-# `fyde-nix.homeManagerModules.default`; each of those has its own toggle
-# (services.wayle.enable, programs.vicinae.enable, services.swayidle.enable)
-# under the user in the home-manager block.
+# Example: full shell but no audio or power management:
+#
+#   hardware.fydetabduo.shell = {
+#     enable = true;
+#     audio.enable = false;
+#     power.enable = false;
+#   };
+#
+# PER-USER COMPONENTS (Home Manager modules):
+#
+#   homeManagerModules.default     wayle + vicinae + swayidle + wl-clip-persist
+#   homeManagerModules.wayle       wayle bar only
+#   homeManagerModules.vicinae     vicinae launcher only
+#   homeManagerModules.swayidle    idle lock only
+#
+# ─────────────────────────────────────────────────────────────────────────────
 { inputs, fyde-nix, ... }:
 
 {

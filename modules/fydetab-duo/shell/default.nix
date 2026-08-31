@@ -21,7 +21,9 @@
     hardware.fydetabduo.shell.{desktop,packages,audio,power,security} which
     default to following this option.
 
-    Per-user components are provided as a Home Manager module; import
-    `fyde-nix.homeManagerModules.default` into home-manager.sharedModules.
+    Per-user components are provided as Home Manager modules; import
+    fyde-nix.homeManagerModules.default (or individual modules like
+    homeManagerModules.wayle, homeManagerModules.vicinae,
+    homeManagerModules.swayidle) into home-manager.sharedModules.
   '';
 }
