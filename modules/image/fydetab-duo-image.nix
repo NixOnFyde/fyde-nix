@@ -191,6 +191,7 @@ in
         target=$(readlink -f "$f")
         rm "$f"
         cp "$target" "$f"
+        chmod u+w "$f"
       done
     '';
 
