@@ -24,6 +24,10 @@ let
       name = "rknpu-fix-pm_runtime-cleanup";
       patch = ./0004-rknpu-fix-pm_runtime-cleanup.patch;
     }
+    {
+      name = "rk-iommu-fix-unbalanced-pm-runtime";
+      patch = ./0005-rk-iommu-fix-unbalanced-pm-runtime.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
