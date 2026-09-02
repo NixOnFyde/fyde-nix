@@ -150,6 +150,12 @@
     initialPassword = "fydetab";
   };
 
+  # Pre-create the user's cache dir at boot so root-run processes don't
+  # change perms on it. Kept broad on purpose.
+  systemd.tmpfiles.rules = [
+    "d /home/user/.cache 0755 user users -"
+  ];
+
   # Services
   services.openssh.enable = true;
 
