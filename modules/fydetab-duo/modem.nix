@@ -27,7 +27,7 @@ in
 
     environment.systemPackages = [
       pkgs.modemmanager
-      pkgs.networkmanagerapplet
+      pkgs.modem-manager-gui
       pkgs.usbutils
     ];
   };
