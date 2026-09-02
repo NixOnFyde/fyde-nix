@@ -67,19 +67,22 @@ in
 
     systemd.services.growpart.serviceConfig.ExecStart =
       let
-        growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart";
         # The image's GPT only spans the (shrunk) image size; when flashed to
         # a larger disk (bigger SD, or the inbuilt 256G eMMC) the backup GPT
         # sits at the end, so growpart sees no free space. Relocate it to the
         # actual end of the disk first (does nothing when it's already correct).
+
+        growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart"; # Why is this only in cloud-utils ;-;.
         sgdiskBin = lib.getExe' pkgs.gptfdisk "sgdisk";
+        findmntBin = lib.getExe' pkgs.util-linux "findmnt";
+        lsblkBin = lib.getExe' pkgs.util-linux "lsblk";
       in
       lib.mkForce (
         pkgs.writeShellScript "fydetab-growpart" ''
           set -u
           dev=""
           for i in $(seq 1 15); do
-            dev=$(findmnt -rno SOURCE / 2>/dev/null | sed 's/\[.*//') || true
+            dev=$(${findmntBin} -rno SOURCE / 2>/dev/null | sed 's/\[.*//') || true
             [ -n "$dev" ] && [ -b "$dev" ] && break
             dev=""
             sleep 1
@@ -88,7 +91,7 @@ in
             echo "root device not resolvable; skipping partition growth" >&2
             exit 0
           fi
-          disk=$(lsblk -rno PKNAME "$dev")
+          disk=$(${lsblkBin} -rno PKNAME "$dev")
           disk="/dev/$disk"
           devname=$(basename "$dev")
           num=$(cat "/sys/class/block/$devname/partition")

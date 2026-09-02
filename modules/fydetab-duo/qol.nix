@@ -43,6 +43,10 @@ in
       };
     };
 
+    systemd.tmpfiles.rules = [
+      "d /nix/var/nix/daemon-socket 0755 root root -"
+    ];
+
     system.activationScripts.fydetabStateDirs.text = ''
       mkdir -p /var/log/journal
       chattr +C /var/log/journal 2>/dev/null || true
