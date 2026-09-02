@@ -42,6 +42,7 @@ in
       alacritty
       fydetab-update
       fydetab-wallpaper
+      git
       gnome-keyring
       grim
       haruna
