@@ -1,0 +1,13 @@
+diff --git a/drivers/iommu/rockchip-iommu.c b/drivers/iommu/rockchip-iommu.c
+--- a/drivers/iommu/rockchip-iommu.c
++++ b/drivers/iommu/rockchip-iommu.c
+@@ -1372,7 +1372,8 @@
+ 			goto err_remove_sysfs;
+ 	}
+ 
+-	pm_runtime_enable(dev);
++	if (!pm_runtime_enabled(dev))
++		pm_runtime_enable(dev);
+ 
+ 	for (i = 0; i < iommu->num_irq; i++) {
+ 		int irq = platform_get_irq(pdev, i);
