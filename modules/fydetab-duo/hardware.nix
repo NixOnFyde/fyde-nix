@@ -48,6 +48,7 @@
     ./display-fix.nix
     ./es8388-audio.nix
     ./input.nix
+    ./npu.nix
     ./sensors.nix
     ./tablet-mode.nix
     ./wifi-regdom.nix
