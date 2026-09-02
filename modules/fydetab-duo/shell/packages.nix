@@ -39,7 +39,7 @@ in
       evtest
       evince
       fastfetch
-      alacritty
+      ghostty-zink # Ghostty + Zink (GL-on-Vulkan) so it gets a desktop GL >= 3.3 context - see issue #3.
       fydetab-update
       fydetab-wallpaper
       gnome-keyring
