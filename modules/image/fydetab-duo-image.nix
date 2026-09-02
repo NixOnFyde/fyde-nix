@@ -247,6 +247,12 @@ in
             '
             .nodes.root.inputs["fyde-nix"] = "fyde-nix"
             | .nodes["fyde-nix"] = {
+                "inputs": {
+                  "nixpkgs": ["nixpkgs"],
+                  "nixpkgs-unstable": ["nixpkgs-unstable"],
+                  "home-manager": ["home-manager"],
+                  "vicinae": ["vicinae"]
+                },
                 "locked": {
                   "lastModified": ($lm | tonumber),
                   "narHash": $hash,
