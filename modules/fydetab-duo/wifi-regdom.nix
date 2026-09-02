@@ -15,7 +15,7 @@ let
     else
       ''
         timezone=$(readlink -f /etc/localtime || true)
-        timezone=''${timezone#/usr/share/zoneinfo/}
+        timezone=''${timezone##*zoneinfo/}
         country=''${timezone%%/*}
 
         case "$country" in
