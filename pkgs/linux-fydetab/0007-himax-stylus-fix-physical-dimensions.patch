@@ -1,0 +1,14 @@
+diff --git a/drivers/input/touchscreen/hxchipset/himax_common.c b/drivers/input/touchscreen/hxchipset/himax_common.c
+--- a/drivers/input/touchscreen/hxchipset/himax_common.c
++++ b/drivers/input/touchscreen/hxchipset/himax_common.c
+@@ -939,6 +939,10 @@
+       ((ts->pdata->abs_y_max + 1) * ic_data->HX_STYLUS_RATIO - 1),
+       ts->pdata->abs_y_fuzz, 0);
+ 
++  /* Set resolution so libinput reports the correct physical size and aspect ratio */
++  input_abs_set_res(ts->stylus_dev, ABS_X, FIX_HX_STYLUS_RATIO);
++  input_abs_set_res(ts->stylus_dev, ABS_Y, FIX_HX_STYLUS_RATIO);
++
+   if (himax_input_register_device(ts->stylus_dev) == 0) {
+     ret = NO_ERR;
+   } else {
