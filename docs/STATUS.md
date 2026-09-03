@@ -35,13 +35,14 @@ The image boots from internal storage. The columns use:
 | Graphical greeter (labwc + ReGreet)                                | `working`  | greeter runs ReGreet under its own labwc with kanshi rotation + calibrated touch/stylus                            |
 | tty2 autologin shell for debugging                                 | `working`  | Ctrl+Alt+F2 always gives a terminal even when the session dies - use it for journalctl                             |
 | Himax touchscreen + stylus                                         | `working`  | touch/stylus works; calibration matrices work                                                                      |
-| AP6275P WiFi (dhd) + firmware                                      | `working`  | NM pinned to permanent MAC (brcmfmac rejects MAC randomization)                                                    |
+| AP6275P WiFi (dhd) + firmware                                      | `working`  | NM uses iwd backend by default (`hardware.fydetabduo.wifi.backend`); NM pinned to permanent MAC (brcmfmac rejects MAC randomization)                                                    |
 | Bluetooth BCM4362A2 patchram over ttyS9                            | `working`  | phone connected, media metadata exchange was visible                                                               |
 | Deep suspend (`mem`) default                                       | `working`  | suspend/resume cycles incl lid-close; touch+wifi survive                                                           |
 | Wake-screen fix after resume                                       | `untested` | rk805-pwrkey event diff -> uinput inject                                                                           |
 | Hall sensor (mh248-fyde)                                           | `working`  | lid close suspends the device                                                                                      |
 | IIO sensors (lis2dw12 accel) mount matrices                        | `working`  | monitor-sensor reports orientation changes matching the physical tilt                                              |
 | WiFi regulatory domain helper                                      | `eval`     | `hardware.fydetabduo.autoRegulatoryDomain` + `countryCode` option                                                  |
+| WiFi backend (iwd vs wpa_supplicant)                               | `eval`     | `hardware.fydetabduo.wifi.backend` defaults to `iwd` (better WPA3/SAE support)                                     |
 | nftables fragments for firewall/docker                             | `build`    | mirrored from official image fragments                                                                             |
 | Initrd builds without x86/EFI module stuff                         | `build`    | includeDefaultModules off, btrfs forced                                                                            |
 | boot.scr generation with inbuilt init                              | `working`  | boots the exact toplevel closure                                                                                   |
