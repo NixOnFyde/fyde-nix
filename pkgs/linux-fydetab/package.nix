@@ -32,6 +32,10 @@ let
       name = "tcpci-husb311-fix-drp-role-negotiation";
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
+    {
+      name = "himax-stylus-fix-physical-dimensions";
+      patch = ./0007-himax-stylus-fix-physical-dimensions.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
