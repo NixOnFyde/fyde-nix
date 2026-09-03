@@ -3,9 +3,11 @@
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.hardware.fydetabduo;
-in {
+in
+{
   options.hardware.fydetabduo = {
     deepSuspend.enable = lib.mkOption {
       type = lib.types.bool;
@@ -20,7 +22,7 @@ in {
 
   config = lib.mkMerge [
     (lib.mkIf cfg.deepSuspend.enable {
-      boot.kernelParams = ["mem_sleep_default=deep"];
+      boot.kernelParams = [ "mem_sleep_default=deep" ];
 
       systemd.sleep.settings.Sleep.SuspendState = "mem";
 
@@ -32,8 +34,8 @@ in {
       # WiFi can't yank the device out of sleep.
       systemd.services."wowlan-disable" = {
         description = "Disable WiFi WoWLAN wake sources before suspend";
-        before = ["systemd-suspend.service"];
-        wantedBy = ["sleep.target"];
+        before = [ "systemd-suspend.service" ];
+        wantedBy = [ "sleep.target" ];
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${pkgs.iw}/bin/iw phy0 wowlan disable";
