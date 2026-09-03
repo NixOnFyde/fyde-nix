@@ -31,7 +31,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                      |
 | Deep suspend/resume (`mem`) | `working` | `working`  | done    | lid-close, touch and wifi work after                |
 | GPU (Panthor + Mesa)        | `working` | `working`  | done    | EGL + Vulkan verified                               |
-| WiFi 6 (AP6275P)            | `working` | `working`  | done    | permanent MAC pin for NM                            |
+| WiFi 6 (AP6275P)            | `working` | `working`  | done    | NM iwd backend by default; permanent MAC pin for NM       |
 | Bluetooth (BCM4362A2)       | `working` | `working`  | done    | phone connected, media metadata sent                |
 | Touch + stylus (Wacom)      | `working` | `working`  | done    | himax touchscreen + stylus, calibration in labwc    |
 | LTE modem (Quectel EM05-G)  | `working` | `working`  | done    | kernel + `nm-applet` for tray GUI + Gnome GUI       |

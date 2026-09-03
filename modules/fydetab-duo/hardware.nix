@@ -17,7 +17,7 @@
 #   nixosModules.input             -- touchscreen / stylus udev
 #   nixosModules.sensors           -- accelerometer + auto-rotate
 #   nixosModules.tablet-mode       -- OSK show/hide
-#   nixosModules.wifi              -- WiFi regulatory domain
+#   nixosModules.wifi              -- WiFi backend (iwd default) + regulatory domain
 #   nixosModules.modem             -- Quectel EM05-G LTE
 #   nixosModules.npu               -- RK3588S NPU driver
 #   nixosModules.qol               -- QoL defaults
