@@ -53,7 +53,7 @@ in
         "wpa_supplicant"
         "iwd"
       ];
-      default = "iwd";
+      default = "wpa_supplicant";
       description = ''
         WiFi management backend used by NetworkManager on the
         sdio/brcmfmac (`dhd`) radio.

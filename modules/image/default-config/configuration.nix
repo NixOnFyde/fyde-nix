@@ -27,7 +27,7 @@
 #   input                 touchscreen / stylus udev rules + calibration
 #   sensors               lis2dw12 accelerometer + auto-rotate
 #   tablet-mode           OSK show/hide on keyboard attach/detach
-#   wifi                  WiFi backend (iwd default) + regulatory domain from timezone
+#   wifi                  WiFi backend (wpa_supplicant default) + regulatory domain from timezone
 #   modem                 Quectel EM05-G LTE via ModemManager
 #   npu                   RK3588S NPU driver + librknnrt
 #   qol                   zram, fstrim, earlyoom, etc.
