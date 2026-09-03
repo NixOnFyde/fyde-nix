@@ -32,10 +32,6 @@ let
       name = "tcpci-husb311-fix-drp-role-negotiation";
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
-    {
-      name = "himax-stylus-fix-physical-dimensions";
-      patch = ./0007-himax-stylus-fix-physical-dimensions.patch;
-    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
@@ -62,6 +58,13 @@ linuxKernel.buildLinux rec {
   defconfig = "fydetabduo_defconfig";
 
   enableCommonConfig = false;
+
+  prePatch = ''
+    # Fix himax stylus physical dimensions: add input_abs_set_res() so libinput
+    # reports correct 160x256mm (aspect 0.625) instead of wrong 60x154mm.
+    # This file uses CRLF line endings, so we use sed instead of a patch.
+    sed -i '941a\  \/* Set resolution so libinput reports correct physical size and aspect ratio *\/\r\n  input_abs_set_res(ts->stylus_dev, ABS_X, FIX_HX_STYLUS_RATIO);\r\n  input_abs_set_res(ts->stylus_dev, ABS_Y, FIX_HX_STYLUS_RATIO);\r\n' drivers/input/touchscreen/hxchipset/himax_common.c
+  '';
 
   structuredExtraConfig = with lib.kernel; {
     STATIC_USERMODEHELPER = no;
