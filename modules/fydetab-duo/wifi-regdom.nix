@@ -74,7 +74,13 @@ in
     # reliably than wpa_supplicant.
     {
       networking.wireless.iwd.enable = usingIwd;
-      networking.networkmanager.wifi.backend = backend;
+      networking.networkmanager = {
+        extraConfig = ''
+          [connection]
+          wifi.pmf=2
+        '';
+        wifi.backend = backend;
+      };
     }
 
     (lib.mkIf config.hardware.fydetabduo.autoRegulatoryDomain.enable {
