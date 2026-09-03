@@ -75,10 +75,11 @@ in
     {
       networking.wireless.iwd.enable = usingIwd;
       networking.networkmanager = {
-        extraConfig = ''
-          [connection]
-          wifi.pmf=2
-        '';
+        settings = {
+          connection = {
+            "wifi.pmf" = 2;
+          };
+        };
         wifi.backend = backend;
       };
     }
