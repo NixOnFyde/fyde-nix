@@ -1,5 +1,5 @@
 diff --git a/drivers/input/touchscreen/hxchipset/himax_common.c b/drivers/input/touchscreen/hxchipset/himax_common.c
-index 0b8dabfeb..431d889e7 100644
+index 2d673398b..6a83d5c23 100644
 --- a/drivers/input/touchscreen/hxchipset/himax_common.c
 +++ b/drivers/input/touchscreen/hxchipset/himax_common.c
 @@ -939,6 +939,10 @@ int himax_input_register(struct himax_ts_data *ts) {
