@@ -7,6 +7,7 @@
 let
   wallpaper = "/run/current-system/sw/share/backgrounds/fydetab-duo/wallpaper.jpg";
   weather = config.fydetabShell.wayle.weather;
+  autoRotate = config.fydetabShell.wayle.autoRotate;
 in
 {
   options.fydetabShell.wayle.weather = {
@@ -24,6 +25,33 @@ in
       description = ''
         Longitude for the wayle weather module, e.g. -0.1 for London.
         Left null, wayle falls back to its built-in default location.
+      '';
+    };
+  };
+
+  options.fydetabShell.wayle.autoRotate = {
+    statusCommand = lib.mkOption {
+      type = lib.types.str;
+      description = ''
+        Shell command for the wayle auto-rotate bar module that reports the
+        current state as JSON, e.g. '{"state":"On"}' when auto-rotation is on.
+      '';
+      default = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+    };
+    toggleCommand = lib.mkOption {
+      type = lib.types.str;
+      description = ''
+        Shell command for the wayle auto-rotate bar module that starts/stops
+        the auto-rotation daemon on click.
+      '';
+      default = ''
+        if systemctl --user is-active rot8 >/dev/null 2>&1; then
+          systemctl --user stop rot8
+          notify-send -a wayle -u low -t 2500 "Auto-rotate" "Auto-rotate disabling..."
+        else
+          systemctl --user start rot8
+          notify-send -a wayle -u low -t 2500 "Auto-rotate" "Auto-rotate enabling..."
+        fi
       '';
     };
   };
@@ -232,17 +260,9 @@ in
               id = "auto-rotate";
               mode = "poll";
               interval-ms = 1000;
-              command = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
-              left-click = ''
-                if systemctl --user is-active rot8 >/dev/null 2>&1; then
-                  systemctl --user stop rot8
-                  notify-send -a wayle -u low -t 2500 "Auto-rotate" "Auto-rotate disabling..."
-                else
-                  systemctl --user start rot8
-                  notify-send -a wayle -u low -t 2500 "Auto-rotate" "Auto-rotate enabling..."
-                fi
-              '';
-              on-action = ''systemctl --user is-active rot8 >/dev/null 2>&1 && printf '{"state":"On"}' || printf '{"state":"Off"}' '';
+              command = autoRotate.statusCommand;
+              left-click = autoRotate.toggleCommand;
+              on-action = autoRotate.statusCommand;
               format = "{{ state }}";
               icon-name = "object-rotate-right-symbolic";
               icon-color = "fg-default";
