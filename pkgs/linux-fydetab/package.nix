@@ -1,5 +1,6 @@
 {
   lib,
+  runCommand,
   fetchFromGitHub,
   linuxKernel,
   features ? { },
@@ -52,12 +53,23 @@ linuxKernel.buildLinux rec {
   modDirVersion = version;
   pname = "linux-fydetab";
 
-  src = fetchFromGitHub {
-    owner = "NixOnFyde";
-    repo = "linux-fydetabduo";
-    rev = "141bc9b36bc35738c4ea90f4c90d39d2e9cd5f0c";
-    hash = "sha256-YnQT5FLv2PbaoYdVOElnUvIlIjOeXpN/htKQ2Gmc5u8=";
-  };
+  # The himax vendor driver file (himax_common.c) has CRLF line endings.
+  # nix applies kernel patches with just `patch -p1` (no --binary), which cannot
+  # match a CRLF file against any patch. LF-normalise just that file so the 0007
+  # patch applies without errors. Both the kernel and linux-config derivations share
+  # this src, so it fixes both.
+  src = runCommand "linux-fydetabduo-src" { } ''
+    cp -r ${
+      fetchFromGitHub {
+        owner = "NixOnFyde";
+        repo = "linux-fydetabduo";
+        rev = "141bc9b36bc35738c4ea90f4c90d39d2e9cd5f0c";
+        hash = "sha256-YnQT5FLv2PbaoYdVOElnUvIlIjOeXpN/htKQ2Gmc5u8=";
+      }
+    } $out
+    chmod -R u+w $out
+    sed -i 's/\r$//' $out/drivers/input/touchscreen/hxchipset/himax_common.c
+  '';
 
   defconfig = "fydetabduo_defconfig";
 
