@@ -142,6 +142,7 @@ in
         ExecStart = pkgs.writeShellScript "fydetab-auto-profile" ''
           PERF="/run/current-system/sw/bin/fydetab-perf"
           PPD="${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
+          SUDO="/run/wrappers/bin/sudo"
           STATE_FILE="/run/tablet-mode/auto-profile-state"
           HIGH=${toString autoCfg.highThreshold}
           LOW=${toString autoCfg.lowThreshold}
@@ -160,33 +161,50 @@ in
             [ "$s" = "Charging" ] || [ "$s" = "Full" ]
           }
 
-          apply_profile() {
-            local current
-            current=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+          target_profile() {
             local pct
             pct=$(get_battery_pct)
-            [ -z "$pct" ] && return
-
-            local target
+            [ -z "$pct" ] && return 1
             if [ "$FORCE_PERF_AC" = "1" ] && is_on_ac; then
-              target="performance"
+              echo performance
             elif [ "$pct" -ge "$HIGH" ]; then
-              target="performance"
+              echo performance
             elif [ "$pct" -le "$LOW" ]; then
-              target="power-saver"
+              echo power-saver
             else
-              target="balanced"
+              echo balanced
             fi
+          }
 
-            [ "$target" = "$current" ] && return
-            mkdir -p "$(dirname "$STATE_FILE")"
-            echo "$target" > "$STATE_FILE"
-
-            case "$target" in
-              performance) sudo -n "$PERF" on  || true ;;
-              balanced)    sudo -n "$PERF" off || true ;;
-              power-saver) sudo -n "$PPD" power-saver || true ;;
+          # What is actually active right now, per the real system state.
+          actual_profile() {
+            case "$1" in
+              power-saver)
+                "$SUDO" -n "$PPD" get 2>/dev/null | grep -qx power-saver \
+                  && echo power-saver || echo other
+                ;;
+              *)
+                if [ "$("$PERF" status 2>/dev/null)" = on ]; then
+                  echo performance
+                else
+                  echo balanced
+                fi
+                ;;
             esac
+          }
+
+          apply_profile() {
+            local target current
+            target=$(target_profile) || return
+            current=$(actual_profile "$target")
+            [ "$target" = "$current" ] && return
+
+            mkdir -p "$(dirname "$STATE_FILE")"
+            case "$target" in
+              performance) "$SUDO" -n "$PERF" on ;;
+              balanced)    "$SUDO" -n "$PERF" off ;;
+              power-saver) "$SUDO" -n "$PPD" power-saver ;;
+            esac && echo "$target" > "$STATE_FILE"
           }
 
           while true; do
