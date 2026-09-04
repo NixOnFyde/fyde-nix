@@ -127,7 +127,7 @@ jobs:
     name: Publish release
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag' || github.ref_name == 'main'
+    if: github.ref_type == 'tag'
     permissions:
       contents: write
 

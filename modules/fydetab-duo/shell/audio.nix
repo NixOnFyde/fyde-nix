@@ -2,9 +2,11 @@
   config,
   lib,
   ...
-}: let
+}:
+let
   shell = config.hardware.fydetabduo.shell;
-in {
+in
+{
   options.hardware.fydetabduo.shell.audio.enable = lib.mkOption {
     type = lib.types.bool;
     default = shell.enable;
