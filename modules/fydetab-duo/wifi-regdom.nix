@@ -76,8 +76,8 @@ in
       networking.wireless.iwd.enable = usingIwd;
       networking.networkmanager = {
         settings = {
-          connection = {
-            "wifi.pmf" = 2;
+          wifi-security = {
+            "pmf" = 2;
           };
         };
         wifi.backend = backend;
