@@ -33,11 +33,8 @@ let
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
     {
-      name = "himax-stylus-fix-physical-dimensions";
-      patch = ./0007-himax-stylus-fix-physical-dimensions.patch;
-      prePatch = ''
-        sed -i 's/\r$//' drivers/input/touchscreen/hxchipset/himax_common.c
-      '';
+      name = "himax-fix-stylus-physical-dimensions";
+      patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
     }
   ];
 
