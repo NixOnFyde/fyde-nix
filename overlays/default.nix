@@ -33,4 +33,6 @@ final: _prev: {
     uboot = final.fydetab-blob-uboot;
     resource = final.fydetab-blob-resource;
   };
+
+  ghostty-zink = final.callPackage ../pkgs/ghostty-zink/package.nix { };
 }
