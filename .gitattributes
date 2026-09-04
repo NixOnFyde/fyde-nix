@@ -1,0 +1,4 @@
+# Preserve exact line endings of patch files (.patch/.diff).
+# The himax vendor file is CRLF, so its patch MUST stay CRLF to apply as it should.
+*.patch -text
+*.diff -text
