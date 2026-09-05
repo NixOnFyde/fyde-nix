@@ -48,6 +48,16 @@ in
           RemainAfterExit = true;
           ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi'";
           ExecStop = "${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi";
+          ExecStopPost = pkgs.writeShellScript "fydetab-wifi-resume" ''
+            system_state="$(${lib.getExe' pkgs.systemd "systemctl"} is-system-running 2>/dev/null || true)"
+            case "$system_state" in
+              running|degraded) ;;
+              *) exit 0 ;;
+            esac
+
+            ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
+            ${lib.getExe' pkgs.networkmanager "nmcli"} device connect wlan0 || true
+          '';
         };
       };
     })
