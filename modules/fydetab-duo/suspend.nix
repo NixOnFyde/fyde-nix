@@ -56,8 +56,18 @@ in
               *) exit 0 ;;
             esac
 
+            ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
             ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
-            ${lib.getExe' pkgs.networkmanager "nmcli"} device connect wlan0 || true
+            # The driver and NetworkManager may recreate wlan0 themselves
+            # after resume. Retry while the interface/profile stabilises.
+
+            for _ in $(${lib.getExe' pkgs.coreutils "seq"} 1 20); do
+              if ${lib.getExe' pkgs.networkmanager "nmcli"} device connect wlan0; then
+                exit 0
+              fi
+
+              ${lib.getExe' pkgs.coreutils "sleep"} 1
+            done
           '';
         };
       };
