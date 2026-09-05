@@ -43,6 +43,7 @@ in
         description = "Disable WiFi wake sources before suspend, restore on resume";
         before = [ "sleep.target" ];
         wantedBy = [ "sleep.target" ];
+        restartIfChanged = false;
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
