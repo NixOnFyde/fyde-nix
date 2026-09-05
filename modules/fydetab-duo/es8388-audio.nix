@@ -86,11 +86,22 @@ in
         ExecStart =
           let
             wpctl = lib.getExe' pkgs.pipewire "wpctl";
+            pwcli = lib.getExe' pkgs.pipewire "pw-cli";
           in
           pkgs.writeShellScript "fydetab-default-sink" ''
-            for i in $(seq 1 45); do
-              id=$(${wpctl} status 2>/dev/null |
-                sed -n "s/^[[:space:]]*\\([0-9][0-9]*\\)\\. alsa_output\\.platform-es8388[^ ]*/\\1/p" | head -1)
+            # The ES8388 analog output node appears in `pw-cli list-objects Node` as:
+            #   id 47, type PipeWire:Interface:Node/3
+            #     node.name = "alsa_output.platform-es8388-sound.stereo-fallback"
+            #     media.class = "Audio/Sink"
+            for i in $(seq 1 15); do
+              id=$(${pwcli} list-objects Node 2>/dev/null |
+                awk '
+                  /^[[:space:]]*id [0-9]+, type / { obj = $2; sub(/,/, "", obj) }
+                  /node\.name = "alsa_output\.platform-es8388-sound/ {
+                    print obj
+                    exit
+                  }
+                ' | head -1)
               if [ -n "$id" ]; then
                 ${wpctl} set-default "$id" && exit 0
               fi
