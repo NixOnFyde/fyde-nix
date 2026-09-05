@@ -62,7 +62,11 @@ in
             # after resume. Retry while the interface/profile stabilises.
 
             for _ in $(${lib.getExe' pkgs.coreutils "seq"} 1 20); do
-              if ${lib.getExe' pkgs.networkmanager "nmcli"} device connect wlan0; then
+              for profile in $(${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE connection show | ${lib.getExe' pkgs.gnugrep "grep"} -E ':802-11-wireless$' | ${lib.getExe' pkgs.gawk "awk"} -F: '{print $1}'); do
+                if ${lib.getExe' pkgs.networkmanager "nmcli"} connection up uuid "$profile" ifname wlan0; then exit 0; fi
+              done
+              ${lib.getExe' pkgs.networkmanager "nmcli"} device wifi rescan ifname wlan0 || true
+              if ${lib.getExe' pkgs.networkmanager "nmcli"} device up wlan0; then
                 exit 0
               fi
 
