@@ -8,8 +8,48 @@ let
   wallpaper = "/run/current-system/sw/share/backgrounds/fydetab-duo/wallpaper.jpg";
   weather = config.fydetabShell.wayle.weather;
   autoRotate = config.fydetabShell.wayle.autoRotate;
+  bar = config.fydetabShell.wayle.bar;
 in
 {
+  options.fydetabShell.wayle.bar = {
+    left = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "dashboard"
+        "clock"
+        "custom-auto-rotate"
+        "custom-tablet-mode"
+        "systray"
+      ];
+      description = "List and order of modules on the left of the bar.";
+    };
+
+    center = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "cpu"
+        "ram"
+        "custom-storage"
+        "weather"
+      ];
+      description = "List and order of modules in the center of the bar.";
+    };
+
+    right = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "volume"
+        "microphone"
+        "brightness"
+        "network"
+        "bluetooth"
+        "battery"
+        "notifications"
+      ];
+      description = "List and order of modules on the right of the bar.";
+    };
+  };
+
   options.fydetabShell.wayle.weather = {
     latitude = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
@@ -75,28 +115,7 @@ in
           layout = [
             {
               monitor = "DSI-1";
-              left = [
-                "dashboard"
-                "clock"
-                "custom-auto-rotate"
-                "custom-tablet-mode"
-                "systray"
-              ];
-              center = [
-                "cpu"
-                "ram"
-                "custom-storage"
-                "weather"
-              ];
-              right = [
-                "volume"
-                "microphone"
-                "brightness"
-                "network"
-                "bluetooth"
-                "battery"
-                "notifications"
-              ];
+              inherit (bar) left center right;
               show = true;
             }
             {
