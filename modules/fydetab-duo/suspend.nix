@@ -47,34 +47,35 @@ in
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi'";
+          ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE,DEVICE connection show --active | ${lib.getExe pkgs.gnugrep} -E \":802-11-wireless:wlan0$\" | ${lib.getExe' pkgs.coreutils "cut"} -d: -f1 > /run/fydetab-wifi-profile; ${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi'";
           ExecStop = "${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi";
-          ExecStopPost = pkgs.writeShellScript "fydetab-wifi-resume" ''
-            system_state="$(${lib.getExe' pkgs.systemd "systemctl"} is-system-running 2>/dev/null || true)"
-            case "$system_state" in
-              running|degraded) ;;
-              *) exit 0 ;;
-            esac
-
-            ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
-            ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
-            # The driver and NetworkManager may recreate wlan0 themselves
-            # after resume. Retry while the interface/profile stabilises.
-
-            for _ in $(${lib.getExe' pkgs.coreutils "seq"} 1 20); do
-              for profile in $(${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE connection show | ${lib.getExe' pkgs.gnugrep "grep"} -E ':802-11-wireless$' | ${lib.getExe' pkgs.gawk "awk"} -F: '{print $1}'); do
-                if ${lib.getExe' pkgs.networkmanager "nmcli"} connection up uuid "$profile" ifname wlan0; then exit 0; fi
-              done
-              ${lib.getExe' pkgs.networkmanager "nmcli"} device wifi rescan ifname wlan0 || true
-              if ${lib.getExe' pkgs.networkmanager "nmcli"} device up wlan0; then
-                exit 0
-              fi
-
-              ${lib.getExe' pkgs.coreutils "sleep"} 1
-            done
-          '';
         };
       };
+
+      # NixOS runs resumeCommands after systemd-sleep has returned from the
+      # kernel suspend operation, making it actually work unlike the ExecStop
+      # that is also used above just in case. Only reconnect the profile that
+      # was active before suspend; trying every saved profile causes attempts
+      # against networks that are not in range which we obviously don't want.
+      powerManagement.resumeCommands = ''
+        ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
+        ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
+
+        wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
+        if [ -n "$wifi_profile" ]; then
+          # The driver and NetworkManager may recreate wlan0 themselves after
+          # resume. Retry while the saved profile stabilises.
+          for _ in $(${lib.getExe' pkgs.coreutils "seq"} 1 30); do
+            ${lib.getExe' pkgs.networkmanager "nmcli"} device wifi rescan ifname wlan0 || true
+
+            if ${lib.getExe' pkgs.networkmanager "nmcli"} connection up uuid "$wifi_profile" ifname wlan0; then
+              exit 0
+            fi
+
+            ${lib.getExe' pkgs.coreutils "sleep"} 1
+          done
+        fi
+      '';
     })
   ];
 }
