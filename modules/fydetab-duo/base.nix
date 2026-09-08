@@ -75,6 +75,7 @@ in
     boot.consoleLogLevel = lib.mkDefault 3;
 
     boot.kernelModules = [
+      "brcmfmac"
       "dhd"
       "panthor"
     ]
