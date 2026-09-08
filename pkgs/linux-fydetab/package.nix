@@ -89,6 +89,8 @@ linuxKernel.buildLinux rec {
 
     MALI = no;
 
+    BCMDHD = no;
+
     ROCKCHIP_DW_HDCP2 = no;
 
     ROCKCHIP_DP_MST_AUX_CLIENT = no;
