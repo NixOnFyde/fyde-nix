@@ -17,19 +17,21 @@ reference.
 
 | Category    | Done   | Total  | Percent |
 | ----------- | ------ | ------ | ------- |
-| Hardware    | 16     | 17     | 94%     |
+| Hardware    | 16     | 18     | 89%     |
 | Software    | 7      | 14     | 50%     |
-| **Overall** | **23** | **31** | **74%** |
+| **Overall** | **23** | **32** | **72%** |
 
 Hardware parity is nearly complete. Software parity is lower because many
 FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents — or aren't desired (e.g., proprietary).
 
 ## Hardware features
 
+<<<<<<< HEAD
 | Feature                     | FydeOS    | fyde-nix   | Status  | Notes                                               |
 | --------------------------- | --------- | ---------- | ------- | --------------------------------------------------- |
 | Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                      |
 | Deep suspend/resume (`mem`) | `working` | `working`  | done    | lid-close, touch and wifi work after                |
+| Hibernation (S4)            | `none`    | `untested` | planned | ChromeOS has no S4; see [hibernation.md](hibernation.md) |
 | GPU (Panthor + Mesa)        | `working` | `working`  | done    | EGL + Vulkan verified                               |
 | WiFi 6 (AP6275P)            | `working` | `working`  | done    | NM; permanent MAC pin for NM                        |
 | Bluetooth (BCM4362A2)       | `working` | `working`  | done    | phone connected, media metadata sent                |

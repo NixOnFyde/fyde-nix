@@ -93,6 +93,9 @@ linuxKernel.buildLinux rec {
 
     MALI = no;
 
+    HIBERNATION = yes;
+    DISK_BASED_SWAP = yes;
+
     BCMDHD = no;
 
     ROCKCHIP_DW_HDCP2 = no;
