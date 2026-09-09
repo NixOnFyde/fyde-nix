@@ -41,6 +41,10 @@ let
       name = "bq25700-charge-control-limit";
       patch = ./0011-bq25700-charge-control-limit.patch;
     }
+    {
+      name = "brcmfmac-add-bcm43752-pcie-support";
+      patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

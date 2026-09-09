@@ -48,9 +48,9 @@ stdenvNoCC.mkDerivation {
 
     ln -s nvram_AP6275P.txt $out/lib/firmware/ap6275p/nvram_ap6275p.txt
 
-    ln -s ap6275p/fw_bcm43752a2_pcie_ag.bin $out/lib/firmware/brcmfmac43752a2-pcie.bin
-    ln -s ap6275p/nvram_AP6275P.txt $out/lib/firmware/brcmfmac43752a2-pcie.txt
-    ln -s ap6275p/clm_bcm43752a2_pcie_ag.blob $out/lib/firmware/brcmfmac43752a2-pcie.clm_blob
+    ln -s ap6275p/fw_bcm43752a2_pcie_ag.bin $out/lib/firmware/brcmfmac43752-pcie.bin
+    ln -s ap6275p/nvram_AP6275P.txt $out/lib/firmware/brcmfmac43752-pcie.txt
+    ln -s ap6275p/clm_bcm43752a2_pcie_ag.blob $out/lib/firmware/brcmfmac43752-pcie.clm_blob
     runHook postInstall
   '';
 
