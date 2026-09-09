@@ -1,0 +1,25 @@
+The AP6275P firmware on the BCM43752 (18.35.387.23.146, which is
+built for the bcmdhd driver) does not acknowledge the mailbox
+BRCMF_H2D_HOST_D3_INFORM handshake. brcmf_pcie_pm_enter_D3() then
+times out waiting for the D2H D3 ack and aborts the suspend/freeze
+callback with -EIO, which breaks both S3 suspend and hibernation.
+
+The device is powered off by the PM layer regardless once the
+callback returns success, and brcmf_pcie_pm_leave_D3() already takes
+care of the resume side by falling back to a proper brcmf_pcie_probe()
+re-init when the hardware did not preserve state. So, treat a missing
+D3 ack as best-effort: log a message and continue instead of failing.
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+@@ -2591,9 +2591,7 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
+ 	wait_event_timeout(devinfo->mbdata_resp_wait, devinfo->mbdata_completed,
+ 			   BRCMF_PCIE_MBDATA_TIMEOUT);
+ 	if (!devinfo->mbdata_completed) {
+-		brcmf_err(bus, "Timeout on response for entering D3 substate\n");
+-		brcmf_bus_change_state(bus, BRCMF_BUS_UP);
+-		return -EIO;
++		brcmf_info("No D3 ack from firmware, continuing with suspend\n");
+ 	}
+ 
+ 	devinfo->state = BRCMFMAC_PCIE_STATE_DOWN;

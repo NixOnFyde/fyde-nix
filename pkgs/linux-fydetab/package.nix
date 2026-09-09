@@ -49,6 +49,10 @@ let
       name = "brcmfmac-43752-random-seed";
       patch = ./0009-brcmfmac-43752-random-seed.patch;
     }
+    {
+      name = "brcmfmac-tolerate-missing-d3-ack";
+      patch = ./0010-brcmfmac-tolerate-missing-d3-ack.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
