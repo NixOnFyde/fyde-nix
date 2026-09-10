@@ -18,12 +18,16 @@ let
 
   kanshiBase = ''
     profile {
-      output ${panelName}
+      output ${panelName}${
+        lib.optionalString (cfg.shell.desktop.scale != null) " scale ${toString cfg.shell.desktop.scale}"
+      }
     }
   '';
   kanshiLandscape = ''
     profile {
-      output ${panelName} transform 270
+      output ${panelName} transform 270${
+        lib.optionalString (cfg.shell.desktop.scale != null) " scale ${toString cfg.shell.desktop.scale}"
+      }
     }
   '';
 
@@ -54,6 +58,15 @@ in
 
       Compositors with built-in output handling (e.g., niri, GNOME, KDE) can
       disable this and configure rotation themselves.
+    '';
+  };
+
+  options.hardware.fydetabduo.shell.desktop.scale = lib.mkOption {
+    type = lib.types.nullOr lib.types.numbers.positive;
+    default = null;
+    description = ''
+      Display scale factor for the DSI panel (e.g., 1.5, 2).
+      Applied using kanshi output scale. null = native resolution (scale 1).
     '';
   };
 
