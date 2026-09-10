@@ -26,7 +26,6 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 
 ## Hardware features
 
-<<<<<<< HEAD
 | Feature                     | FydeOS    | fyde-nix   | Status  | Notes                                               |
 | --------------------------- | --------- | ---------- | ------- | --------------------------------------------------- |
 | Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                      |
@@ -45,7 +44,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                   |
 | Backlight + battery         | `working` | `working`  | done    | brightnessctl + sysfs capacity                      |
 | Battery charge limit        | `working` | `working`  | done    | SC8886 CHRG_INHIBIT, persisted systemd unit         |
-| Fingerprint reader          | `working` | `no plans` | blocked | madev builds but no open libfprint driver           |
+| Fingerprint reader          | `working` | `partial`  | partial | module loads + binds at boot; `/dev/madev0` accessible; no open driver (yet) |
 | NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime             |
 
 ## Software features

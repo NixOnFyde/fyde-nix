@@ -30,6 +30,7 @@
 #   wifi                  WiFi backend (wpa_supplicant default) + regulatory domain from timezone
 #   modem                 Quectel EM05-G LTE via ModemManager
 #   npu                   RK3588S NPU driver + librknnrt
+#   fingerprint           Microarray AFS120 fingerprint driver
 #   qol                   zram, fstrim, earlyoom, etc.
 #   battery               SC8886 charge limit (ceiling + recharge threshold)
 #   boot-loader           U-Boot boot.scr generation

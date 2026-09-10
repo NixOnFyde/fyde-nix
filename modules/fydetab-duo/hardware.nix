@@ -22,6 +22,7 @@
 #   nixosModules.npu               -- RK3588S NPU driver
 #   nixosModules.qol               -- QoL defaults
 #   nixosModules.battery           -- SC8886 charge limit (ceiling + recharge threshold)
+#   nixosModules.fingerprint       -- Microarray AFS120 fingerprint driver
 #   nixosModules.boot-loader       -- U-Boot boot.scr
 #
 # The host must apply the fyde-nix overlay to get the custom kernel and
@@ -56,5 +57,6 @@
     ./modem.nix
     ./qol.nix
     ./battery.nix
+    ./fingerprint.nix
   ];
 }
