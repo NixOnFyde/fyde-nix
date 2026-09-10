@@ -45,7 +45,7 @@ in
             <action name="Execute" command="thunar"/>
           </item>
           <item label="Terminal" icon="utilities-terminal">
-            <action name="Execute" command="alacritty"/>
+            <action name="Execute" command="ghostty"/>
           </item>
           <item label="Documents" icon="document-viewer">
             <action name="Execute" command="evince"/>
@@ -57,11 +57,11 @@ in
             <action name="Execute" command="haruna"/>
           </item>
           <item label="System Monitor" icon="utilities-system-monitor">
-            <action name="Execute" command="alacritty -e btop"/>
+            <action name="Execute" command="ghostty -e btop"/>
           </item>
           <separator/>
           <item label="Network" icon="network-wireless">
-            <action name="Execute" command="alacritty -e nmtui"/>
+            <action name="Execute" command="ghostty -e nmtui"/>
           </item>
           <item label="Screenshot" icon="camera-photo">
             <action name="Execute" command="sh -c 'grim -g &quot;$(slurp)&quot; ~/Pictures/Screenshot-$(date +%s).png'"/>
