@@ -15,6 +15,7 @@
 #   nixosModules.modem             -- Quectel EM05-G LTE
 #   nixosModules.npu               -- RK3588S NPU driver
 #   nixosModules.qol               -- QoL defaults (zram, fstrim, etc.)
+#   nixosModules.battery           -- SC8886 charge limit (ceiling + recharge threshold)
 #   nixosModules.boot-loader       -- U-Boot boot.scr
 #   nixosModules.desktop           -- labwc, regreet, kanshi, keybinds
 #   nixosModules.shell             -- full desktop shell umbrella
@@ -60,6 +61,7 @@
     ./modem.nix
     ./npu.nix
     ./qol.nix
+    ./battery.nix
 
     # Desktop shell (labwc, greeter, wayle, vicinae, etc.)
     ./desktop.nix

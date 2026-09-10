@@ -42,6 +42,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | IIO sensors (accel)         | `working` | `working`  | done    | lis2dw12, monitor-sensor reports orientation        |
 | Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                   |
 | Backlight + battery         | `working` | `working`  | done    | brightnessctl + sysfs capacity                      |
+| Battery charge limit        | `working` | `working`  | done    | SC8886 CHRG_INHIBIT, persisted systemd unit         |
 | Fingerprint reader          | `working` | `no plans` | blocked | madev builds but no open libfprint driver           |
 | NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime             |
 
