@@ -38,10 +38,6 @@ let
       patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
     }
     {
-      name = "bq25700-charge-control-limit";
-      patch = ./0011-bq25700-charge-control-limit.patch;
-    }
-    {
       name = "brcmfmac-add-bcm43752-pcie-support";
       patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
     }
@@ -52,6 +48,10 @@ let
     {
       name = "brcmfmac-tolerate-missing-d3-ack";
       patch = ./0010-brcmfmac-tolerate-missing-d3-ack.patch;
+    }
+    {
+      name = "bq25700-charge-control-limit";
+      patch = ./0011-bq25700-charge-control-limit.patch;
     }
   ];
 

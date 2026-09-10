@@ -66,7 +66,7 @@ See [docs/DESKTOP.md](docs/DESKTOP.md) for the full DE guide.
 - [docs/BOOT.md](docs/BOOT.md)
 - [docs/SETUP.md](docs/SETUP.md)
 - [docs/DESKTOP.md](docs/DESKTOP.md)
-- [docs/hibernation.md](docs/hibernation.md)
+- [docs/HIBERNATION.md](docs/HIBERNATION.md)
 - [docs/STATUS.md](docs/STATUS.md)
 - [docs/PARITY.md](docs/PARITY.md)
 
@@ -90,6 +90,7 @@ modules/fydetab-duo/     NixOS modules (each importable on their own)
   qol.nix                zram, fstrim, earlyoom, etc.
   battery.nix            SC8886 battery charge limit (ceiling + recharge)
   fingerprint.nix        Microarray AFS120 fingerprint module + udev access
+  hibernation.nix        suspend-to-disk swapfile + resume params
   boot-loader.nix        U-Boot boot.scr generation
   desktop.nix            labwc, regreet, kanshi, keybinds
   shell/                 desktop shell sub-modules

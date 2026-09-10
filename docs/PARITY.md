@@ -26,26 +26,26 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 
 ## Hardware features
 
-| Feature                     | FydeOS    | fyde-nix   | Status  | Notes                                               |
-| --------------------------- | --------- | ---------- | ------- | --------------------------------------------------- |
-| Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                      |
-| Deep suspend/resume (`mem`) | `working` | `working`  | done    | lid-close, touch and wifi work after                |
-| Hibernation (S4)            | `none`    | `untested` | planned | ChromeOS has no S4; see [hibernation.md](hibernation.md) |
-| GPU (Panthor + Mesa)        | `working` | `working`  | done    | EGL + Vulkan verified                               |
-| WiFi 6 (AP6275P)            | `working` | `working`  | done    | NM; permanent MAC pin for NM                        |
-| Bluetooth (BCM4362A2)       | `working` | `working`  | done    | phone connected, media metadata sent                |
-| Touch + stylus (Wacom)      | `working` | `working`  | done    | himax touchscreen + stylus, calibration in labwc    |
-| LTE modem (Quectel EM05-G)  | `working` | `working`  | done    | kernel + `nm-applet` for tray GUI + Gnome GUI       |
-| USB-C DisplayPort           | `working` | `working`  | done    | external display over USB-C hub                     |
-| Audio (ES8388 + PipeWire)   | `working` | `working`  | done    | supports wired / wireless headphones, and OSD works |
-| Camera (5 MP front)         | `working` | `working`  | done    | confirmed via librewolf testing                     |
-| Hall sensor (mh248-fyde)    | `working` | `working`  | done    | lid close suspends                                  |
-| IIO sensors (accel)         | `working` | `working`  | done    | lis2dw12, monitor-sensor reports orientation        |
-| Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                   |
-| Backlight + battery         | `working` | `working`  | done    | brightnessctl + sysfs capacity                      |
-| Battery charge limit        | `working` | `working`  | done    | SC8886 CHRG_INHIBIT, persisted systemd unit         |
+| Feature                     | FydeOS    | fyde-nix   | Status  | Notes                                                                        |
+| --------------------------- | --------- | ---------- | ------- | ---------------------------------------------------------------------------- |
+| Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                                               |
+| Deep suspend/resume (`mem`) | `working` | `working`  | done    | lid-close, touch and wifi work after                                         |
+| Hibernation (S4)            | `none`    | `untested` | planned | opt-in `hardware.fydetabduo.hibernation`                                     |
+| GPU (Panthor + Mesa)        | `working` | `working`  | done    | EGL + Vulkan verified                                                        |
+| WiFi 6 (AP6275P)            | `working` | `working`  | done    | NM; permanent MAC pin for NM                                                 |
+| Bluetooth (BCM4362A2)       | `working` | `working`  | done    | phone connected, media metadata sent                                         |
+| Touch + stylus (Wacom)      | `working` | `working`  | done    | himax touchscreen + stylus, calibration in labwc                             |
+| LTE modem (Quectel EM05-G)  | `working` | `working`  | done    | kernel + `nm-applet` for tray GUI + Gnome GUI                                |
+| USB-C DisplayPort           | `working` | `working`  | done    | external display over USB-C hub                                              |
+| Audio (ES8388 + PipeWire)   | `working` | `working`  | done    | supports wired / wireless headphones, and OSD works                          |
+| Camera (5 MP front)         | `working` | `working`  | done    | confirmed via librewolf testing                                              |
+| Hall sensor (mh248-fyde)    | `working` | `working`  | done    | lid close suspends                                                           |
+| IIO sensors (accel)         | `working` | `working`  | done    | lis2dw12, monitor-sensor reports orientation                                 |
+| Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                                            |
+| Backlight + battery         | `working` | `working`  | done    | brightnessctl + sysfs capacity                                               |
+| Battery charge limit        | `working` | `working`  | done    | SC8886 CHRG_INHIBIT, persisted systemd unit                                  |
 | Fingerprint reader          | `working` | `partial`  | partial | module loads + binds at boot; `/dev/madev0` accessible; no open driver (yet) |
-| NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime             |
+| NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime                                      |
 
 ## Software features
 
