@@ -17,9 +17,9 @@ reference.
 
 | Category    | Done   | Total  | Percent |
 | ----------- | ------ | ------ | ------- |
-| Hardware    | 15     | 16     | 94%     |
+| Hardware    | 16     | 17     | 94%     |
 | Software    | 7      | 14     | 50%     |
-| **Overall** | **22** | **30** | **73%** |
+| **Overall** | **23** | **31** | **74%** |
 
 Hardware parity is nearly complete. Software parity is lower because many
 FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents — or aren't desired (e.g., proprietary).
