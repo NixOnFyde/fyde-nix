@@ -116,6 +116,10 @@
   hardware.fydetabduo.shell = {
     enable = true;
 
+    # Optional: scale the panel output (e.g., 1.5 for larger UI elements).
+    # Applied using kanshi output scale in both orientations.
+    # desktop.scale = 1.5;
+
     power.autoProfile = {
       # Automatically change power profile based on current charge.
       enable = true;
