@@ -31,31 +31,51 @@ let
   installHook = pkgs.writeShellScript "fydetabduo-install-bootloader" ''
     set -euo pipefail
 
-    PATH="${pkgs.coreutils}/bin:${pkgs.gnused}/bin"
+    PATH="${pkgs.coreutils}/bin:${pkgs.util-linux}/bin:${pkgs.gnused}/bin"
 
     top=$1
     esp=${cfg.mountPath}
+    esp_num=${toString cfg.partitionNumbers.esp}
 
     test -d "$esp" || {
       echo "refusing to operate: ${cfg.mountPath} is not mounted (mount your ESP there first)" >&2
       exit 1
     }
 
-    echo "updating FydeTab Duo boot files in $esp..."
+    # U-Boot always loads this system's boot files from the ESP on the disk
+    # it booted from. We must write to that same ESP. Mounting by
+    # by-label/ESP is ambiguous when the image (labels AND PARTUUIDs are
+    # baked into the GPT) is on more than one disk at once, e.g., the
+    # Duo's eMMC and an SD card - /boot could point to the wrong device
+    # and just kaboom that disk's boot files. Unambiguously get the
+    # intended ESP from the running root filesystem instead.
+    root_dev=$(findmnt -rno SOURCE / | sed 's/\[.*//')
+    disk=$(lsblk -rno PKNAME "$root_dev")
+    esp_dev="/dev/''${disk}p''${esp_num}"
 
-    cp "$top/kernel" "$esp/vmlinuz-fydetab.tmp"
-    cp "$top/initrd" "$esp/initramfs-fydetab.img.tmp"
-    mkdir -p "$esp/dtbs/rockchip"
-    cp ${dtb} "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
-    mv -f "$esp/vmlinuz-fydetab.tmp" "$esp/vmlinuz-fydetab"
-    mv -f "$esp/initramfs-fydetab.img.tmp" "$esp/initramfs-fydetab.img"
-    mv -f "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
-          "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+    work="$esp"
+    if [ "$(findmnt -rno SOURCE "$esp")" != "$esp_dev" ]; then
+      work=$(mktemp -d)
+      trap 'umount "$work" 2>/dev/null || true; rmdir "$work" 2>/dev/null || true' EXIT
+      mount "$esp_dev" "$work"
+      echo "note: /boot is mounted from a different device; writing boot files to $esp_dev" >&2
+    fi
 
-    sed "s|@INIT@|$top|g" ${bootCmd} > "$esp/boot.cmd.tmp"
-    ${pkgs.rk-boot-script}/bin/rk-mkimage "$esp/boot.cmd.tmp" "$esp/boot.scr.tmp" "NixOS FydeTab Duo"
-    mv -f "$esp/boot.scr.tmp" "$esp/boot.scr"
-    mv -f "$esp/boot.cmd.tmp" "$esp/boot.cmd"
+    echo "updating FydeTab Duo boot files in $work..."
+
+    cp "$top/kernel" "$work/vmlinuz-fydetab.tmp"
+    cp "$top/initrd" "$work/initramfs-fydetab.img.tmp"
+    mkdir -p "$work/dtbs/rockchip"
+    cp ${dtb} "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
+    mv -f "$work/vmlinuz-fydetab.tmp" "$work/vmlinuz-fydetab"
+    mv -f "$work/initramfs-fydetab.img.tmp" "$work/initramfs-fydetab.img"
+    mv -f "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
+          "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+
+    sed "s|@INIT@|$top|g" ${bootCmd} > "$work/boot.cmd.tmp"
+    ${pkgs.rk-boot-script}/bin/rk-mkimage "$work/boot.cmd.tmp" "$work/boot.scr.tmp" "NixOS FydeTab Duo"
+    mv -f "$work/boot.scr.tmp" "$work/boot.scr"
+    mv -f "$work/boot.cmd.tmp" "$work/boot.cmd"
 
     sync
     echo "FydeTab Duo boot files updated."
