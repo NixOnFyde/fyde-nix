@@ -37,6 +37,10 @@ let
       name = "himax-fix-stylus-physical-dimensions";
       patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
     }
+    {
+      name = "bq25700-charge-control-limit";
+      patch = ./0011-bq25700-charge-control-limit.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

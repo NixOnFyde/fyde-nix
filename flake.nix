@@ -96,6 +96,7 @@
         modem = ./modules/fydetab-duo/modem.nix;
         npu = ./modules/fydetab-duo/npu.nix;
         qol = ./modules/fydetab-duo/qol.nix;
+        battery = ./modules/fydetab-duo/battery.nix;
         boot-loader = ./modules/fydetab-duo/boot-loader.nix;
 
         # ── Desktop shell ────────────────────────────────────────────────
