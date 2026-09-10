@@ -31,6 +31,7 @@
 #   modem                 Quectel EM05-G LTE via ModemManager
 #   npu                   RK3588S NPU driver + librknnrt
 #   qol                   zram, fstrim, earlyoom, etc.
+#   battery               SC8886 charge limit (ceiling + recharge threshold)
 #   boot-loader           U-Boot boot.scr generation
 #   desktop               labwc, regreet, kanshi, keybinds
 #   shell                 full desktop shell (umbrella)
@@ -101,6 +102,11 @@
       # runtime. Provides /dev/dri/renderD129 and the RKNN C API for
       # INT8/INT4/FP16 inference on the three NPU cores.
       npu.enable = true;
+
+      # Optional: cap charging at 80%, resuming below 75%. Also exposes
+      # the `fydetab-chargelimit {set|off|status}` CLI for runtime control.
+      # battery.chargeLimit = 80;
+      # battery.rechargeAt = 75;
     };
   };
 

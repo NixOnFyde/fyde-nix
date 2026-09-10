@@ -21,6 +21,7 @@
 #   nixosModules.modem             -- Quectel EM05-G LTE
 #   nixosModules.npu               -- RK3588S NPU driver
 #   nixosModules.qol               -- QoL defaults
+#   nixosModules.battery           -- SC8886 charge limit (ceiling + recharge threshold)
 #   nixosModules.boot-loader       -- U-Boot boot.scr
 #
 # The host must apply the fyde-nix overlay to get the custom kernel and
@@ -54,5 +55,6 @@
     ./wifi-regdom.nix
     ./modem.nix
     ./qol.nix
+    ./battery.nix
   ];
 }

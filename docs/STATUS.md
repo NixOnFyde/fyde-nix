@@ -9,7 +9,7 @@
 
 <!-- /toc -->
 
-Last updated: 2026-08-27.
+Last updated: 2026-09-10.
 
 The image boots from internal storage. The columns use:
 
@@ -60,6 +60,7 @@ The image boots from internal storage. The columns use:
 | MIPI camera                                                        | `working`  | works - verified                                                                                                                                |
 | Microphone                                                         | `working`  | verified through browser                                                                                                                        |
 | Backlight + battery reporting                                      | `working`  | brightnessctl work; sysfs capacity/charging correct                                                                                             |
+| Battery charge limit                                               | `working`  | SC8886 CHRG_INHIBIT; persists across reboots using a systemd unit                                                                               |
 | Hardware buttons                                                   | `working`  | volume rocker emits KEY_VOLUMEUP/DOWN (adc-keys); power key wakes; keys linked with wpctl/brightnessctl with wayle                              |
 | Fingerprint reader (microarray/madev)                              | `no plans` | madev builds but no FOSS userspace stack exists; would need a RE'd libfprint driver                                                             |
 | NPU (RK3588S, 6 TOPS)                                              | `working`  | vendor rknpu driver (built-in), librknnrt runtime; rknn_init + model load confirmed myself                                                      |
