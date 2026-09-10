@@ -108,7 +108,10 @@ in
 
           ${sgdiskBin} -e "$disk" \
             || echo "sgdisk -e failed; continuing anyway" >&2
-          ${growpartBin} "$disk" "$num"
+          # -u off: skip the kernel partition-table reload. We can't re-read the
+          # table while the root FS is mounted from this disk anyway, and the
+          # kernel will get the new table and grows the FS on the next boot.
+          ${growpartBin} -u off "$disk" "$num"
           rc=$?
           if [ "$rc" -eq 1 ]; then
             echo "partition already at full size; skipping growth" >&2
