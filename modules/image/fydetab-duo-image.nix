@@ -71,9 +71,15 @@ in
         # a larger disk (bigger SD, or the inbuilt 256G eMMC) the backup GPT
         # sits at the end, so growpart sees no free space. Relocate it to the
         # actual end of the disk first (does nothing when it's already correct).
+        #
+        # We on purpose do the resize with sgdisk and partx instead of
+        # cloud-utils growpart: growpart's sfdisk path leaves a temp dump.out
+        # file and then fails to verify the change ("failed to change size in
+        # output", exit 2) whenever the kernel can't re-read the changed table,
+        # which is in our case - as root is mounted from this disk.
 
-        growpartBin = lib.getExe' pkgs.cloud-utils.guest "growpart"; # Why is this only in cloud-utils ;-;.
         sgdiskBin = lib.getExe' pkgs.gptfdisk "sgdisk";
+        partxBin = lib.getExe' pkgs.util-linux "partx";
         findmntBin = lib.getExe' pkgs.util-linux "findmnt";
         lsblkBin = lib.getExe' pkgs.util-linux "lsblk";
       in
@@ -108,19 +114,14 @@ in
 
           ${sgdiskBin} -e "$disk" \
             || echo "sgdisk -e failed; continuing anyway" >&2
-          # -u off: skip the kernel partition-table reload. We can't re-read the
-          # table while the root FS is mounted from this disk anyway, and the
-          # kernel will get the new table and grows the FS on the next boot.
-          ${growpartBin} -u off "$disk" "$num"
-          rc=$?
-          if [ "$rc" -eq 1 ]; then
-            echo "partition already at full size; skipping growth" >&2
-            exit 0
-          fi
-          if [ "$rc" -ne 0 ]; then
-            echo "growpart failed with exit code $rc" >&2
-            exit "$rc"
-          fi
+          # Delete and recreate the partition spanning to the end of the disk.
+          # -d/-N apply perform on the on-disk table; partx then tells the
+          # running kernel the new size without needing a full re-read, which
+          # is impossible anyway as root is mounted from this disk.
+          ${sgdiskBin} -d "$num" -N "$num" "$disk" \
+            || { echo "sgdisk grow failed" >&2; exit 2; }
+          ${partxBin} -u "$disk" \
+            || echo "partx -u failed; kernel will get re-size on next boot" >&2
           ${pkgs.btrfs-progs}/bin/btrfs filesystem resize max / 2>/dev/null || true
           exit 0
         ''
