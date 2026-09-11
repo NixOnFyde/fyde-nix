@@ -77,23 +77,20 @@ in
     ];
 
     # Create the swapfile on the root filesystem if it is missing.
-    # Ordered using RequiresMountsFor so systemd starts it only after /swap is
-    # mounted, making sure the swap.target graph is clean (no local-fs <-> swap).
-    systemd.services.create-swapfile = {
-      description = "Create btrfs swapfile if absent";
-      wantedBy = [ "swap.target" ];
-      unitConfig.RequiresMountsFor = [ (dirOf cfg.swapFile) ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      path = [ pkgs.btrfs-progs ];
-      script = ''
-        if [ ! -e ${cfg.swapFile} ]; then
-          btrfs filesystem mkswapfile -s ${cfg.swapSize} ${cfg.swapFile}
-        fi
-      '';
-    };
+    #
+    # This runs at activation time (after local-fs.target, before sysinit.target)
+    # rather than as a systemd service wanted by swap.target: the generated .swap
+    # unit for a swapfile on the root fs orders swap.target after local-fs.target,
+    # so a service that both wanted swap.target and needed the root fs mounted
+    # would cause an ordering cycle (swap <-> local-fs/sysinit). Activation scripts
+    # defintely run before swap.target activates the .swap unit, so the swapfile
+    # already exists and no cycle can occur :).
+    system.activationScripts.createSwapfile = lib.mkAfter ''
+      mkdir -p "$(dirname ${cfg.swapFile})"
+      if [ ! -e ${cfg.swapFile} ]; then
+        ${pkgs.btrfs-progs}/bin/btrfs filesystem mkswapfile -s ${cfg.swapSize} ${cfg.swapFile}
+      fi
+    '';
 
     swapDevices = [ { device = cfg.swapFile; } ];
 
