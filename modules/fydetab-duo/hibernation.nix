@@ -77,10 +77,12 @@ in
     ];
 
     # Create the swapfile on the root filesystem if it is missing.
+    # Ordered using RequiresMountsFor so systemd starts it only after /swap is
+    # mounted, making sure the swap.target graph is clean (no local-fs <-> swap).
     systemd.services.create-swapfile = {
       description = "Create btrfs swapfile if absent";
-      before = [ "swap.target" ];
       wantedBy = [ "swap.target" ];
+      unitConfig.RequiresMountsFor = [ (dirOf cfg.swapFile) ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
