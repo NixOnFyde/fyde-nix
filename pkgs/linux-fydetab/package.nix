@@ -46,8 +46,8 @@ let
       patch = ./0009-brcmfmac-43752-random-seed.patch;
     }
     {
-      name = "brcmfmac-tolerate-missing-d3-ack";
-      patch = ./0010-brcmfmac-tolerate-missing-d3-ack.patch;
+      name = "brcmfmac-ap6275p-skip-d3-mailbox";
+      patch = ./0010-brcmfmac-ap6275p-skip-d3-mailbox.patch;
     }
     {
       name = "bq25700-charge-control-limit";
