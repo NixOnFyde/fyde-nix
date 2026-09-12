@@ -97,6 +97,8 @@
         npu = ./modules/fydetab-duo/npu.nix;
         qol = ./modules/fydetab-duo/qol.nix;
         battery = ./modules/fydetab-duo/battery.nix;
+        fingerprint = ./modules/fydetab-duo/fingerprint.nix;
+        hibernation = ./modules/fydetab-duo/hibernation.nix;
         boot-loader = ./modules/fydetab-duo/boot-loader.nix;
 
         # ── Desktop shell ────────────────────────────────────────────────

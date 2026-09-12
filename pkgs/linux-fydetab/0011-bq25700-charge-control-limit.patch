@@ -1,5 +1,5 @@
---- a/drivers/power/supply/bq25700_charger.c	2026-09-10 17:10:06.350410762 +0100
-+++ b/drivers/power/supply/bq25700_charger.c	2026-09-10 17:30:26.756688358 +0100
+--- a/drivers/power/supply/bq25700_charger.c
++++ b/drivers/power/supply/bq25700_charger.c
 @@ -203,10 +203,13 @@
    bool        ready;
    struct power_supply *battery;
@@ -39,7 +39,7 @@
  	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
  		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
  		break;
-@@ -1300,6 +1313,70 @@
+@@ -1300,6 +1313,82 @@
  	return 0;
  }
  
@@ -107,18 +107,31 @@
 +	return 0;
 +}
 +
++static int bq25700_power_supply_property_is_writeable(struct power_supply *psy,
++						     enum power_supply_property psp)
++{
++	switch (psp) {
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
++	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
++		return 1;
++	default:
++		return 0;
++	}
++}
++
  static char *bq25700_charger_supplied_to[] = {
  	"charger",
  };
-@@ -1310,6 +1387,7 @@
+@@ -1310,6 +1399,8 @@
  	.properties = bq25700_power_supply_props,
  	.num_properties = ARRAY_SIZE(bq25700_power_supply_props),
  	.get_property = bq25700_power_supply_get_property,
 +	.set_property = bq25700_power_supply_set_property,
++	.property_is_writeable = bq25700_power_supply_property_is_writeable,
  };
  
  static int bq25700_power_supply_init(struct bq25700_device *charger)
-@@ -2084,7 +2162,10 @@
+@@ -2084,7 +2175,10 @@
  	}
  	dev_info(charger->dev, "Battery found\n");
    charger->delay_charge_current = true;
@@ -130,7 +143,7 @@
  	ret = bq25700_hw_init(charger);
  	if (ret < 0) {
  		dev_err(dev, "Cannot initialize the chip.\n");
-@@ -2129,6 +2210,8 @@
+@@ -2129,6 +2223,8 @@
  	struct bq25700_device *charger = i2c_get_clientdata(client);
    if (charger->delay_charge_current)
      cancel_delayed_work(&charger->init_charger_current);
