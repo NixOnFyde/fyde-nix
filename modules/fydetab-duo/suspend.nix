@@ -61,33 +61,14 @@ in
         ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
         ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
 
-        # The BCM43752 firmware ignores the D3 mailbox; keeping the driver
-        # bound during suspend leaves the chip desynced and any re-probe /
-        # rebind after resume panics (half-reset chip outs a false shared-RAM
-        # size and the fw load writes past the BAR1 iomap). Instead of trying
-        # to recover a desynced chip, "wowlan-disable" unbinds the driver
-        # BEFORE suspend, so the PCI core handles a plain config-level D3hot
-        # cycle (known to suspend and resume without issues), and here we just
-        # rebind afterwards for a clean firmware load - akin to ze first boot.
-        PCI_DEV="$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null || true)"
-        PCI_DEV="''${PCI_DEV:-0004:41:00.0}"
-        echo "$PCI_DEV" > /sys/bus/pci/drivers/brcmfmac/bind || true
+# DIAGNOSTIC BUILD: do NOT rebind brcmfmac after resume. Used to
+        # isolate whether the wake crash is the PCIe restore itself (A) or the
+        # subsequent driver bind/fw load (B). If this resumes without
+        # rebooting (just wifi stays off), then the bind is the crash point.
+        echo "diagnostic resume: brcmfmac left unbound" >> /run/fydetab-resume-notes
 
-        wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
-        if [ -n "$wifi_profile" ]; then
-          # The driver rebind above recreates the netdev; wait for it and for
-          # NetworkManager to pick it up. Retry while the saved profile
-          # starts working.
-          for _ in $(${lib.getExe' pkgs.coreutils "seq"} 1 30); do
-            ${lib.getExe' pkgs.networkmanager "nmcli"} device wifi rescan || true
-
-            if ${lib.getExe' pkgs.networkmanager "nmcli"} connection up uuid "$wifi_profile"; then
-              exit 0
-            fi
-
-            ${lib.getExe' pkgs.coreutils "sleep"} 1
-          done
-        fi
+        # wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
+        
       '';
     })
   ];
