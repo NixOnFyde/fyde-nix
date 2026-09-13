@@ -32,6 +32,8 @@
 #   npu                   RK3588S NPU driver + librknnrt
 #   qol                   zram, fstrim, earlyoom, etc.
 #   battery               SC8886 charge limit (ceiling + recharge threshold)
+#   fingerprint           Microarray AFS120 fingerprint driver
+#   hibernation           suspend-to-disk (S4), opt-in
 #   boot-loader           U-Boot boot.scr generation
 #   desktop               labwc, regreet, kanshi, keybinds
 #   shell                 full desktop shell (umbrella)

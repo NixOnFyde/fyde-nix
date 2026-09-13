@@ -38,6 +38,18 @@ let
       patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
     }
     {
+      name = "brcmfmac-add-bcm43752-pcie-support";
+      patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
+    }
+    {
+      name = "brcmfmac-43752-random-seed";
+      patch = ./0009-brcmfmac-43752-random-seed.patch;
+    }
+    {
+      name = "brcmfmac-ap6275p-skip-d3-mailbox";
+      patch = ./0010-brcmfmac-ap6275p-skip-d3-mailbox.patch;
+    }
+    {
       name = "bq25700-charge-control-limit";
       patch = ./0011-bq25700-charge-control-limit.patch;
     }
@@ -92,6 +104,9 @@ linuxKernel.buildLinux rec {
     FW_LOADER_COMPRESS_ZSTD = yes;
 
     MALI = no;
+
+    HIBERNATION = yes;
+    DISK_BASED_SWAP = yes;
 
     BCMDHD = no;
 
