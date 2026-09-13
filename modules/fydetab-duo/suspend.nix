@@ -47,7 +47,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE,DEVICE connection show --active | ${lib.getExe pkgs.gnugrep} -E \":802-11-wireless:\" | ${lib.getExe' pkgs.coreutils "cut"} -d: -f1 > /run/fydetab-wifi-profile; ${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi'";
+          ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE,DEVICE connection show --active | ${lib.getExe pkgs.gnugrep} -E \":802-11-wireless:\" | ${lib.getExe' pkgs.coreutils "cut"} -d: -f1 > /run/fydetab-wifi-profile; ${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi; PCI_DEV=\"\$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null || true)\"; PCI_DEV=\"\${PCI_DEV:-0004:41:00.0}\"; echo \"\$PCI_DEV\" > /sys/bus/pci/drivers/brcmfmac/unbind || true; ${lib.getExe' pkgs.coreutils "sleep"} 1'";
           ExecStop = "${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi";
         };
       };
@@ -61,17 +61,16 @@ in
         ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
         ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
 
-        # The BCM43752 firmware never actually went to sleep (we skip the D3
-        # mailbox; the PCI core just writes config-level D3hot), so after
-        # resume the chip is out of sync: all dcmds times out. Re-probing from
-        # inside the kernel PM callback panics (half-reset chip outs a false
-        # shared-RAM size and the fw load writes past the BAR1 iomap), so do
-        # the safe thing here: unbind / rebind the PCI device after resume,
-        # which re-inits the chip and reloads firmware properly.
+        # The BCM43752 firmware ignores the D3 mailbox; keeping the driver
+        # bound during suspend leaves the chip desynced and any re-probe /
+        # rebind after resume panics (half-reset chip outs a false shared-RAM
+        # size and the fw load writes past the BAR1 iomap). Instead of trying
+        # to recover a desynced chip, "wowlan-disable" unbinds the driver
+        # BEFORE suspend, so the PCI core handles a plain config-level D3hot
+        # cycle (known to suspend and resume without issues), and here we just
+        # rebind afterwards for a clean firmware load - akin to ze first boot.
         PCI_DEV="$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null || true)"
         PCI_DEV="''${PCI_DEV:-0004:41:00.0}"
-        echo "$PCI_DEV" > /sys/bus/pci/drivers/brcmfmac/unbind || true
-        ${lib.getExe' pkgs.coreutils "sleep"} 1
         echo "$PCI_DEV" > /sys/bus/pci/drivers/brcmfmac/bind || true
 
         wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
