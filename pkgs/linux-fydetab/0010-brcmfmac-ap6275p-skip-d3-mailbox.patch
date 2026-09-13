@@ -1,7 +1,8 @@
 diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+index 5dee54819..14d7076a2 100644
 --- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
 +++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
-@@ -2620,6 +2620,28 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
+@@ -2585,6 +2585,31 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
  	brcmf_pcie_fwcon_timer(devinfo, false);
  	brcmf_bus_change_state(bus, BRCMF_BUS_DOWN);
  
@@ -14,15 +15,18 @@ diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/n
 +	 * (causing the device to reboot during platform suspend).
 +	 *
 +	 * To fix this, we skip the handshake entirely for this chip. Instead,
-+	 * we let the PCI core put the device into D3hot using a standard config
-+	 * write during the noirq phase - which is what happens when no driver is
-+	 * bound, which we know suspends and resumes without issues. Since the
-+	 * firmware never actually goes to sleep, brcmf_pcie_pm_leave_D3() just
-+	 * returns success and the user-level resume hook rebinds the PCI device
-+	 * to cause a clean firmware reload.
++	 * we skip the D3hot transition too: pci_pm_suspend_noirq() only writes
++	 * D3hot (through pci_prepare_to_sleep()) when pci_dev->state_saved is not
++	 * set, and saving state here makes that skip fire. So the device stays
++	 * in D0 the whole time, which is what happens with no driver bound
++	 * except the chip is never desynced. The firmware on the always-on
++	 * vcc_3v3_s3 rail keeps running, the link is re-established on resume,
++	 * and the user-level resume hook just rebinds the PCI device to
++	 * reload firmware onto a healthy chip.
 +	 */
 +	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
-+		brcmf_info("BCM43752: skipping D3 mailbox handshake, using config-lvl D3hot\n");
++		brcmf_info("BCM43752: skipping D3 mailbox and D3hot, staying in D0\n");
++		pci_save_state(devinfo->pdev);
 +		devinfo->state = BRCMFMAC_PCIE_STATE_DOWN;
 +		return 0;
 +	}
@@ -30,28 +34,32 @@ diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/n
  	devinfo->mbdata_completed = false;
  	brcmf_pcie_send_mb_data(devinfo, BRCMF_H2D_HOST_D3_INFORM);
  
-@@ -2650,6 +2667,24 @@ static int brcmf_pcie_pm_leave_D3(struct device *dev)
+@@ -2615,6 +2640,20 @@ static int brcmf_pcie_pm_leave_D3(struct device *dev)
  	devinfo = bus->bus_priv.pcie->devinfo;
  	brcmf_dbg(PCIE, "Enter, dev=%p, bus=%p\n", dev, bus);
  
 +	/*
-+	 * The config-space D3hot write above booms the PCIe link out from
-+	 * under the firmware while it never truly entered a sleep state.
-+	 * On resume the chip then inits desynced: every dcmd times out (-5),
-+	 * the hot-resume path would poke D0_INFORM at a firmware that is not
-+	 * listening, and the in-driver remove+re-probe path crashes: the
-+	 * half-reset chip outputs a bogus shared-RAM size, so the async
-+	 * firmware reload writes past the end of the (4 MB) BAR1 ioremap and
-+	 * panics. Do neither here - return success and let user-level rebind
-+	 * the PCI device (unbind + bind) after resume, which we know works.
-+	 * The chip is irrelevant until then; link is restored by the PCI
-+	 * core with pci_restore_state() before this callback runs.
++	 * With the D0-through-suspend strategy (enter_D3 above), the chip was
++	 * never desynced. If it is still alive (intmask set), we could try a
++	 * hot-resume D0_INFORM path, but at this point in the PM sequence the
++	 * RK3588 PCIe controller may not have re-established the link yet, so
++	 * we can't reliably read the chip. Return success and let the
++	 * user-level resume hook rebind the PCI device (unbind + bind) after
++	 * resume, which reloads firmware onto a healthy chip and works cleanly.
 +	 */
 +	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
-+		brcmf_info("BCM43752: D3hot resume, deferring chip re-init to user-level rebind\n");
++		brcmf_info("BCM43752: resume, deferring chip re-init to user-level rebind\n");
 +		return 0;
 +	}
 +
  	/* Check if device is still up and running, if so we are ready */
  	if (brcmf_pcie_read_reg32(devinfo, devinfo->reginfo->intmask) != 0) {
  		brcmf_dbg(PCIE, "Try to wakeup device....\n");
+@@ -2648,6 +2687,7 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
+ 	.suspend = brcmf_pcie_pm_enter_D3,
+ 	.resume = brcmf_pcie_pm_leave_D3,
+ 	.freeze = brcmf_pcie_pm_enter_D3,
++	.poweroff = brcmf_pcie_pm_enter_D3,
+ 	.restore = brcmf_pcie_pm_leave_D3,
+ };
+ 
