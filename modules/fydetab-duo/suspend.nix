@@ -47,8 +47,95 @@ in
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ExecStart = "${lib.getExe pkgs.bash} -c '${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE,DEVICE connection show --active | ${lib.getExe pkgs.gnugrep} -E \":802-11-wireless:\" | ${lib.getExe' pkgs.coreutils "cut"} -d: -f1 > /run/fydetab-wifi-profile; ${lib.getExe pkgs.iw} phy0 wowlan disable || true; ${lib.getExe' pkgs.util-linux "rfkill"} block wifi; PCI_DEV=\"\$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null || true)\"; PCI_DEV=\"\${PCI_DEV:-0004:41:00.0}\"; echo \"\$PCI_DEV\" > /sys/bus/pci/drivers/brcmfmac/unbind || true; ${lib.getExe' pkgs.coreutils "sleep"} 1'";
-          ExecStop = "${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi";
+          ExecStart = ''
+            ${lib.getExe pkgs.bash} -c '
+              set -euo pipefail
+              LOG=/run/fydetab-suspend.log
+              echo "=== wowlan-disable ExecStart $(date) ===" > "$LOG"
+
+              # Save active wifi profile for reconnect on resume
+              ${lib.getExe' pkgs.networkmanager "nmcli"} -t -f UUID,TYPE,DEVICE connection show --active \
+                | ${lib.getExe pkgs.gnugrep} -E ":802-11-wireless:" \
+                | ${lib.getExe' pkgs.coreutils "cut"} -d: -f1 \
+                > /run/fydetab-wifi-profile 2>/dev/null || true
+              echo "saved-profile=$(cat /run/fydetab-wifi-profile 2>/dev/null)" >> "$LOG"
+
+              # Disable WoWLAN and rfkill-block the radio (stops beacon wakes)
+              ${lib.getExe pkgs.iw} phy0 wowlan disable >> "$LOG" 2>&1 || true
+              ${lib.getExe' pkgs.util-linux "rfkill"} block wifi >> "$LOG" 2>&1
+
+              # Prevent kernel from auto-rebinding brcmfmac on resume.
+              # This is THE critical fix: without driver_override, the kernel
+              # PCI subsystem re-binds brcmfmac within seconds of resume,
+              # probing a desynced chip → MMIO read 0xffffffff → dead probe.
+              # With driver_override=none, the kernel skips the auto-bind and
+              # our ExecStop rail-cycle + bind runs on a clean slate.
+              PCI_DIR="/sys/bus/pci/devices/0004:41:00.0"
+              echo "driver_override before=$(cat "$PCI_DIR/driver_override" 2>/dev/null)" >> "$LOG"
+              echo "none" > "$PCI_DIR/driver_override" 2>/dev/null || true
+              echo "driver_override after=$(cat "$PCI_DIR/driver_override" 2>/dev/null)" >> "$LOG"
+
+              # Unbind brcmfmac so it releases the device cleanly
+              echo "unbind=$(echo 0004:41:00.0 > /sys/bus/pci/drivers/brcmfmac/unbind 2>&1 && echo ok || echo fail)" >> "$LOG"
+              ${lib.getExe' pkgs.coreutils "sleep"} 1
+              echo "=== wowlan-disable done ===" >> "$LOG"
+            ''
+          '';
+          ExecStop = ''
+            ${lib.getExe pkgs.bash} -c '
+              set -uo pipefail
+              LOG=/run/fydetab-suspend.log
+              echo "=== ExecStop (resume) $(date) ===" >> "$LOG"
+
+              # Re-enable wifi radio
+              ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi >> "$LOG" 2>&1 || true
+              ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on >> "$LOG" 2>&1 || true
+
+              # Clear driver_override so our bind below can proceed
+              echo "clearing driver_override" >> "$LOG"
+              echo "" > /sys/bus/pci/devices/0004:41:00.0/driver_override 2>/dev/null || true
+
+              # Cold power-cycle the WLAN chip (gpio23 = WIFI poweren = RK_PC7)
+              GPIO_23=""
+              if [ -d /sys/class/gpio/gpio23 ]; then
+                GPIO_23=/sys/class/gpio/gpio23
+              elif [ -w /sys/class/gpio/export ]; then
+                echo 23 > /sys/class/gpio/export 2>/dev/null || true
+                sleep 0.2
+                [ -d /sys/class/gpio/gpio23 ] && GPIO_23=/sys/class/gpio/gpio23
+              fi
+              echo "gpio23=${GPIO_23:-absent}" >> "$LOG"
+
+              if [ -n "$GPIO_23" ]; then
+                echo out > "$GPIO_23/direction" 2>/dev/null || true
+                rail_safe() {
+                  echo 1 > "$GPIO_23/value" 2>/dev/null || true
+                  sleep 0.25 2>/dev/null || sleep 1
+                  return 0
+                }
+                trap rail_safe EXIT HUP INT TERM
+                echo 0 > "$GPIO_23/value" 2>/dev/null || true   # rail OFF
+                sleep 0.25 2>/dev/null || sleep 1
+                echo 1 > "$GPIO_23/value" 2>/dev/null || true   # rail ON
+                sleep 2 2>/dev/null || sleep 2
+                trap - EXIT HUP INT TERM
+              fi
+
+              # Bind brcmfmac onto the cold-booted chip
+              echo "bind=$(echo 0004:41:00.0 > /sys/bus/pci/drivers/brcmfmac/bind 2>&1 && echo ok || echo fail)" >> "$LOG"
+              sleep 3
+
+              # Reconnect to saved network
+              ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on >> "$LOG" 2>&1 || true
+              WIFI_PROFILE="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
+              if [ -n "$WIFI_PROFILE" ]; then
+                echo "reconnecting=$WIFI_PROFILE" >> "$LOG"
+                ${lib.getExe' pkgs.networkmanager "nmcli"} connection up "$WIFI_PROFILE" >> "$LOG" 2>&1 || true
+              fi
+              echo "wifi=$(nmcli -t -f DEVICE,STATE,CONNECTION d 2>/dev/null | grep -iE "^wl" || echo none)" >> "$LOG"
+              echo "=== ExecStop done ===" >> "$LOG"
+            ''
+          '';
         };
       };
 
