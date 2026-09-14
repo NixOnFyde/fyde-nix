@@ -87,10 +87,21 @@ in
         fi
         if [ -n "$GPIO_23" ]; then
           echo out > "$GPIO_23/direction" 2>/dev/null || true
+          # Fail-safe: whatever happens inside this block, ALWAYS bring the
+          # rail back ON so the chip is never stranded powered-down (which is
+          # what left "no wireless adapter" after an earlier typo killed the
+          # script between rail OFF and rail ON).
+          rail_safe() {
+            echo 1 > "$GPIO_23/value" 2>/dev/null || true
+            sleep 0.25 2>/dev/null || sleep 1
+            return 0
+          }
+          trap rail_safe EXIT HUP INT TERM
           echo 0 > "$GPIO_23/value" 2>/dev/null || true   # rail OFF - chip fully cold
-          sleep lav
+          sleep 0.25 2>/dev/null || sleep 1
           echo 1 > "$GPIO_23/value" 2>/dev/null || true   # rail ON - chip boots clean
-          sleep 2
+          sleep 2 2>/dev/null || sleep 2
+          trap - EXIT HUP INT TERM
         fi
         PCI_DEV="$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null | head -1 || true)"
         PCI_DEV="''${PCI_DEV:-0004:41:00.0}"
