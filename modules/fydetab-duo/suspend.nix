@@ -57,18 +57,50 @@ in
       # that is also used above just in case. Only reconnect the profile that
       # was active before suspend; trying every saved profile causes attempts
       # against networks that are not in range which we obviously don't want.
+      #
+      # The AP6275P cannot survive a *driver-level* rebind on a chip that is
+      # merely clock/PCI-desynced after deep suspend — the chip comes back in a
+      # state where the PCI core no longer sees a link it can restore, and any
+      # bind from that half-alive state panics the host. The only bind that is
+      # reproducibly safe is a *cold* bind, the "first boot" bind: the chip is
+      # fully powered by its own rail (WIFI poweren = gpio23 / RK_PC7), so it
+      # boots its ROM/secondary bootloader/firmware from a true cold state,
+      # which is what the vendor dhd driver relied on. So on resume we do NOT
+      # rebind into a desynced chip — we cold power-cycle the rail
+      # (rail OFF -> chip fully powered down, rail ON -> chip boots clean) and
+      # THEN bind brcmfmac. Proven live on this tablet: rail power-cycle +
+      # bind survives and gives back working wifi with the SAME boot_id.
       powerManagement.resumeCommands = ''
         ${lib.getExe' pkgs.util-linux "rfkill"} unblock wifi || true
         ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
 
-# DIAGNOSTIC BUILD: do NOT rebind brcmfmac after resume. Used to
-        # isolate whether the wake crash is the PCIe restore itself (A) or the
-        # subsequent driver bind/fw load (B). If this resumes without
-        # rebooting (just wifi stays off), then the bind is the crash point.
-        echo "diagnostic resume: brcmfmac left unbound" >> /run/fydetab-resume-notes
-
-        # wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
-        
+        # Cold power-cycle the WLAN chip: rail OFF (chip truly loses power,
+        # its state is gone) so the PCIe endpoint is a fresh "first boot"
+        # device again, then rail ON and bind brcmfmac onto the clean chip.
+        GPIO_23=""
+        if [ -d /sys/class/gpio/gpio23 ]; then
+          GPIO_23=/sys/class/gpio/gpio23
+        elif [ -w /sys/class/gpio/export ]; then
+          echo 23 > /sys/class/gpio/export 2>/dev/null || true
+          sleep 0.2
+          [ -d /sys/class/gpio/gpio23 ] && GPIO_23=/sys/class/gpio/gpio23
+        fi
+        if [ -n "$GPIO_23" ]; then
+          echo out > "$GPIO_23/direction" 2>/dev/null || true
+          echo 0 > "$GPIO_23/value" 2>/dev/null || true   # rail OFF - chip fully cold
+          sleep lav
+          echo 1 > "$GPIO_23/value" 2>/dev/null || true   # rail ON - chip boots clean
+          sleep 2
+        fi
+        PCI_DEV="$(cd /sys/bus/pci/devices && ls -d *:41:00.0 2>/dev/null | head -1 || true)"
+        PCI_DEV="''${PCI_DEV:-0004:41:00.0}"
+        echo "$PCI_DEV" > /sys/bus/pci/drivers/brcmfmac/bind 2>/dev/null || true
+        sleep 2
+        ${lib.getExe' pkgs.networkmanager "nmcli"} radio wifi on || true
+        wifi_profile="$(${lib.getExe' pkgs.coreutils "cat"} /run/fydetab-wifi-profile 2>/dev/null || true)"
+        if [ -n "$wifi_profile" ]; then
+          ${lib.getExe' pkgs.networkmanager "nmcli"} connection up "$wifi_profile" || true
+        fi
       '';
     })
   ];
