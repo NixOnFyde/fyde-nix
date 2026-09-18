@@ -25,7 +25,7 @@ jobs:
             nixpkgs#shellcheck nixpkgs#actionlint
 
       - name: nixfmt (check)
-        run: /tmp/lint/bin/nixfmt-tree --check flake.nix modules overlays pkgs lib
+        run: /tmp/lint/bin/treefmt --ci
 
       - name: statix
         run: /tmp/lint/bin/statix check
