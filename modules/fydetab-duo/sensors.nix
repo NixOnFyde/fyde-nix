@@ -71,6 +71,10 @@ in
         wantedBy = [ "graphical-session.target" ];
         after = [ "graphical-session.target" ];
         partOf = [ "graphical-session.target" ];
+        path = [
+          pkgs.procps
+          pkgs.wlr-randr
+        ];
         serviceConfig = {
           Type = "simple";
           ExecStart = rot8-wrapper;

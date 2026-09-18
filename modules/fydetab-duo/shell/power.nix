@@ -143,7 +143,7 @@ in
           PERF="/run/current-system/sw/bin/fydetab-perf"
           PPD="${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
           SUDO="/run/wrappers/bin/sudo"
-          STATE_FILE="/run/tablet-mode/auto-profile-state"
+          STATE_FILE="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/auto-profile-state"
           HIGH=${toString autoCfg.highThreshold}
           LOW=${toString autoCfg.lowThreshold}
           POLL=${toString autoCfg.pollInterval}
