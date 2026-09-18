@@ -53,6 +53,14 @@ let
       name = "bq25700-charge-control-limit";
       patch = ./0011-bq25700-charge-control-limit.patch;
     }
+    {
+      name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
+      patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
+    }
+    {
+      name = "arm64-dts-rk3588-add-emmc-cqe-support";
+      patch = ./0013-arm64-dts-rk3588-add-emmc-cqe-support.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
