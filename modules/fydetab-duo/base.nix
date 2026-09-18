@@ -76,7 +76,7 @@ in
 
     boot.kernelModules = [
       "brcmfmac"
-      "dhd"
+      # "dhd" # DISABLED because we use `brcmfmac` now not `bcmdhd`!
       "panthor"
     ]
     ++ lib.optionals cfg.touchscreen.enable [ "himax_tp" ]
