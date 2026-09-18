@@ -1,0 +1,29 @@
+The RK3588 eMMC controller is in the PD_NVM power domain. When the
+genpd framework manages this domain, it can be turned off during the
+early suspend phase. If PD_NVM is powered off before the hibernate
+image is written to disk, the eMMC controller becomes inaccessible and
+the system hangs.
+
+This is the same class of bug as the RK3576 fix in dwcmshc_rk3576_postinit()
+(Nicolas Frattaroli, Collabora). Apply the same workaround for RK3588:
+call dev_pm_genpd_rpm_always_on() to prevent runtime power-off of PD_NVM.
+
+--- a/drivers/mmc/host/sdhci-of-dwcmshc.c
++++ b/drivers/mmc/host/sdhci-of-dwcmshc.c
+@@ -804,5 +804,16 @@ static void dwcmshc_rk35xx_postinit(str
+ 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+ 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
++	struct rk35xx_priv *priv = dwc_priv->priv;
++
++	if (priv->devtype == DWCMSHC_RK3588) {
++		int ret;
++
++		ret = dev_pm_genpd_rpm_always_on(mmc_dev(host->mmc), true);
++		if (ret && ret != -EOPNOTSUPP)
++			dev_warn(mmc_dev(host->mmc),
++				 "failed to set PD rpm always on, SoC may hang later: %pe\n",
++				 ERR_PTR(ret));
++	}
+ 
+ 	/*
+ 	 * Don't support highspeed bus mode with low clk speed as we
