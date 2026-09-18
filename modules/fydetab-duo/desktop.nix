@@ -305,15 +305,25 @@ in
         # have fully processed before the greeter tries to open devices.
         ${pkgs.systemd}/bin/udevadm settle
 
-        # Wait for the touchscreen device node to be present and readable.
-        # The himax driver registers input9/input10 early (~8s), but logind
-        # can take 30-60s to assign the device to the greeter session. This
-        # poll avoids the long delay by making sure the device is accessible.
-
+        # Actually find the himax-touchscreen event node.
+        # Linux allocates event numbers dynamically (event8, event9, event10...)
+        # depending on probe order and connected USB/dock devices.
+        touch_dev=""
         for i in $(seq 1 100); do
-          if [ -e /dev/input/event9 ] && [ -r /dev/input/event9 ]; then
+          if [ -e /dev/input/himax-touchscreen ] && [ -r /dev/input/himax-touchscreen ]; then
+            touch_dev="/dev/input/himax-touchscreen"
             break
           fi
+          for dev in /sys/class/input/event*; do
+            [ -e "$dev/device/name" ] || continue
+            if [ "$(cat "$dev/device/name" 2>/dev/null)" = "himax-touchscreen" ]; then
+              node="/dev/input/$(basename "$dev")"
+              if [ -r "$node" ]; then
+                touch_dev="$node"
+                break 2
+              fi
+            fi
+          done
           sleep 0.2
         done
 
@@ -353,12 +363,16 @@ in
         # visibility. The greeter has no wayle/tablet-mode monitor, so this
         # gesture is the only way to get the OSK here. Mirrors the
         # tablet-mode gesture (killall -USR2 toggles if running, else spawn).
-        ${pkgs.lisgd}/bin/lisgd -d /dev/input/event9 -o 3 -t 150 \
-          -g "1,DU,B,*,R,${pkgs.toybox}/bin/killall -USR2 wvkbd-mobintl 2>/dev/null || ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &" &
+        if [ -n "$touch_dev" ]; then
+          ${pkgs.lisgd}/bin/lisgd -d "$touch_dev" -o 3 -t 150 \
+            -g "1,DU,B,*,R,${pkgs.toybox}/bin/killall -USR2 wvkbd-mobintl 2>/dev/null || ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &" &
+        fi
 
         # Launch ReGreet (blocking). When it exits (login succeeded), tear
-        # down the compositor so greetd can start the real session.
-        ${pkgs.regreet}/bin/regreet; kill %1 2>/dev/null; ${pkgs.labwc}/bin/labwc --exit
+        # down all background jobs (kanshi, wvkbd, lisgd) and exit labwc.
+        ${pkgs.regreet}/bin/regreet
+        kill $(jobs -p) 2>/dev/null || true
+        ${pkgs.labwc}/bin/labwc --exit
       '';
 
       environment.etc."regreet-labwc/rc.xml".text = ''
