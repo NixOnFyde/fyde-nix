@@ -21,11 +21,11 @@ jobs:
       - name: Install linters
         run: |
           nix profile install --profile /tmp/lint \
-            nixpkgs#nixfmt-rfc-style nixpkgs#statix nixpkgs#deadnix \
+            nixpkgs#nixfmt-tree nixpkgs#statix nixpkgs#deadnix \
             nixpkgs#shellcheck nixpkgs#actionlint
 
       - name: nixfmt (check)
-        run: /tmp/lint/bin/nixfmt --check flake.nix modules overlays pkgs lib
+        run: /tmp/lint/bin/nixfmt-tree --check flake.nix modules overlays pkgs lib
 
       - name: statix
         run: /tmp/lint/bin/statix check
