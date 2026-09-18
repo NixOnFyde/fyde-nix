@@ -28,8 +28,14 @@ in
 
       # PRE-SUSPEND: detach Wi-Fi before SoC DRAM self-refresh
       systemd.services."fydetab-wifi-suspend" = {
-        description = "Prepare AP6275P Wi-Fi for deep sleep";
-        before = [ "sleep.target" ];
+        description = "Prepare AP6275P Wi-Fi for deep sleep / hibernate";
+        before = [
+          "sleep.target"
+          "systemd-suspend.service"
+          "systemd-hibernate.service"
+          "systemd-hybrid-sleep.service"
+          "systemd-suspend-then-hibernate.service"
+        ];
         wantedBy = [ "sleep.target" ];
         serviceConfig = {
           Type = "oneshot";
@@ -72,10 +78,14 @@ in
         after = [
           "systemd-suspend.service"
           "systemd-hibernate.service"
+          "systemd-hybrid-sleep.service"
+          "systemd-suspend-then-hibernate.service"
         ];
         wantedBy = [
           "systemd-suspend.service"
           "systemd-hibernate.service"
+          "systemd-hybrid-sleep.service"
+          "systemd-suspend-then-hibernate.service"
         ];
         serviceConfig = {
           Type = "oneshot";
