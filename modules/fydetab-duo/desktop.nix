@@ -45,19 +45,6 @@ let
   '';
 in
 {
-  nixpkgs.overlays = [
-    (import ../../overlays/default.nix)
-    (
-      final: _prev:
-      let
-        unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
-      in
-      {
-        labwc = unstable.labwc;
-      }
-    )
-  ];
-
   options.hardware.fydetabduo.landscape = {
     enable = lib.mkEnableOption ''
       Default landscape base for the DSI panel (which is natively portrait).
@@ -85,6 +72,18 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
+      nixpkgs.overlays = [
+        (
+          final: _prev:
+          let
+            unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
+          in
+          {
+            labwc = unstable.labwc;
+          }
+        )
+      ];
+
       hardware.graphics.enable = lib.mkDefault true;
 
       networking.networkmanager.wifi.macAddress = lib.mkDefault "permanent";
