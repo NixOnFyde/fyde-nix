@@ -1,47 +1,36 @@
 # Hibernation (suspend-to-disk)
 
 Suspend-to-disk is set up with an opt-in NixOS module
-(`hardware.fydetabduo.hibernation`) that handles the plumbing: it creates
+(`hardware.fydetabduo.hibernation`) that does most of the work for you: it creates
 the swapfile if missing, registers it as a swap device, and adds the
-`resume=`/`resume_offset=` kernel parameters. All you provide is the one
-value Nix cannot know — the physical `resume_offset` of the swapfile.
+`resume=`/`resume_offset=` kernel parameters.
 
-## 1. Enable the module
+The swapfile must exist **before** you enable the module, because Nix
+evaluates `resumeOffset` at build time. Follow these steps in order:
 
-```nix
-hardware.fydetabduo.hibernation = {
-  enable = true;
-  # swapSize = "12G";   # optional; must exceed RAM (7.7 GiB on the Duo)
-  resumeOffset = null;  # <-- fill from step 2
-};
-```
-
-`resume=` defaults to the root device (the swapfile lives on the root
-filesystem), and the swapfile is created declaratively at boot if absent.
-
-## 2. Capture the resume offset
-
-Once the system has booted with the module enabled (so the swapfile
-exists), run:
+## 1. Create the swapfile and get the resume offset
 
 ```console
+$ sudo mkdir -p /swap
+$ sudo btrfs filesystem mkswapfile -s 12G /swap/swapfile
 $ sudo btrfs inspect-internal map-swapfile /swap/swapfile
-Physical start:  110365769728
-Resume offset:      26944768
+Physical start:  18292408320
+Resume offset:       4465920
 ```
 
 `Resume offset` (physical start / 4096) is the value to put in
-`resumeOffset`. If the swapfile is ever recreated the offset may change,
-so re-run this after changing `swapSize`.
+`resumeOffset`.
+
+## 2. Enable the module
 
 ```nix
 hardware.fydetabduo.hibernation = {
   enable = true;
-  resumeOffset = 26944768; # <- fill in from `map-swapfile`, step 2
+  resumeOffset = 4465920;  # <- fill in from step 1
 };
 ```
 
-Then rebuild. Kernel-parameter `resume=` + `resume_offset=` is taken care
+Then rebuild. Kernel parameter `resume=` + `resume_offset=` is taken care
 of in early boot and needs no initrd stuff.
 
 ## 3. Test
