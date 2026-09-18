@@ -73,6 +73,61 @@ in
     # A reboot will restore the default governors.
     # Passwordless via sudo (NOPASSWD rule below) is used so the wayle
     # bar toggle can switch it without any user interaction.
+
+    # PPD-to-cpufreq bridge: power-profiles-daemon's placeholder driver
+    # doesn't actually change CPU governors, so wayle-rs battery switches
+    # do nothing. This system service polls PPD's ActiveProfile and applies
+    # the corresponding cpufreq governor to all CPU policies.
+    systemd.services.fydetab-ppd-bridge = {
+      description = "Bridge for power-profiles-daemon profiles to cpufreq governors";
+      after = [ "power-profiles-daemon.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = pkgs.writeShellScript "fydetab-ppd-bridge" ''
+          set -euo pipefail
+          LAST=""
+          while true; do
+            PROFILE=$(${lib.getExe' pkgs.power-profiles-daemon "powerprofilesctl"} get 2>/dev/null || echo "balanced")
+            if [ "$PROFILE" != "$LAST" ]; then
+              case "$PROFILE" in
+                power-saver)
+                  for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
+                    echo powersave >"$g" 2>/dev/null || true
+                  done
+                  for g in /sys/class/devfreq/*/governor; do
+                    echo powersave >"$g" 2>/dev/null || true
+                  done
+                  echo "ppd-bridge: power-saver (powersave governor)"
+                  ;;
+                balanced)
+                  for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
+                    echo schedutil >"$g" 2>/dev/null || true
+                  done
+                  for g in /sys/class/devfreq/*/governor; do
+                    echo simple_ondemand >"$g" 2>/dev/null || true
+                  done
+                  echo "ppd-bridge: balanced (schedutil governor)"
+                  ;;
+                performance)
+                  for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
+                    echo performance >"$g" 2>/dev/null || true
+                  done
+                  for g in /sys/class/devfreq/*/governor; do
+                    echo performance >"$g" 2>/dev/null || true
+                  done
+                  echo "ppd-bridge: performance (performance governor)"
+                  ;;
+              esac
+              LAST="$PROFILE"
+            fi
+            sleep 2
+          done
+        '';
+        Restart = "on-failure";
+        RestartSec = 5;
+      };
+    };
     environment.systemPackages = [
       (pkgs.writeShellScriptBin "fydetab-perf" ''
         set -euo pipefail
