@@ -15,7 +15,12 @@ let
     # panics at startup if it can't be found. NixOS injects a minimal PATH
     # (coreutils/findutils/grep/sed/systemd) into systemd.user.services
     # units, so we need to provide one that includes procps ourselves.
-    export PATH="${lib.makeBinPath [ pkgs.procps ]}"
+    export PATH="${
+      lib.makeBinPath [
+        pkgs.procps
+        pkgs.wlr-randr
+      ]
+    }"
 
     # The panel output name (DSI-1; rot8 defaults to eDP-1 and then just
     # never rotates). -n 1008: lis2dw12 raw LSB per g (1/0.009571).
@@ -71,10 +76,6 @@ in
         wantedBy = [ "graphical-session.target" ];
         after = [ "graphical-session.target" ];
         partOf = [ "graphical-session.target" ];
-        path = [
-          pkgs.procps
-          pkgs.wlr-randr
-        ];
         serviceConfig = {
           Type = "simple";
           ExecStart = rot8-wrapper;
