@@ -111,7 +111,11 @@ in
       unitConfig.ConditionPathExists = "/dev/zram0";
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.util-linux}/bin/swapoff /dev/zram0 || true";
+        ExecStart = pkgs.writeShellScript "zram-pre-hibernate" ''
+          if grep -q "/dev/zram0" /proc/swaps; then
+            ${pkgs.util-linux}/bin/swapoff /dev/zram0 2>/dev/null || true
+          fi
+        '';
       };
     };
 
@@ -130,7 +134,11 @@ in
       unitConfig.ConditionPathExists = "/dev/zram0";
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.util-linux}/bin/swapon -p 5 /dev/zram0 || true";
+        ExecStart = pkgs.writeShellScript "zram-post-hibernate" ''
+          if ! grep -q "/dev/zram0" /proc/swaps; then
+            ${pkgs.util-linux}/bin/swapon -p 5 /dev/zram0 2>/dev/null || true
+          fi
+        '';
       };
     };
 
