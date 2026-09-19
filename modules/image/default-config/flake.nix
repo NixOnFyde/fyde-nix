@@ -41,6 +41,17 @@
 {
   description = "FydeTab Duo nixOS configuration";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://fyde-nix.cachix.org"
+      "https://vicinae.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "fyde-nix.cachix.org-1:rlgYccagNG7hZhxBe7mzebJ9AlHzfqPZTmeyR1VuQoA="
+      "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
