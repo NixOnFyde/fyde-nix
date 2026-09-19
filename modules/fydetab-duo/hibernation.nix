@@ -94,6 +94,46 @@ in
 
     swapDevices = [ { device = cfg.swapFile; } ];
 
+    # Temporarily disable ZRAM before hibernation to prevent conflicts
+    # between the swap file and ZRAM.
+    systemd.services.zram-hibernate-pre = {
+      description = "Swap off ZRAM before hibernate";
+      before = [
+        "systemd-hibernate.service"
+        "systemd-hybrid-sleep.service"
+        "systemd-suspend-then-hibernate.service"
+      ];
+      wantedBy = [
+        "systemd-hibernate.service"
+        "systemd-hybrid-sleep.service"
+        "systemd-suspend-then-hibernate.service"
+      ];
+      unitConfig.ConditionPathExists = "/dev/zram0";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.util-linux}/bin/swapoff /dev/zram0 || true";
+      };
+    };
+
+    systemd.services.zram-hibernate-post = {
+      description = "Re-enable ZRAM swap with priority 5 after resume";
+      after = [
+        "systemd-hibernate.service"
+        "systemd-hybrid-sleep.service"
+        "systemd-suspend-then-hibernate.service"
+      ];
+      wantedBy = [
+        "systemd-hibernate.service"
+        "systemd-hybrid-sleep.service"
+        "systemd-suspend-then-hibernate.service"
+      ];
+      unitConfig.ConditionPathExists = "/dev/zram0";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.util-linux}/bin/swapon -p 5 /dev/zram0 || true";
+      };
+    };
+
     boot.kernelParams = [
       "resume=${cfg.resumeDevice}"
       "resume_offset=${toString cfg.resumeOffset}"
