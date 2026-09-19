@@ -42,6 +42,7 @@
   description = "FydeTab Duo nixOS configuration";
 
   nixConfig = {
+    # Make sure to update the Cachix as well (as other references to this)!
     extra-substituters = [
       "https://fyde-nix.cachix.org"
       "https://vicinae.cachix.org"
