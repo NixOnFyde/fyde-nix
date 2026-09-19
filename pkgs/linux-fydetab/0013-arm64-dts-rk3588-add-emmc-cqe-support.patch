@@ -1,0 +1,23 @@
+From: Sebastian Reichel <sebastian.reichel@collabora.com>
+Subject: [PATCH 2/2] arm64: dts: rockchip: add eMMC CQE support for rk3588
+
+Backport of upstream commit 9d856aa1c819 ("arm64: dts: rockchip: add
+eMMC CQE support for rk3588") for 6.12.
+
+The RK3588 eMMC controller supports CQE, so add the missing DT flag.
+
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+Backported-by: NixOnFyde
+---
+ arch/arm64/boot/dts/rockchip/rk3588-base.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
+@@ -2181,5 +2181,6 @@
+ 			 <&cru SRST_A_EMMC>, <&cru SRST_B_EMMC>,
+ 			 <&cru SRST_T_EMMC>;
+ 		reset-names = "core", "bus", "axi", "block", "timer";
++		supports-cqe;
+ 		status = "disabled";
+ 	};
