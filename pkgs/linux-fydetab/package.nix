@@ -65,6 +65,10 @@ let
       name = "sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588";
       patch = ./0015-sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588.patch;
     }
+    {
+      name = "dwmmc-rockchip-bypass-freeze-thaw-for-hibernation";
+      patch = ./0016-dwmmc-rockchip-bypass-freeze-thaw-for-hibernation.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
