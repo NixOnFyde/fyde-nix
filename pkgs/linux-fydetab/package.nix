@@ -66,8 +66,8 @@ let
       patch = ./0015-sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588.patch;
     }
     {
-      name = "dwmmc-rockchip-bypass-freeze-thaw-for-hibernation";
-      patch = ./0016-dwmmc-rockchip-bypass-freeze-thaw-for-hibernation.patch;
+      name = "dwmmc-rockchip-freeze-resume-for-swsusp-write";
+      patch = ./0016-dwmmc-rockchip-freeze-resume-for-swsusp-write.patch;
     }
   ];
 

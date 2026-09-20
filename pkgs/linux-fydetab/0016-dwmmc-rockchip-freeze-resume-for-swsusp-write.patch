@@ -1,0 +1,42 @@
+During hibernation, create_image() freezes all devices, takes a memory
+snapshot, then thaws them so swsusp_write() can write the image to disk.
+
+The original SET_SYSTEM_SLEEP_PM_OPS maps .freeze to
+pm_runtime_force_suspend, which powers off the MicroSD controller. Even
+with .freeze = NULL the controller stays suspended because runtime PM
+already powered it down before the freeze phase.
+
+Fix by setting .freeze = pm_runtime_force_resume which wakes the
+controller and increments its runtime PM usage_count, preventing
+autosuspend during swsusp_write(). .thaw = NULL is nothing since the
+controller is already active. .poweroff still actually shuts down the
+controller before system poweroff.
+
+---
+ drivers/mmc/host/dw_mmc-rockchip.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mmc/host/dw_mmc-rockchip.c b/drivers/mmc/host/dw_mmc-rockchip.c
+--- a/drivers/mmc/host/dw_mmc-rockchip.c
++++ b/drivers/mmc/host/dw_mmc-rockchip.c
+@@ -631,9 +631,18 @@ static void dw_mci_rockchip_remove(struct platform_device *pdev)
+ }
+ 
+ static const struct dev_pm_ops dw_mci_rockchip_dev_pm_ops = {
+-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+-				pm_runtime_force_resume)
++	.suspend = pm_runtime_force_suspend,
++	.resume = pm_runtime_force_resume,
++	/* .freeze force-resumes the controller so swsusp_write() can trigger
++	 * block I/O while it is powered, clocked, and tuned by SDR104.
++	 * pm_runtime_force_resume increments the usage_count, stopping
++	 * runtime PM from re-suspending before the image is written.
++	 * .thaw is fine to use because the controller is already active. */
++	.freeze = pm_runtime_force_resume,
++	.thaw = NULL,
++	.poweroff = pm_runtime_force_suspend,
++	.restore = pm_runtime_force_resume,
+ 	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
+ 			   dw_mci_runtime_resume,
+ 			   NULL)
+ };

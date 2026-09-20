@@ -94,6 +94,12 @@ in
 
     swapDevices = [ { device = cfg.swapFile; } ];
 
+    # Force rockchip-suspend to stay active during hibernate as by default
+    # freeze callback causes a hardware reset on RK3588S.
+    services.udev.extraRules = ''
+      ACTION=="add", SUBSYSTEM=="platform", KERNEL=="rockchip-suspend", ATTR{power/control}="on"
+    '';
+
     # Temporarily disable ZRAM before hibernation to prevent conflicts
     # between the swap file and ZRAM.
     systemd.services.zram-hibernate-pre = {
