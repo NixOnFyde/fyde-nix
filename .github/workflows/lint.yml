@@ -20,7 +20,7 @@ jobs:
       - name: Check kernel patch integrity
         run: python3 scripts/check-kernel-patches.py
 
-      - uses: DeterminateSystems/nix-installer-action@v22
+      - uses: DeterminateSystems/nix-installer-action@v23
 
       - name: Install linters
         run: |
@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@v22
+      - uses: DeterminateSystems/nix-installer-action@v23
 
       - name: Accept flake nixConfig
         run: |
