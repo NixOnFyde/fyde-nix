@@ -9,8 +9,8 @@ Create a proper postinit and pdata for RK3588 so the workaround
 only applies to that SoC.
 
 ---
- drivers/mmc/host/sdhci-of-dwcmshc.c | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ drivers/mmc/host/sdhci-of-dwcmshc.c | 35 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 34 insertions(+), 1 deletion(-)
 
 --- a/drivers/mmc/host/sdhci-of-dwcmshc.c
 +++ b/drivers/mmc/host/sdhci-of-dwcmshc.c

@@ -1,47 +1,60 @@
 During hibernation, create_image() freezes all devices, takes a memory
-snapshot, then thaws them so swsusp_write() can write the image to disk.
+snapshot, and only then thaws them so swsusp_write() can write the image to
+the swap file. The SD host has to stay powered, clocked, and inited
+across that whole time period.
 
-The original SET_SYSTEM_SLEEP_PM_OPS maps .freeze to
-pm_runtime_force_suspend, which powers off the MicroSD controller before
-swsusp_write() can trigger block I/O, which deadlocks the kernel.
+The original SET_SYSTEM_SLEEP_PM_OPS mapping implements .freeze as
+pm_runtime_force_suspend, which powers the MicroSD controller off before
+swsusp_write() can trigger any block I/O, and combines it with
+pm_runtime_force_resume, which deliberately skips ->runtime_resume for a
+device that runtime PM does not expect to be used again. The controller is
+therefore left dead at the moment the hibernation image has to be
+written through it.
 
-Fix by adding our own .freeze callback that calls pm_runtime_resume()
-to synchronously wake the controller if it was autosuspended. Unlike
-pm_runtime_force_resume(), pm_runtime_resume() does not change
-disable_depth, avoiding the "Unbalanced pm_runtime_enable" warning.
+.freeze now leaves the controller running, while .thaw/.restore re-initialise
+it through the normal runtime resume path. Re-initialisation is needed
+because the SDMMC power domain can be powered off in the noirq stage
+(genpd_sync_power_off() does not honour the per-device rpm_always_on flag)
+while runtime PM still reports the device as active, so the PM core state
+alone cannot be trusted. Runtime PM is first put back in sync with the
+hardware using public API only - no PM core internals are messed with - and
+pm_runtime_resume_and_get() then runs ->runtime_resume to restore clocks, DMA,
+and bus setup.
 
-.thaw and .restore both re-init the controller using a shared helper
-to handle the case where genpd powers off the SDMMC domain during the
-noirq stage after .freeze. In that case RPM believes the device is
-active but the hardware registers are kaboomed; reinit using
-dw_mci_runtime_resume() (clocks, reset, DMA, bus setup, CD/SDIO IRQ)
-is required. .poweroff still does shuts down the controller before
-system poweroff.
-
+.suspend/.resume keep using pm_runtime_force_suspend/resume (S3 unchanged),
+and .poweroff still powers the controller down for the "platform"
+hibernation mode, where the system is powered off right afterwards.
 ---
- drivers/mmc/host/dw_mmc-rockchip.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+), 1 deletion(-)
+ drivers/mmc/host/dw_mmc-rockchip.c |   60 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/mmc/host/dw_mmc-rockchip.c b/drivers/mmc/host/dw_mmc-rockchip.c
 --- a/drivers/mmc/host/dw_mmc-rockchip.c
 +++ b/drivers/mmc/host/dw_mmc-rockchip.c
-@@ -631,9 +631,73 @@ static void dw_mci_rockchip_remove(struct platform_device *pdev)
+@@ -567,9 +567,65 @@ static void dw_mci_rockchip_remove(struc
+ 	dw_mci_pltfm_remove(pdev);
  }
  
 +static int dw_mci_rockchip_reinit(struct device *dev)
 +{
 +	int ret;
 +
-+	/* Disable RPM first to avoid unbalanced pm_runtime_enable() in
-+	 * pm_runtime_force_resume(). Then mark suspended and set
-+	 * needs_force_resume so force_resume() does not skip ->runtime_resume. */
++	/*
++	 * The SDMMC power domain can be powered off in the noirq stage of a
++	 * system-wide transition, losing the controller state while runtime PM
++	 * still considers the device active. Put runtime PM back in sync with
++	 * the hardware and let the normal runtime resume path re-initialise the
++	 * controller.
++	 */
 +	pm_runtime_disable(dev);
 +	pm_runtime_set_suspended(dev);
-+	dev->power.needs_force_resume = 1;
++	pm_runtime_enable(dev);
 +
-+	ret = pm_runtime_force_resume(dev);
++	ret = pm_runtime_resume_and_get(dev);
 +	if (ret < 0)
 +		return ret;
++
++	pm_runtime_put_noidle(dev);
 +	return 0;
 +}
 +
@@ -49,11 +62,12 @@ diff --git a/drivers/mmc/host/dw_mmc-rockchip.c b/drivers/mmc/host/dw_mmc-rockch
 +{
 +	int ret;
 +
-+	/* If the SD controller was autosuspended when idle, wake it up
-+	 * synchronously so it is clocked and ready for swsusp_write.
-+	 * pm_runtime_resume() returns 1 if already active, 0 if it
-+	 * successfully resumed, -EACCES if RPM disabled (returned as
-+	 * failure since controller would be off). */
++	/*
++	 * swsusp_write() writes the hibernation image through this controller,
++	 * so it must stay powered, clocked, and inited. A non-zero return
++	 * from a system sleep callback is treated as a failure, but
++	 * pm_runtime_resume() returns 1 when the device is already active.
++	 */
 +	ret = pm_runtime_resume(dev);
 +	if (ret < 0)
 +		return ret;
@@ -63,13 +77,13 @@ diff --git a/drivers/mmc/host/dw_mmc-rockchip.c b/drivers/mmc/host/dw_mmc-rockch
 +
 +static int dw_mci_rockchip_thaw(struct device *dev)
 +{
-+	/* Re-init after potential genpd power-off at noirq stage. */
++	/* Re-initialise if the power domain was turned off in the noirq stage. */
 +	return dw_mci_rockchip_reinit(dev);
 +}
 +
 +static int dw_mci_rockchip_restore(struct device *dev)
 +{
-+	/* Re-init after cold boot from hibernation image. */
++	/* Re-initialise if the power domain was turned off in the noirq stage. */
 +	return dw_mci_rockchip_reinit(dev);
 +}
 +
@@ -78,15 +92,10 @@ diff --git a/drivers/mmc/host/dw_mmc-rockchip.c b/drivers/mmc/host/dw_mmc-rockch
 -				pm_runtime_force_resume)
 +	.suspend = pm_runtime_force_suspend,
 +	.resume = pm_runtime_force_resume,
-+	/* .freeze wakes the controller so swsusp_write() can issue
-+	 * block I/O while it is powered, clocked, and SDR104-tuned. */
 +	.freeze = dw_mci_rockchip_freeze,
-+	/* .thaw re-inits if genpd powered off the SDMMC domain at noirq. */
 +	.thaw = dw_mci_rockchip_thaw,
 +	.poweroff = pm_runtime_force_suspend,
-+	/* .restore re-inits after cold boot from hibernation image. */
 +	.restore = dw_mci_rockchip_restore,
  	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
  			   dw_mci_runtime_resume,
  			   NULL)
- };
