@@ -56,7 +56,7 @@ in
       default = "wpa_supplicant";
       description = ''
         WiFi management backend used by NetworkManager on the
-        sdio/brcmfmac (`dhd`) radio.
+        sdio/brcmfmac radio.
       '';
     };
 
