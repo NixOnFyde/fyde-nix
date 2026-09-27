@@ -1,0 +1,66 @@
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+index 5dee54819..7d668f1c0 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+@@ -2585,6 +2585,28 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
+ 	brcmf_pcie_fwcon_timer(devinfo, false);
+ 	brcmf_bus_change_state(bus, BRCMF_BUS_DOWN);
+ 
++	/*
++	 * The AP6275P firmware (on the BCM43752) is made for the bcmdhd
++	 * driver and completely ignores the BRCMF_H2D_HOST_D3_INFORM mailbox.
++	 * If we try to write to the mailbox and do its stuff anyway, the
++	 * PCIe link gets stuck. When this happens, the RK3588 platform can't
++	 * power down the controller, which breaks deep suspend and hibernation
++	 * (causing the device to reboot during platform suspend).
++	 *
++	 * To fix this, we skip the handshake entirely for this chip. Instead,
++	 * we let the PCI core put the device into D3hot using a standard config
++	 * write during the noirq phase - which is what happens when no driver is
++	 * bound, which we know suspends and resumes without issues. Since the
++	 * firmware never actually goes to sleep, brcmf_pcie_pm_leave_D3() just
++	 * returns success and the user-level resume hook rebinds the PCI device
++	 * to cause a clean firmware reload.
++	 */
++	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
++		brcmf_info("BCM43752: skipping D3 mailbox handshake, using config-lvl D3hot\n");
++		devinfo->state = BRCMFMAC_PCIE_STATE_DOWN;
++		return 0;
++	}
++
+ 	devinfo->mbdata_completed = false;
+ 	brcmf_pcie_send_mb_data(devinfo, BRCMF_H2D_HOST_D3_INFORM);
+ 
+@@ -2615,6 +2637,24 @@ static int brcmf_pcie_pm_leave_D3(struct device *dev)
+ 	devinfo = bus->bus_priv.pcie->devinfo;
+ 	brcmf_dbg(PCIE, "Enter, dev=%p, bus=%p\n", dev, bus);
+ 
++	/*
++	 * The config-space D3hot write above booms the PCIe link out from
++	 * under the firmware while it never truly entered a sleep state.
++	 * On resume the chip then inits desynced: every dcmd times out (-5),
++	 * the hot-resume path would poke D0_INFORM at a firmware that is not
++	 * listening, and the in-driver remove+re-probe path crashes: the
++	 * half-reset chip outputs a bogus shared-RAM size, so the async
++	 * firmware reload writes past the end of the (4 MB) BAR1 ioremap and
++	 * panics. Do neither here - return success and let user-level rebind
++	 * the PCI device (unbind + bind) after resume, which we know works.
++	 * The chip is irrelevant until then; link is restored by the PCI
++	 * core with pci_restore_state() before this callback runs.
++	 */
++	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
++		brcmf_info("BCM43752: D3hot resume, deferring chip re-init to user-level rebind\n");
++		return 0;
++	}
++
+ 	/* Check if device is still up and running, if so we are ready */
+ 	if (brcmf_pcie_read_reg32(devinfo, devinfo->reginfo->intmask) != 0) {
+ 		brcmf_dbg(PCIE, "Try to wakeup device....\n");
+@@ -2649,6 +2689,7 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
+ 	.resume = brcmf_pcie_pm_leave_D3,
+ 	.freeze = brcmf_pcie_pm_enter_D3,
+ 	.restore = brcmf_pcie_pm_leave_D3,
++	.poweroff = brcmf_pcie_pm_enter_D3,
+ };
+ 
+ 
