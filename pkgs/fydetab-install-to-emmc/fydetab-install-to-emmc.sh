@@ -7,7 +7,7 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-current_root_partition=$(findmnt -n -o SOURCE /)
+current_root_partition=$(findmnt -n -o SOURCE / | sed 's/\[.*//')
 boot_disk_device=$(lsblk -npo PKNAME "$current_root_partition")
 
 # The inbuilt initrd boots with root=fstab and resolves the root by-label, so the

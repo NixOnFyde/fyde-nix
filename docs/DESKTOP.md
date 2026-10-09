@@ -177,7 +177,7 @@ hardware.fydetabduo.landscape.enable = true;
 
 This applies a 270-degree transform to DSI-1 via kanshi at startup. Touch and stylus mapping follows automatically.
 
-To scale the panel output (e.g., make UI elements larger on the 1600×2560 display), set a display scale factor:
+To scale the panel output (e.g., make UI elements larger on the 1600 by 2560 display), set a display scale factor:
 
 ```nix
 hardware.fydetabduo.shell.desktop.scale = 1.5;

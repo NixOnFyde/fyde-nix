@@ -10,7 +10,6 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 let
@@ -76,7 +75,7 @@ in
 
     boot.kernelModules = [
       "brcmfmac"
-      "dhd"
+      # "dhd" # DISABLED because we use `brcmfmac` now not `bcmdhd`!
       "panthor"
     ]
     ++ lib.optionals cfg.touchscreen.enable [ "himax_tp" ]
@@ -113,15 +112,6 @@ in
 
     nixpkgs.overlays = [
       (import ../../overlays/default.nix)
-      (
-        final: _prev:
-        let
-          unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
-        in
-        {
-          labwc = unstable.labwc;
-        }
-      )
     ];
 
     environment.systemPackages =
