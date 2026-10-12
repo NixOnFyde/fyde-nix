@@ -32,7 +32,7 @@ in
       partOf = [ "graphical-session.target" ];
 
       serviceConfig = {
-        ExecStart = "${pkgs.lxqt.lxqt-policykit}/libexec/lxqt-policykit-agent";
+        ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
         Restart = "on-failure";
         RestartSec = "2s";
       };

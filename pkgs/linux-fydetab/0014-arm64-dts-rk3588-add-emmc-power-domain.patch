@@ -1,0 +1,16 @@
+Add the PD_NVM power domain association to the RK3588 eMMC controller.
+Without this, the genpd framework cannot track the power domain state
+of the eMMC controller, leading to the power domain being turned off
+during suspend/hibernate. This causes the eMMC controller to hang
+when the kernel tries to write the hibernate image to disk.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3588-base.dtsi
+@@ -2181,6 +2181,7 @@
+ 			 <&cru SRST_A_EMMC>, <&cru SRST_B_EMMC>,
+ 			 <&cru SRST_T_EMMC>;
+ 		reset-names = "core", "bus", "axi", "block", "timer";
++		power-domains = <&power RK3588_PD_NVM>;
+ 		status = "disabled";
+ 	};
+ 

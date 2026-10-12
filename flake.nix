@@ -2,8 +2,15 @@
   description = "NixOS for the FydeTab Duo (RK3588S tablet)";
 
   nixConfig = {
-    extra-substituters = [ "https://vicinae.cachix.org" ];
-    extra-trusted-public-keys = [ "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc=" ];
+    # Make sure to update the Cachix as well (as other references to this)!
+    extra-substituters = [
+      "https://fyde-nix.cachix.org"
+      "https://vicinae.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "fyde-nix.cachix.org-1:rlgYccagNG7hZhxBe7mzebJ9AlHzfqPZTmeyR1VuQoA="
+      "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
+    ];
   };
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -97,6 +104,8 @@
         npu = ./modules/fydetab-duo/npu.nix;
         qol = ./modules/fydetab-duo/qol.nix;
         battery = ./modules/fydetab-duo/battery.nix;
+        fingerprint = ./modules/fydetab-duo/fingerprint.nix;
+        hibernation = ./modules/fydetab-duo/hibernation.nix;
         boot-loader = ./modules/fydetab-duo/boot-loader.nix;
 
         # ── Desktop shell ────────────────────────────────────────────────

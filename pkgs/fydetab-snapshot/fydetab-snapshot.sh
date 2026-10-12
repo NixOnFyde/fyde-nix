@@ -81,14 +81,9 @@ delete)
   ensure_snapshots_mounted
 
   target_snapshot_path="$SNAPSHOT_DIR/$snapshot_name"
-  delete_flags=()
+  [ -e "$target_snapshot_path" ] || { echo "error: snapshot $target_snapshot_path does not exist" >&2; exit 1; }
 
-  # Check if the target snapshot has the read-only property flag set
-  if [ "$(btrfs property get "$target_snapshot_path" ro 2>/dev/null | awk '{print $2}')" = "true" ]; then
-    delete_flags=(-r)
-  fi
-
-  btrfs subvolume delete ${delete_flags[@]+"${delete_flags[@]}"} "$target_snapshot_path"
+  btrfs subvolume delete "$target_snapshot_path"
   echo "deleted $target_snapshot_path"
   ;;
 

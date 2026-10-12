@@ -23,8 +23,8 @@ in
     users.users.greeter.extraGroups = [ "input" ];
 
     services.udev.extraRules = ''
-      KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="himax-touchscreen", TAG+="uaccess"
-      KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="himax-stylus", TAG+="uaccess"
+      KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="himax-touchscreen", SYMLINK+="input/himax-touchscreen", TAG+="uaccess"
+      KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="himax-stylus", SYMLINK+="input/himax-stylus", TAG+="uaccess"
     '';
   };
 }

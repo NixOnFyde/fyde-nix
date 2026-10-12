@@ -1,0 +1,71 @@
+The RK3588 eMMC controller is in the PD_NVM power domain. Like the
+RK3576 (fixed in dwcmshc_rk3576_postinit), PD_NVM can be turned off
+during early suspend/hibernate, leaving the controller brain-dead when
+the kernel tries to write the hibernate image to disk.
+
+Apply the same workaround used for RK3576: call
+dev_pm_genpd_rpm_always_on() to prevent runtime power-off of PD_NVM.
+Create a proper postinit and pdata for RK3588 so the workaround
+only applies to that SoC.
+
+---
+ drivers/mmc/host/sdhci-of-dwcmshc.c | 35 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 34 insertions(+), 1 deletion(-)
+
+--- a/drivers/mmc/host/sdhci-of-dwcmshc.c
++++ b/drivers/mmc/host/sdhci-of-dwcmshc.c
+@@ -826,6 +826,27 @@ static void dwcmshc_rk3576_postinit(str
+ 	dwcmshc_rk35xx_postinit(host, dwc_priv);
+ }
+ 
++static void dwcmshc_rk3588_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
++{
++	struct device *dev = mmc_dev(host->mmc);
++	int ret;
++
++	/*
++	 * The RK3588's PD_NVM power domain can be turned off during the
++	 * suspend/hibernate sequence if no other device holds it active.
++	 * This leaves the eMMC controller inaccessible and causes the
++	 * system to hang when writing the hibernate image. Prevent the
++	 * power domain from being runtime-suspended.
++	 */
++	ret = dev_pm_genpd_rpm_always_on(dev, true);
++	if (ret && ret != -EOPNOTSUPP)
++		dev_warn(dev,
++			 "failed to set PD rpm always on, SoC may hang later: %pe\n",
++			 ERR_PTR(ret));
++
++	dwcmshc_rk35xx_postinit(host, dwc_priv);
++}
++
+ static int th1520_execute_tuning(struct sdhci_host *host, u32 opcode)
+ {
+ 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+@@ -1762,5 +1784,17 @@ static const struct dwcmshc_pltfm_data s
+ 	.postinit = dwcmshc_rk35xx_postinit,
+ };
+ 
++static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3588_pdata = {
++	.pdata = {
++		.ops = &sdhci_dwcmshc_rk35xx_ops,
++		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
++			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
++		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
++			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
++	},
++	.init = dwcmshc_rk35xx_init,
++	.postinit = dwcmshc_rk3588_postinit,
++};
++
+ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3576_pdata = {
+ 	.pdata = {
+@@ -1842,7 +1877,7 @@ static const struct of_device_id sdhci_d
+ {
+ 	{
+ 		.compatible = "rockchip,rk3588-dwcmshc",
+-		.data = &sdhci_dwcmshc_rk35xx_pdata,
++		.data = &sdhci_dwcmshc_rk3588_pdata,
+ 	},
+ 	{
+ 		.compatible = "rockchip,rk3576-dwcmshc",

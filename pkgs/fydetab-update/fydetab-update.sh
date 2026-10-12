@@ -145,10 +145,10 @@ main() {
 
   # Pin the fyde-nix input to the tag (replaces unpinned / branch / commit forms).
   sed -i -E \
-    "s|fyde-nix\.url = \"github:NixOnFyde/fyde-nix[^\"]*\"|fyde-nix.url = \"$FLAKE_URL_BASE/v$tag\"|" \
+    "s|fyde-nix\.url = \"github:NixOnFyde/fyde-nix[^\"]*\"|fyde-nix.url = \"$FLAKE_URL_BASE/$tag\"|" \
     "$NIXOS_DIR/flake.nix"
 
-  echo "==> pinned fyde-nix to $FLAKE_URL_BASE/v$tag"
+  echo "==> pinned fyde-nix to $FLAKE_URL_BASE/$tag"
 
   (
     cd "$NIXOS_DIR"

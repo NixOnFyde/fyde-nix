@@ -31,31 +31,66 @@ let
   installHook = pkgs.writeShellScript "fydetabduo-install-bootloader" ''
     set -euo pipefail
 
-    PATH="${pkgs.coreutils}/bin:${pkgs.gnused}/bin"
+    PATH="${pkgs.coreutils}/bin:${pkgs.util-linux}/bin:${pkgs.gnused}/bin"
 
     top=$1
     esp=${cfg.mountPath}
+    esp_num=${toString cfg.partitionNumbers.esp}
 
     test -d "$esp" || {
       echo "refusing to operate: ${cfg.mountPath} is not mounted (mount your ESP there first)" >&2
       exit 1
     }
 
-    echo "updating FydeTab Duo boot files in $esp..."
+    # U-Boot always loads boot files from the ESP on the disk it booted from.
+    # /boot might be mounted from a different disk (e.g., eMMC ESP mounted
+    # when booting from MicroSD). We must write to the ESP on the same disk
+    # as the root filesystem (/), which is the disk U-Boot booted from.
+    root_dev=$(findmnt -rno SOURCE / 2>/dev/null | sed 's/\[.*//')
 
-    cp "$top/kernel" "$esp/vmlinuz-fydetab.tmp"
-    cp "$top/initrd" "$esp/initramfs-fydetab.img.tmp"
-    mkdir -p "$esp/dtbs/rockchip"
-    cp ${dtb} "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
-    mv -f "$esp/vmlinuz-fydetab.tmp" "$esp/vmlinuz-fydetab"
-    mv -f "$esp/initramfs-fydetab.img.tmp" "$esp/initramfs-fydetab.img"
-    mv -f "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
-          "$esp/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+    if [ -z "$root_dev" ]; then
+      # Fallback: use the ESP we're already mounted on
+      work="$esp"
+    else
+      disk=$(lsblk -rno PKNAME "$root_dev" 2>/dev/null)
 
-    sed "s|@INIT@|$top|g" ${bootCmd} > "$esp/boot.cmd.tmp"
-    ${pkgs.rk-boot-script}/bin/rk-mkimage "$esp/boot.cmd.tmp" "$esp/boot.scr.tmp" "NixOS FydeTab Duo"
-    mv -f "$esp/boot.scr.tmp" "$esp/boot.scr"
-    mv -f "$esp/boot.cmd.tmp" "$esp/boot.cmd"
+      if [ -n "$disk" ]; then
+        esp_dev="/dev/''${disk}p''${esp_num}"
+
+        if [ "$(findmnt -rno SOURCE "$esp" 2>/dev/null)" = "$esp_dev" ]; then
+          work="$esp"
+        else
+          work=$(mktemp -d)
+          trap 'umount "$work" 2>/dev/null || true; rmdir "$work" 2>/dev/null || true' EXIT
+
+          if mount "$esp_dev" "$work" 2>/dev/null; then
+            echo "note: /boot mounted from different device; writing boot files to $esp_dev" >&2
+          else
+            # Fallback: use current mount
+            work="$esp"
+            echo "warning: failed to mount $esp_dev, writing to $esp" >&2
+          fi
+        fi
+      else
+        work="$esp"
+      fi
+    fi
+
+    echo "updating FydeTab Duo boot files in $work..."
+
+    cp "$top/kernel" "$work/vmlinuz-fydetab.tmp"
+    cp "$top/initrd" "$work/initramfs-fydetab.img.tmp"
+    mkdir -p "$work/dtbs/rockchip"
+    cp ${dtb} "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
+    mv -f "$work/vmlinuz-fydetab.tmp" "$work/vmlinuz-fydetab"
+    mv -f "$work/initramfs-fydetab.img.tmp" "$work/initramfs-fydetab.img"
+    mv -f "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
+          "$work/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+
+    sed "s|@INIT@|$top|g" ${bootCmd} > "$work/boot.cmd.tmp"
+    ${pkgs.rk-boot-script}/bin/rk-mkimage "$work/boot.cmd.tmp" "$work/boot.scr.tmp" "NixOS FydeTab Duo"
+    mv -f "$work/boot.scr.tmp" "$work/boot.scr"
+    mv -f "$work/boot.cmd.tmp" "$work/boot.cmd"
 
     sync
     echo "FydeTab Duo boot files updated."

@@ -13,7 +13,7 @@
 
 <!-- /toc -->
 
-Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The aim is feature parity with Fyde OS, and the current state is **23/31 (74%)** — [full list](docs/PARITY.md).
+Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's open-source RK3588S hackable tablet. The aim is feature parity with Fyde OS, and the current state is **23/32 (72%)** — [full list](docs/PARITY.md).
 
 > [!CAUTION]
 > This is an independent project under the MIT license, and is not endorsed in any way by Fyde Innovations. Irrespective of this, while the utmost caution has been undertaken (including the author testing all builds on their own device first), things can and will break. By continuing, you are acknowledging the possibility of said happenings, and agree that adverse outcomes do not fall on us. That being said, we will always try to help where we can.
@@ -66,6 +66,7 @@ See [docs/DESKTOP.md](docs/DESKTOP.md) for the full DE guide.
 - [docs/BOOT.md](docs/BOOT.md)
 - [docs/SETUP.md](docs/SETUP.md)
 - [docs/DESKTOP.md](docs/DESKTOP.md)
+- [docs/HIBERNATION.md](docs/HIBERNATION.md)
 - [docs/STATUS.md](docs/STATUS.md)
 - [docs/PARITY.md](docs/PARITY.md)
 
@@ -87,6 +88,9 @@ modules/fydetab-duo/     NixOS modules (each importable on their own)
   modem.nix              Quectel EM05-G LTE
   npu.nix                RK3588S NPU driver + librknnrt
   qol.nix                zram, fstrim, earlyoom, etc.
+  battery.nix            SC8886 battery charge limit (ceiling + recharge)
+  fingerprint.nix        Microarray AFS120 fingerprint module + udev access
+  hibernation.nix        suspend-to-disk swapfile + resume params
   boot-loader.nix        U-Boot boot.scr generation
   desktop.nix            labwc, regreet, kanshi, keybinds
   shell/                 desktop shell sub-modules
