@@ -151,8 +151,6 @@ in
     boot.kernelParams = [
       "resume=${cfg.resumeDevice}"
       "resume_offset=${toString cfg.resumeOffset}"
-      "pm_print_times=1"
-      "init_on_alloc=0"
     ];
   };
 }

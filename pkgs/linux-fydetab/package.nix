@@ -65,10 +65,6 @@ let
       name = "sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588";
       patch = ./0015-sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588.patch;
     }
-    {
-      name = "dwmmc-rockchip-freeze-resume-for-swsusp-write";
-      patch = ./0016-dwmmc-rockchip-freeze-resume-for-swsusp-write.patch;
-    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
