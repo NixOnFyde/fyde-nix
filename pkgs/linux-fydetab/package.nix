@@ -57,14 +57,6 @@ let
       name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
       patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
-    {
-      name = "arm64-dts-rk3588-add-emmc-power-domain";
-      patch = ./0014-arm64-dts-rk3588-add-emmc-power-domain.patch;
-    }
-    {
-      name = "sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588";
-      patch = ./0015-sdhci-dwcmshc-prevent-pd-nvm-gating-rk3588.patch;
-    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
