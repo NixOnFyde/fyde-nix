@@ -118,6 +118,31 @@ in
         "d /tmp/.X11-unix   1777 root     root    -"
       ];
 
+      # Pre-seed regreet's last-session state so labwc is pre-selected
+      # on first boot (otherwise the session defaults to empty).
+      systemd.services.fydetab-regreet-default-session = {
+        description = "Pre-seed regreet default session";
+        wantedBy = [ "greetd.service" ];
+        before = [ "greetd.service" ];
+        after = [ "local-fs.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = pkgs.writeShellScript "regreet-default-session" ''
+            state=/var/lib/regreet/state.toml
+            if [ ! -f "$state" ]; then
+              cat > "$state" <<'EOF'
+            last_user = "user"
+
+            [user_to_last_sess]
+            user = "labwc"
+            EOF
+              chown greeter:greeter "$state"
+            fi
+          '';
+        };
+      };
+
       # Trigger udev re-evaluation of input devices as root before greetd
       # starts, so logind assigns the touchscreen/stylus to the greeter
       # session immediately instead of 30-60s later.

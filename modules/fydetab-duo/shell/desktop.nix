@@ -38,8 +38,8 @@ in
             <action name="Execute" command="vicinae toggle"/>
           </item>
           <separator/>
-          <item label="Browser" icon="librewolf">
-            <action name="Execute" command="librewolf"/>
+          <item label="Browser" icon="chromium">
+            <action name="Execute" command="ungoogled-chromium"/>
           </item>
           <item label="Files" icon="system-file-manager">
             <action name="Execute" command="thunar"/>
