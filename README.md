@@ -66,7 +66,6 @@ See [docs/DESKTOP.md](docs/DESKTOP.md) for the full DE guide.
 - [docs/BOOT.md](docs/BOOT.md)
 - [docs/SETUP.md](docs/SETUP.md)
 - [docs/DESKTOP.md](docs/DESKTOP.md)
-- [docs/HIBERNATION.md](docs/HIBERNATION.md)
 - [docs/STATUS.md](docs/STATUS.md)
 - [docs/PARITY.md](docs/PARITY.md)
 
