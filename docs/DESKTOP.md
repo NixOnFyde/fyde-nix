@@ -60,7 +60,7 @@ Right-clicking / tapping anywhere on the wallpaper opens the root menu:
 | Item           | Launches                     |
 | -------------- | ---------------------------- |
 | Launcher       | Vicinae toggle               |
-| Browser        | LibreWolf                    |
+| Browser        | Ungoogled Chromium           |
 | Files          | Thunar                       |
 | Terminal       | Alacritty                    |
 | Documents      | Evince                       |

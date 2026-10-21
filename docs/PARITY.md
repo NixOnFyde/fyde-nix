@@ -37,7 +37,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | LTE modem (Quectel EM05-G)  | `working` | `working`  | done    | kernel + `nm-applet` for tray GUI + Gnome GUI                                |
 | USB-C DisplayPort           | `working` | `working`  | done    | external display over USB-C hub                                              |
 | Audio (ES8388 + PipeWire)   | `working` | `working`  | done    | supports wired / wireless headphones, and OSD works                          |
-| Camera (5 MP front)         | `working` | `working`  | done    | confirmed via librewolf testing                                              |
+| Camera (5 MP front)         | `working` | `working`  | done    | confirmed via browser testing                                              |
 | Hall sensor (mh248-fyde)    | `working` | `working`  | done    | lid close suspends                                                           |
 | IIO sensors (accel)         | `working` | `working`  | done    | lis2dw12, monitor-sensor reports orientation                                 |
 | Volume rocker               | `working` | `working`  | done    | confirmed via OSD                                                            |

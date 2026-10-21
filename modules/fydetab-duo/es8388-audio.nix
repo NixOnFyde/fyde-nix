@@ -41,10 +41,14 @@ in
               timeout=$((timeout - 1))
             done
 
-            ${amixer} sset 'spk switch'       on
-            ${amixer} sset 'hp switch'        on
-            ${amixer} sset 'Speaker'          on
-            ${amixer} sset 'Headphone'        on
+            # Keep outputs muted - PipeWire/WirePlumber will unmute
+            # when audio actually plays. Unmuting here causes a pop;
+            # see issue #44.
+            ${amixer} sset 'spk switch'       off
+            ${amixer} sset 'hp switch'        off
+            ${amixer} sset 'Speaker'          off
+            ${amixer} sset 'Headphone'        off
+
             ${amixer} sset 'Left Mixer Left'  on
             ${amixer} sset 'Right Mixer Right' on
             ${amixer} sset 'OUT1'             on

@@ -22,7 +22,7 @@ in
   config = lib.mkIf shell.packages.enable {
     environment.systemPackages = with pkgs; [
       # Register text/x-nix so .nix files get their own mimetype instead of
-      # going into text/plain (which LibreWolf controls on first run).
+      # going into text/plain (which the browser controls on first run).
       (pkgs.writeTextDir "share/mime/packages/nix.xml" ''
         <?xml version="1.0" encoding="UTF-8"?>
         <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
@@ -53,7 +53,7 @@ in
       kanshi
       libinput
       libnotify
-      librewolf
+      ungoogled-chromium
       mesa-demos
       papirus-icon-theme
       kdePackages.partitionmanager
@@ -101,7 +101,7 @@ in
     ];
 
     # Open .nix files in Zed (GUI editor) rather than falling back to
-    # LibreWolf using the text/plain association.
+    # the browser using the text/plain association.
     xdg.mime.defaultApplications = {
       "text/x-nix" = [ "dev.zed.Zed.desktop" ];
     };
