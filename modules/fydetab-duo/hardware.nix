@@ -23,7 +23,6 @@
 #   nixosModules.qol               -- QoL defaults
 #   nixosModules.battery           -- SC8886 charge limit (ceiling + recharge threshold)
 #   nixosModules.fingerprint       -- Microarray AFS120 fingerprint driver
-#   nixosModules.hibernation       -- suspend-to-disk (S4)
 #   nixosModules.boot-loader       -- U-Boot boot.scr
 #
 # The host must apply the fyde-nix overlay to get the custom kernel and
@@ -59,6 +58,5 @@
     ./qol.nix
     ./battery.nix
     ./fingerprint.nix
-    ./hibernation.nix
   ];
 }

@@ -72,7 +72,7 @@ write_blob "@idblock@"  64
 write_blob "@uboot@"    16384
 write_blob "@resource@" 24580
 
-echo "==> creating ESP (label '$boot_esp_label', matching the boot medium)"
+echo "==> creating ESP (label '$boot_esp_label')"
 mkfs.vfat -F 32 -n "$boot_esp_label" "$target_esp_partition" > /dev/null
 esp_mount_point=$(mktemp -d)
 mount "$target_esp_partition" "$esp_mount_point"

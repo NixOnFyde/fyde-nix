@@ -90,7 +90,6 @@ modules/fydetab-duo/     NixOS modules (each importable on their own)
   qol.nix                zram, fstrim, earlyoom, etc.
   battery.nix            SC8886 battery charge limit (ceiling + recharge)
   fingerprint.nix        Microarray AFS120 fingerprint module + udev access
-  hibernation.nix        suspend-to-disk swapfile + resume params
   boot-loader.nix        U-Boot boot.scr generation
   desktop.nix            labwc, regreet, kanshi, keybinds
   shell/                 desktop shell sub-modules
