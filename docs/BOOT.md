@@ -57,6 +57,11 @@ The vendor U-Boot build (rockchip-linux 2017.09) has some strict requirements:
 | 2   | `ESP`           | `ef00`           | `65536` – `1114111` | 512 MiB | FAT32 (**must have GPT attr bit 2 set**). Contains `/boot.scr`, `/boot.cmd`, kernel, initramfs, and DTB |
 | 3   | `NIXOS-FYDETAB` | `8300`           | `1114112` – end     | Rest    | Root filesystem (btrfs)                                                                                 |
 
+> [!NOTE]
+> **Multiple devices with the same image:** If two storage devices (e.g., microSD and eMMC) both contain this image, they will have **identical filesystem labels** (`ESP`, `NIXOS-FYDETAB`) — and identical UUIDs, since both are baked in at image build time. `/dev/disk/by-label/ESP` may then resolve to the wrong device, causing `/boot` to mount the wrong partition.
+>
+> The bootloader installer (`boot-loader.nix` installHook) is safe in this scenario — it always writes boot files to the ESP on the same disk as the root filesystem, not wherever `/boot` happens to be mounted. However, if you dual-boot or switch between devices, override `hardware-configuration.nix` to use `/dev/disk/by-uuid/...` paths instead of labels to disambiguate. Check with `blkid` to find your device's UUIDs.
+
 > [!WARNING]
 > Keep the filename exactly as `rk3588s-fydetab_duo.dtb` (hyphen before `fydetab`, underscore after), as this matches conventions of the vendor's DTS. Renaming it to all-hyphens or all-underscores will break boot and leave the display black - and give you a lot of headaches!
 
