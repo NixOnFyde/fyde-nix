@@ -32,6 +32,7 @@
 #   npu                   RK3588S NPU driver + librknnrt
 #   qol                   zram, fstrim, earlyoom, etc.
 #   battery               SC8886 charge limit (ceiling + recharge threshold)
+#   fingerprint           Microarray AFS120 fingerprint driver
 #   boot-loader           U-Boot boot.scr generation
 #   desktop               labwc, regreet, kanshi, keybinds
 #   shell                 full desktop shell (umbrella)
@@ -122,9 +123,9 @@
   hardware.fydetabduo.shell = {
     enable = true;
 
-    # Optional: scale the panel output (e.g., 1.5 for larger UI elements).
+    # Optional: scale the panel output (e.g., 1.25 for larger UI elements).
     # Applied using kanshi output scale in both orientations.
-    # desktop.scale = 1.5;
+    # desktop.scale = 1.25;
 
     power.autoProfile = {
       # Automatically change power profile based on current charge.

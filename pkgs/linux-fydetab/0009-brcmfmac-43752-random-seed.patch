@@ -1,0 +1,139 @@
+Backport the upstream commits ea11a89c3ac6 ("wifi: brcmfmac: add flag for
+random seed during firmware download") and 0e9724d0f89e ("wifi: brcmfmac:
+use random seed flag for BCM4355 and BCM4364 firmware") so the BCM43752
+(AP6275P) obtains the random-seed buffer written before NVRAM on firmware
+download.
+
+On this tree the seed was based on devinfo->otp.valid, which is never set
+for the 43752 (brcmf_pcie_read_otp() has no 43752 case), so the seed was
+not written and the dongle never finished booting ("FW failed to
+initialize"). Mainline marks the 43752 as WCC_SEED (fwseed=true), so the
+seed is always written for it.
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+@@ -355,6 +355,7 @@
+ 			  u16 value);
+ 	struct brcmf_mp_device *settings;
+ 	struct brcmf_otp_params otp;
++	bool fwseed;
+ #ifdef DEBUG
+ 	u32 console_interval;
+ 	bool console_active;
+@@ -1717,14 +1718,14 @@
+ 		memcpy_toio(devinfo->tcm + address, nvram, nvram_len);
+ 		brcmf_fw_nvram_free(nvram);
+ 
+-		if (devinfo->otp.valid) {
++		if (devinfo->fwseed) {
+ 			size_t rand_len = BRCMF_RANDOM_SEED_LENGTH;
+ 			struct brcmf_random_seed_footer footer = {
+ 				.length = cpu_to_le32(rand_len),
+ 				.magic = cpu_to_le32(BRCMF_RANDOM_SEED_MAGIC),
+ 			};
+ 
+-			/* Some Apple chips/firmwares expect a buffer of random
++			/* Some Apple chips/firmwares expect a buffer of random
+ 			 * data to be present before NVRAM
+ 			 */
+ 			brcmf_dbg(PCIE, "Download random seed\n");
+@@ -2396,6 +2397,37 @@
+ }
+ #endif
+ 
++struct brcmf_pcie_drvdata {
++	enum brcmf_fwvendor vendor;
++	bool fw_seed;
++};
++
++enum {
++	BRCMF_DRVDATA_CYW,
++	BRCMF_DRVDATA_BCA,
++	BRCMF_DRVDATA_WCC,
++	BRCMF_DRVDATA_WCC_SEED,
++};
++
++static const struct brcmf_pcie_drvdata drvdata[] = {
++	[BRCMF_DRVDATA_CYW] = {
++		.vendor = BRCMF_FWVENDOR_CYW,
++		.fw_seed = false,
++	},
++	[BRCMF_DRVDATA_BCA] = {
++		.vendor = BRCMF_FWVENDOR_BCA,
++		.fw_seed = false,
++	},
++	[BRCMF_DRVDATA_WCC] = {
++		.vendor = BRCMF_FWVENDOR_WCC,
++		.fw_seed = false,
++	},
++	[BRCMF_DRVDATA_WCC_SEED] = {
++		.vendor = BRCMF_FWVENDOR_WCC,
++		.fw_seed = true,
++	},
++};
++
+ /* Forward declaration for pci_match_id() call */
+ static const struct pci_device_id brcmf_pcie_devid_table[];
+ 
+@@ -2474,9 +2506,10 @@
+ 	bus->bus_priv.pcie = pcie_bus_dev;
+ 	bus->ops = &brcmf_pcie_bus_ops;
+ 	bus->proto_type = BRCMF_PROTO_MSGBUF;
+-	bus->fwvid = id->driver_data;
+ 	bus->chip = devinfo->coreid;
+ 	bus->wowl_supported = pci_pme_capable(pdev, PCI_D3hot);
++	bus->fwvid = drvdata[id->driver_data].vendor;
++	devinfo->fwseed = drvdata[id->driver_data].fw_seed;
+ 	dev_set_drvdata(&pdev->dev, bus);
+ 
+ 	ret = brcmf_alloc(&devinfo->pdev->dev, devinfo->settings);
+@@ -2662,21 +2695,21 @@
+ 		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
+ 		PCI_ANY_ID, PCI_ANY_ID, \
+ 		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
+-		BRCMF_FWVENDOR_ ## fw_vend \
++		BRCMF_DRVDATA_ ## fw_vend \
+ 	}
+ #define BRCMF_PCIE_DEVICE_SUB(dev_id, subvend, subdev, fw_vend) \
+ 	{ \
+ 		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
+ 		(subvend), (subdev), \
+ 		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
+-		BRCMF_FWVENDOR_ ## fw_vend \
++		BRCMF_DRVDATA_ ## fw_vend \
+ 	}
+ 
+ static const struct pci_device_id brcmf_pcie_devid_table[] = {
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4350_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE_SUB(0x4355, BRCM_PCIE_VENDOR_ID_BROADCOM, 0x4355, WCC),
++	BRCMF_PCIE_DEVICE_SUB(0x4355, BRCM_PCIE_VENDOR_ID_BROADCOM, 0x4355, WCC_SEED),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4354_RAW_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4355_DEVICE_ID, WCC),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_4355_DEVICE_ID, WCC_SEED),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4356_DEVICE_ID, WCC),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43567_DEVICE_ID, WCC),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43570_DEVICE_ID, WCC),
+@@ -2687,7 +2720,7 @@
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43602_2G_DEVICE_ID, WCC),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43602_5G_DEVICE_ID, WCC),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43602_RAW_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4364_DEVICE_ID, WCC),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_4364_DEVICE_ID, WCC_SEED),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4365_DEVICE_ID, BCA),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4365_2G_DEVICE_ID, BCA),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4365_5G_DEVICE_ID, BCA),
+@@ -2697,10 +2730,10 @@
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4366_5G_DEVICE_ID, BCA),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4371_DEVICE_ID, WCC),
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43596_DEVICE_ID, CYW),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4377_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4378_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4387_DEVICE_ID, WCC),
+-	BRCMF_PCIE_DEVICE(BRCM_PCIE_43752_DEVICE_ID, WCC),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_4377_DEVICE_ID, WCC_SEED),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_4378_DEVICE_ID, WCC_SEED),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_4387_DEVICE_ID, WCC_SEED),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_43752_DEVICE_ID, WCC_SEED),
+ 
+ 	{ /* end: all zeroes */ }
+ };

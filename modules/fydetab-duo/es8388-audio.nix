@@ -79,13 +79,16 @@ in
     systemd.user.services.fydetab-default-sink = lib.mkIf config.services.pipewire.enable {
       description = "Pin default audio sink to the ES8388 analog output";
       wantedBy = [ "default.target" ];
-      after = [ "pipewire.service" ];
+      after = [
+        "pipewire.service"
+        "wireplumber.service"
+      ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart =
           let
-            wpctl = lib.getExe' pkgs.pipewire "wpctl";
+            wpctl = lib.getExe' pkgs.wireplumber "wpctl";
             pwcli = lib.getExe' pkgs.pipewire "pw-cli";
           in
           pkgs.writeShellScript "fydetab-default-sink" ''
