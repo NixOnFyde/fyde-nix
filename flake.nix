@@ -61,6 +61,7 @@
           fydetab-snapshot = pkgs.fydetab-snapshot;
           fydetab-update = pkgs.fydetab-update;
           fydetab-update-bootchain = pkgs.fydetab-update-bootchain;
+          ghostty-zink = pkgs.ghostty-zink;
         }
         // (
           let
