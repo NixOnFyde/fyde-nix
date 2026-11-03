@@ -73,7 +73,7 @@ in
               node.description = "FydeTab Duo Speakers/Headphones";
               node.nick = "ES8388";
 
-              priority.session = 100;
+              priority.session = 1100;
             };
           }
         ];
