@@ -91,6 +91,7 @@ in
 
     hardware.firmware = [
       pkgs.ap6275p-firmware
+      pkgs.linux-firmware
     ]
     ++ lib.optionals cfg.touchscreen.enable [ pkgs.himax-firmware ];
 
