@@ -1929,7 +1929,7 @@ new file mode 100644
 index 000000000..d8db3a34c
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_devfreq.c
-@@ -0,0 +1,878 @@
+@@ -0,0 +1,880 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -2295,7 +2295,9 @@ index 000000000..d8db3a34c
 +		return 0;
 +
 +	rockchip_opp_dvfs_lock(opp_info);
-+	if (pm_runtime_active(dev))
++	/* RKNPU jobs hold the device awake through power_refcount. */
++	if (pm_runtime_active(dev) ||
++	    atomic_read(&rknpu_dev->power_refcount) > 0)
 +		opp_info->is_runtime_active = true;
 +	else
 +		opp_info->is_runtime_active = false;
