@@ -66,9 +66,8 @@ let
           if mount "$esp_dev" "$work" 2>/dev/null; then
             echo "note: /boot mounted from different device; writing boot files to $esp_dev" >&2
           else
-            # Fallback: use current mount
-            work="$esp"
-            echo "warning: failed to mount $esp_dev, writing to $esp" >&2
+            echo "refusing to update boot files: could not mount the ESP on the root disk ($esp_dev)" >&2
+            exit 1
           fi
         fi
       else

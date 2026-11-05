@@ -117,6 +117,11 @@ main() {
   cur_rev=$(flake_lock_rev || true)
   cur_lm=$(flake_lock_lastmodified || true)
 
+  if [ -z "$tag_rev" ] || [ -z "$tag_lm" ]; then
+    echo "error: could not resolve release metadata for $tag; refusing to update" >&2
+    exit 1
+  fi
+
   echo "==> latest tagged release: $tag (${tag_rev:-?})"
   echo "==> currently pinned     : ${cur_rev:-unknown} (lastModified ${cur_lm:-?})"
 
@@ -140,30 +145,51 @@ main() {
   fi
 
   local backup="$NIXOS_DIR/flake.nix.fydetab-update.bak"
+  local lock_backup="$LOCK_FILE.fydetab-update.bak"
   cp "$NIXOS_DIR/flake.nix" "$backup"
-  echo "==> backed up $NIXOS_DIR/flake.nix -> $backup"
+  cp "$LOCK_FILE" "$lock_backup"
+  echo "==> backed up flake.nix and flake.lock"
+
+  restore_update_files() {
+    cp "$backup" "$NIXOS_DIR/flake.nix"
+    cp "$lock_backup" "$LOCK_FILE"
+  }
 
   # Pin the fyde-nix input to the tag (replaces unpinned / branch / commit forms).
   sed -i -E \
     "s|fyde-nix\.url = \"github:NixOnFyde/fyde-nix[^\"]*\"|fyde-nix.url = \"$FLAKE_URL_BASE/$tag\"|" \
     "$NIXOS_DIR/flake.nix"
 
+  if ! grep -Fq "fyde-nix.url = \"$FLAKE_URL_BASE/$tag\"" "$NIXOS_DIR/flake.nix"; then
+    echo "error: failed to pin fyde-nix to $tag; restoring previous files" >&2
+    restore_update_files
+    exit 1
+  fi
+
   echo "==> pinned fyde-nix to $FLAKE_URL_BASE/$tag"
 
-  (
+  if ! (
     cd "$NIXOS_DIR"
     nix flake update fyde-nix
-  )
+  ); then
+    echo "error: flake update failed; restoring previous files" >&2
+    restore_update_files
+    exit 1
+  fi
 
   local new_rev
   new_rev=$(flake_lock_rev || true)
   echo "==> fyde-nix: ${cur_rev:-?} -> ${new_rev:-?}"
 
   echo "==> rebuilding and activating the system (nixos-rebuild switch)"
-  (
+  if ! (
     cd "$NIXOS_DIR"
     nixos-rebuild switch
-  )
+  ); then
+    echo "error: rebuild failed; restoring previous files" >&2
+    restore_update_files
+    exit 1
+  fi
 
   echo
   echo "==> active system: $(readlink /nix/var/nix/profiles/system)"

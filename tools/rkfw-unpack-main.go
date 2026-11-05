@@ -23,6 +23,10 @@ func parseCString(data []byte) string {
 	return strings.TrimSpace(string(data))
 }
 
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <update.img> [output_dir]\n", os.Args[0])
@@ -79,12 +83,32 @@ func main() {
 	fmt.Printf("Model: %s | Partitions: %d\n\n", deviceModel, partitionCount)
 
 	if partitionCount > 16 {
-		partitionCount = 16
+		fmt.Fprintf(os.Stderr, "invalid RKAF partition count: %d (maximum 16)\n", partitionCount)
+		os.Exit(1)
 	}
 
-	os.MkdirAll(outputDirectory, 0755)
+	if err := os.MkdirAll(outputDirectory, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "create output directory: %v\n", err)
+		os.Exit(1)
+	}
+	imageInfo, err := imageFile.Stat()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "stat input image: %v\n", err)
+		os.Exit(1)
+	}
+	imageSize := imageInfo.Size()
+	if int64(imageOffset) > imageSize || int64(imageLength) > imageSize-int64(imageOffset) {
+		fmt.Fprintf(os.Stderr, "declared image payload is outside the input file\n")
+		os.Exit(1)
+	}
 
 	extractRange := func(offset, size int64, destinationPath string) error {
+		if offset < 0 || size < 0 || offset > imageSize || size > imageSize-offset {
+			return fmt.Errorf("range [%#x, %#x) is outside the %d-byte image", offset, offset+size, imageSize)
+		}
+		if size == 0 {
+			return fmt.Errorf("refusing to extract an empty range")
+		}
 		if _, err := imageFile.Seek(offset, io.SeekStart); err != nil {
 			return err
 		}
@@ -100,9 +124,11 @@ func main() {
 	}
 
 	loaderOutputPath := filepath.Join(outputDirectory, "MiniLoaderAll.bin")
-	if err := extractRange(int64(loaderOffset), int64(loaderLength), loaderOutputPath); err == nil {
-		fmt.Printf("Extracted loader -> %s (%d bytes)\n", loaderOutputPath, loaderLength)
+	if err := extractRange(int64(loaderOffset), int64(loaderLength), loaderOutputPath); err != nil {
+		fmt.Fprintf(os.Stderr, "extract loader: %v\n", err)
+		os.Exit(1)
 	}
+	fmt.Printf("Extracted loader -> %s (%d bytes)\n", loaderOutputPath, loaderLength)
 
 	type flashTarget struct {
 		name         string
@@ -122,9 +148,18 @@ func main() {
 		if partitionName == "" || fileName == "" {
 			continue
 		}
+		baseName := filepath.Base(fileName)
+		if baseName == "." || baseName == ".." || baseName == string(filepath.Separator) {
+			fmt.Fprintf(os.Stderr, "  Error %s: invalid output filename %q\n", partitionName, fileName)
+			continue
+		}
+		if uint64(relativePosition)+uint64(entrySize) > uint64(imageLength) {
+			fmt.Fprintf(os.Stderr, "  Error %s: partition range exceeds declared image payload\n", partitionName)
+			continue
+		}
 
 		absoluteOffset := int64(imageOffset) + int64(relativePosition)
-		partitionOutputPath := filepath.Join(outputDirectory, filepath.Base(fileName))
+		partitionOutputPath := filepath.Join(outputDirectory, baseName)
 
 		if err := extractRange(absoluteOffset, int64(entrySize), partitionOutputPath); err != nil {
 			fmt.Fprintf(os.Stderr, "  Error %s: %v\n", partitionName, err)
@@ -146,7 +181,7 @@ func main() {
 	fmt.Printf("\n -Flash commands- \n")
 	for _, target := range pendingFlashTargets {
 		fmt.Printf("rkdeveloptool wl %#06x %s\n",
-			target.flashAddress, filepath.Join(outputDirectory, filepath.Base(target.fileName)))
+			target.flashAddress, shellQuote(filepath.Join(outputDirectory, filepath.Base(target.fileName))))
 	}
 	fmt.Printf("rkdeveloptool rd\n")
 }

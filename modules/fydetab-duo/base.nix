@@ -73,6 +73,10 @@ in
     ];
     boot.consoleLogLevel = lib.mkDefault 3;
 
+    # Keep hung-task detection for diagnostics, but never panic/reboot just
+    # because a task is blocked. The vendor kernel defconfig enables this.
+    boot.kernel.sysctl."kernel.hung_task_panic" = lib.mkDefault 0;
+
     boot.kernelModules = [
       "brcmfmac"
       # "dhd" # DISABLED because we use `brcmfmac` now not `bcmdhd`!

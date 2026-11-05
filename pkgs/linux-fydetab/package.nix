@@ -102,6 +102,10 @@ linuxKernel.buildLinux rec {
 
     DPM_WATCHDOG = no;
 
+    # Do not reboot the tablet for a hung-task warning. The vendor defconfig
+    # enables this and makes a blocked task into an immediate data-losing panic.
+    BOOTPARAM_HUNG_TASK_PANIC = no;
+
     DRM_PANTHOR = module;
 
     FW_LOADER_COMPRESS = yes;

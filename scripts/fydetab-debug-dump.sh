@@ -2,6 +2,8 @@
 set -u
 
 output_log_file="/boot/fydetab-debug.txt"
+temporary_log_file=$(mktemp /boot/.fydetab-debug.XXXXXX) || exit 1
+trap 'rm -f "$temporary_log_file"' EXIT
 
 # Collect diagnostic telemetry and dump to boot partition
 {
@@ -48,4 +50,8 @@ output_log_file="/boot/fydetab-debug.txt"
   echo
   echo "=# regreet log"
   cat /var/log/regreet/*.log 2>&1 || true
-} >"$output_log_file" 2>&1
+} >"$temporary_log_file" 2>&1
+
+chmod 0600 "$temporary_log_file"
+mv -f "$temporary_log_file" "$output_log_file"
+trap - EXIT

@@ -11,19 +11,28 @@ let
 
   stateDir = "/run/tablet-mode";
   stateFile = "${stateDir}/keyboard-state";
-  manualOff = "${stateDir}/manual-off";
-
+  userStateDir = "$XDG_RUNTIME_DIR/tablet-mode";
   udevHelper = pkgs.writeShellScript "tablet-mode-udev" ''
+    set -euo pipefail
+
     STATE_FILE="${stateFile}"
-    mkdir -p "${stateDir}"
+
+    write_state() {
+      local value="$1"
+      local tmp
+      tmp=$(${pkgs.coreutils}/bin/mktemp "''${STATE_FILE}.XXXXXX")
+      printf '%s\n' "$value" > "$tmp"
+      ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
+      ${pkgs.coreutils}/bin/mv -fT "$tmp" "$STATE_FILE"
+    }
 
     if [ "$1" = "add" ]; then
-      echo "attached" > "$STATE_FILE"
+      write_state attached
     elif [ "$1" = "remove" ]; then
       # Only transition from attached to detached (avoids false positives
       # from unrelated input device removals).
       if [ -f "$STATE_FILE" ] && [ "$(cat "$STATE_FILE")" = "attached" ]; then
-        echo "detached" > "$STATE_FILE"
+        write_state detached
       fi
     fi
   '';
@@ -35,18 +44,31 @@ let
     KILLALL="${pkgs.toybox}/bin/killall"
     PGREP="${pkgs.toybox}/bin/pgrep"
     STATE_FILE="${stateFile}"
+    USER_STATE_DIR="${userStateDir}"
+    MANUAL_OFF="$USER_STATE_DIR/manual-off"
+
+    mkdir -p "$USER_STATE_DIR"
 
     cleanup() { $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true; exit 0; }
     trap cleanup TERM
 
-    # Initialise state file on first run
-    if [ ! -f "$STATE_FILE" ]; then
-      if grep -qs "05ac" /sys/bus/usb/devices/*/idVendor 2>/dev/null; then
-        echo "attached" > "$STATE_FILE"
-      else
-        echo "detached" > "$STATE_FILE"
-      fi
-    fi
+    read_keyboard_state() {
+      kb=$(cat "$STATE_FILE" 2>/dev/null || true)
+      case "$kb" in
+        attached | detached) ;;
+        *)
+          kb="detached"
+          for device in /sys/bus/usb/devices/*; do
+            [ -r "$device/idVendor" ] && [ -r "$device/idProduct" ] || continue
+            if [ "$(cat "$device/idVendor")" = "05ac" ] &&
+               [ "$(cat "$device/idProduct")" = "8502" ]; then
+              kb="attached"
+              break
+            fi
+          done
+          ;;
+      esac
+    }
 
     show_wvkbd() {
       if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
@@ -65,9 +87,18 @@ let
     last_flag=""
 
     act() {
-      kb=$(cat "$STATE_FILE" 2>/dev/null)
+      read_keyboard_state
+
+      # Ignore brief USB disconnect/re-enumeration glitches. Once detached
+      # stays stable, the OSK appears after 1.5 seconds; reattach hides it
+      # immediately.
+      if [ "$kb" = "detached" ] && [ "$last_kb" != "detached" ]; then
+        ${pkgs.coreutils}/bin/sleep 1.5
+        read_keyboard_state
+      fi
+
       flag_exists="false"
-      [ -f "${manualOff}" ] && flag_exists="true"
+      [ -f "$MANUAL_OFF" ] && flag_exists="true"
 
       # Skip if nothing changed
       [ "$kb" = "$last_kb" ] && [ "$flag_exists" = "$last_flag" ] && return
@@ -78,9 +109,9 @@ let
 
         if [ "$kb" = "attached" ]; then
           kill_wvkbd
-          touch "${manualOff}"
+          touch "$MANUAL_OFF"
         else
-          rm -f "${manualOff}"
+          rm -f "$MANUAL_OFF"
           show_wvkbd
         fi
       else
@@ -91,17 +122,15 @@ let
           show_wvkbd
         fi
       fi
-      last_flag="$( [ -f "${manualOff}" ] && echo true || echo false )"
+      last_flag="$( [ -f "$MANUAL_OFF" ] && echo true || echo false )"
     }
 
     # React to initial state
     act
 
-    # Watch keyboard-state (udev writes) and manual-off (wayle toggle).
-    # inotifywait on the directory will catch creates/deletes of manual-off
-    # as well as writes to keyboard-state.
+    # Watch root-owned keyboard state and this user's manual toggle separately.
     while true; do
-      $INOTIFYWAIT -qq -e modify,create,delete "${stateDir}"
+      $INOTIFYWAIT -qq -e modify,create,delete "${stateDir}" "$USER_STATE_DIR"
       act
     done
   '';
@@ -126,7 +155,7 @@ in
     ];
 
     systemd.tmpfiles.rules = [
-      "d ${stateDir} 0777 root root -"
+      "d ${stateDir} 0755 root root -"
     ];
 
     # The remove rule uses ENV{DEVPATH}=="*05AC*" to match only the Apple

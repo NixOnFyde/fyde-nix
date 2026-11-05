@@ -47,6 +47,13 @@
         let
           pkgs = import nixpkgs {
             inherit system;
+            config.allowUnfreePredicate =
+              pkg:
+              builtins.elem (lib.getName pkg) [
+                "ap6275p-firmware"
+                "himax-firmware"
+                "librknnrt"
+              ];
             overlays = [ self.overlays.default ];
           };
         in

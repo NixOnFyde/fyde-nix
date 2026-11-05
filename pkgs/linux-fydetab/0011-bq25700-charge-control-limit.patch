@@ -151,7 +151,7 @@
  	struct bq25700_device *charger = i2c_get_clientdata(client);
    if (charger->delay_charge_current)
      cancel_delayed_work(&charger->init_charger_current);
-+  cancel_delayed_work(&charger->charge_control_work);
++  cancel_delayed_work_sync(&charger->charge_control_work);
 +  bq25700_field_write(charger, CHRG_INHIBIT, 0);
  
  	vol_idx = bq25700_find_idx(DEFAULT_INPUTVOL, TBL_INPUTVOL);

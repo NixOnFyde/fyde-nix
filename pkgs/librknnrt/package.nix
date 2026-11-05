@@ -9,7 +9,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "librknnrt";
-  version = "2024-10-01";
+  version = "2.3.2-2025-04-09";
 
   dontUnpack = true;
   dontConfigure = true;

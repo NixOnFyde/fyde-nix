@@ -33,21 +33,31 @@ echo "writing boot chain to $boot_disk_device"
 write_and_verify_blob() {
     local source_blob_path="$1"
     local target_lba="$2"
-    local blob_sector_count=$(( $(stat -c%s "$source_blob_path") / SECTOR_SIZE ))
+    local next_lba="$3"
+    local blob_size
+    local blob_sector_count
+    blob_size=$(stat -c%s "$source_blob_path")
+    [ "$blob_size" -gt 0 ] || { echo "error: empty blob: $source_blob_path" >&2; exit 1; }
+    blob_sector_count=$(( (blob_size + SECTOR_SIZE - 1) / SECTOR_SIZE ))
+    [ "$((target_lba + blob_sector_count))" -le "$next_lba" ] || {
+        echo "error: $source_blob_path overlaps the next reserved boot-chain region" >&2
+        exit 1
+    }
 
     dd if="$source_blob_path" of="$boot_disk_device" bs=$SECTOR_SIZE seek="$target_lba" conv=notrunc,fdatasync status=none
 
-    if ! dd if="$boot_disk_device" bs=$SECTOR_SIZE skip="$target_lba" count="$blob_sector_count" status=none \
-        | cmp -s - "$source_blob_path"; then
+    if ! cmp -s \
+        <(dd if="$boot_disk_device" bs=$SECTOR_SIZE skip="$target_lba" count="$blob_sector_count" status=none) \
+        <(dd if="$source_blob_path" bs=$SECTOR_SIZE conv=sync status=none); then
         echo "error: verification failed for blob at LBA $target_lba; DO NOT REBOOT" >&2
         echo "(re-run this tool or re-flash; the previous content may be gone)" >&2
         exit 1
     fi
 }
 
-write_and_verify_blob "$IDBLOCK_BLOB_PATH"  "$IDBLOCK_LBA"
-write_and_verify_blob "$UBOOT_BLOB_PATH"    "$UBOOT_LBA"
-write_and_verify_blob "$RESOURCE_BLOB_PATH" "$RESOURCE_LBA"
+write_and_verify_blob "$IDBLOCK_BLOB_PATH"  "$IDBLOCK_LBA"  "$UBOOT_LBA"
+write_and_verify_blob "$UBOOT_BLOB_PATH"    "$UBOOT_LBA"    "$RESOURCE_LBA"
+write_and_verify_blob "$RESOURCE_BLOB_PATH" "$RESOURCE_LBA" 65536
 sync
 
 echo "done. power cycle the device for the new bootloader to take effect."

@@ -1,48 +1,77 @@
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
+Subject: [PATCH] rknpu: balance runtime PM and unwind probe cleanup
+
+Balance power and runtime-PM references, propagate power-up errors, unwind
+regulators, and power-domain attachments on probe failures.
+
 --- a/drivers/rknpu/rknpu_drv.c
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -435,6 +435,7 @@
- 	platform_set_drvdata(pdev, rknpu_dev);
- 
+@@ -375 +375 @@
+-	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1)
++	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1) {
+@@ -376,0 +377,3 @@
++		if (ret)
++			atomic_dec(&rknpu_dev->power_refcount);
++	}
+@@ -627 +630,3 @@
+-	rknpu_power_get(rknpu_dev);
++	ret = rknpu_power_get(rknpu_dev);
++	if (ret)
++		return ret;
+@@ -689 +694,3 @@
+-		rknpu_power_get(rknpu_dev);                                 \
++		ret = rknpu_power_get(rknpu_dev);                           \
++		if (ret)                                                    \
++			return ret;                                           \
+@@ -955,0 +963,2 @@
++			if (rknpu_dev->vdd)
++				regulator_disable(rknpu_dev->vdd);
+@@ -964,0 +974,6 @@
++#ifndef FPGA_PLATFORM
++		if (rknpu_dev->mem)
++			regulator_disable(rknpu_dev->mem);
++		if (rknpu_dev->vdd)
++			regulator_disable(rknpu_dev->vdd);
++#endif
+@@ -1377 +1392,2 @@
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
 +		pm_runtime_enable(dev);
- 
- 	if (of_count_phandle_with_args(dev->of_node, "power-domains",
- 				       "#power-domain-cells") > 1) {
-@@ -472,7 +473,8 @@
- 	 * pm_domain is correctly wired to PD_NPUTOP.
- 	 */
- 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0) {
+@@ -1412 +1428,2 @@
 -		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
 +		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
 +			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
- 		ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
- 	} else {
- 		ret = pm_runtime_get_sync(dev);
-@@ -555,6 +557,7 @@
- 	pm_runtime_put_sync_suspend(dev);
- 	rknpu_power_off(rknpu_dev);
- 
-+	pm_runtime_disable(dev);
- err_remove_drv:
- #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
- 	rknpu_drm_remove(rknpu_dev);
-@@ -573,6 +576,8 @@
- 	misc_deregister(&(rknpu_dev->miscdev));
- #endif
- 
-+	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
-+		pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
- 	return ret;
- }
- 
-@@ -627,5 +632,7 @@
- 	if (rknpu_dev->multiple_domains) {
+@@ -1423 +1440 @@
+-		goto err_power_off;
++		goto err_power_off_no_pm_put;
+@@ -1487 +1503,0 @@
+-	rknpu_power_off(rknpu_dev);
+@@ -1488,0 +1505,2 @@
++err_power_off_no_pm_put:
++	rknpu_power_off(rknpu_dev);
+@@ -1496,0 +1515,13 @@
++	if (pm_runtime_enabled(dev))
++		pm_runtime_disable(dev);
++	if (rknpu_dev->multiple_domains) {
++		if (rknpu_dev->genpd_dev_npu0) {
++			if (pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
++				pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
++			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
++		}
++		if (rknpu_dev->genpd_dev_npu1)
++			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
++		if (rknpu_dev->genpd_dev_npu2)
++			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
++	}
+@@ -1551 +1582,2 @@
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
 +			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
- 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
+@@ -1552,0 +1585 @@
 +		}
- 		if (rknpu_dev->genpd_dev_npu1)
- 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
+@@ -1568 +1601,4 @@
+-	rknpu_power_get(rknpu_dev);
++	int ret = rknpu_power_get(rknpu_dev);
++
++	if (ret)
++		return ret;
