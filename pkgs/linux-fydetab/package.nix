@@ -34,28 +34,24 @@ let
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
     {
-      name = "himax-fix-stylus-physical-dimensions";
-      patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
-    }
-    {
       name = "brcmfmac-add-bcm43752-pcie-support";
-      patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
+      patch = ./0007-brcmfmac-add-bcm43752-pcie-support.patch;
     }
     {
       name = "brcmfmac-43752-random-seed";
-      patch = ./0009-brcmfmac-43752-random-seed.patch;
+      patch = ./0008-brcmfmac-43752-random-seed.patch;
     }
     {
       name = "brcmfmac-ap6275p-skip-d3-mailbox";
-      patch = ./0010-brcmfmac-ap6275p-skip-d3-mailbox.patch;
+      patch = ./0009-brcmfmac-ap6275p-skip-d3-mailbox.patch;
     }
     {
       name = "bq25700-charge-control-limit";
-      patch = ./0011-bq25700-charge-control-limit.patch;
+      patch = ./0010-bq25700-charge-control-limit.patch;
     }
     {
       name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
-      patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
+      patch = ./0011-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
   ];
 
@@ -74,10 +70,9 @@ linuxKernel.buildLinux rec {
   pname = "linux-fydetab";
 
   # The himax vendor driver file (himax_common.c) has CRLF line endings.
-  # nix applies kernel patches with just `patch -p1` (no --binary), which cannot
-  # match a CRLF file against any patch. LF-normalise just that file so the 0007
-  # patch applies without errors. Both the kernel and linux-config derivations share
-  # this src, so it fixes both.
+  # Normalise it to LF to match the rest of the kernel tree (and so any
+  # future patch to that file applies cleanly). Both the kernel and
+  # linux-config derivations share this src.
   src = runCommand "linux-fydetabduo-src" { } ''
     cp -r ${
       fetchFromGitHub {
@@ -139,8 +134,15 @@ linuxKernel.buildLinux rec {
 
     BTRFS_FS = module;
 
+    # systemd's pids controller (TasksMax=) needs CGROUP_PIDS.
+    CGROUP_PIDS = yes;
+
+    # The NixOS firewall and Docker use iptables-nft, which needs the
+    # nftables families for IPv4/IPv6 (not just the inet family).
     NF_TABLES = module;
     NF_TABLES_INET = yes;
+    NF_TABLES_IPV4 = yes;
+    NF_TABLES_IPV6 = yes;
     NFT_COMPAT = module;
     NFT_LOG = module;
     NFT_LIMIT = module;
@@ -148,6 +150,9 @@ linuxKernel.buildLinux rec {
     NFT_NAT = module;
     NFT_MASQ = module;
     NFT_REJECT = module;
+    NFT_FIB_INET = module;
+    NFT_FIB_IPV4 = module;
+    NFT_FIB_IPV6 = module;
     NETFILTER_XT_TARGET_LOG = module;
     NETFILTER_XT_MATCH_MULTIPORT = module;
     NETFILTER_XT_MATCH_RECENT = module;
