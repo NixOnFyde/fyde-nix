@@ -44,6 +44,8 @@ regulators, and power-domain attachments on probe failures.
 @@ -1423 +1440 @@
 -		goto err_power_off;
 +		goto err_power_off_no_pm_put;
+@@ -1486 +1502,0 @@
+-err_power_off:
 @@ -1487 +1503,0 @@
 -	rknpu_power_off(rknpu_dev);
 @@ -1488,0 +1505,2 @@
