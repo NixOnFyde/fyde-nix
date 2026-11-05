@@ -2688,8 +2688,13 @@ index 000000000..d8db3a34c
 +	if (IS_ERR(rknpu_dev->mdev_info)) {
 +		LOG_DEV_DEBUG(dev, "without system monitor\n");
 +		rknpu_dev->mdev_info = NULL;
-+		npu_mdevp.is_checked = true;
 +	}
++	/*
++	 * Monitor registration performs the initial rate/voltage check
++	 * synchronously on success. If no monitor is available, continue with
++	 * the OPP table directly. In both cases devfreq may now change rate.
++	 */
++	npu_mdevp.is_checked = true;
 +	rknpu_dev->current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
 +	rknpu_dev->ondemand_freq = rknpu_dev->current_freq;
 +	rknpu_dev->current_volt = regulator_get_voltage(rknpu_dev->vdd);

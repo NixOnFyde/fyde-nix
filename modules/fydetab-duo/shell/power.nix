@@ -95,7 +95,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo powersave >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo powersave >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: power-saver (powersave governor)"
@@ -104,7 +104,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo schedutil >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo simple_ondemand >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: balanced (schedutil governor)"
@@ -113,7 +113,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo performance >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo performance >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: performance (performance governor)"
@@ -137,7 +137,7 @@ in
           for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
             echo performance >"$g" 2>/dev/null || true
           done
-          for g in /sys/class/devfreq/*/governor; do
+          for g in /sys/class/devfreq/*gpu*/governor; do
             echo performance >"$g" 2>/dev/null || true
           done
           echo "performance mode ON"
@@ -146,7 +146,7 @@ in
           for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
             echo schedutil >"$g" 2>/dev/null || true
           done
-          for g in /sys/class/devfreq/*/governor; do
+          for g in /sys/class/devfreq/*gpu*/governor; do
             echo simple_ondemand >"$g" 2>/dev/null || true
           done
           echo "performance mode OFF"
