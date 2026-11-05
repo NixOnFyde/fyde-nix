@@ -93,6 +93,10 @@ in
 
     hardware.enableRedistributableFirmware = lib.mkDefault true;
 
+    # Provide regulatory.db so `iw reg set` (wifi-regdom.nix) applies the
+    # actual per-country power/channel limits instead of only the world domain.
+    hardware.wirelessRegulatoryDatabase = lib.mkDefault true;
+
     hardware.firmware = [
       pkgs.ap6275p-firmware
       pkgs.linux-firmware
