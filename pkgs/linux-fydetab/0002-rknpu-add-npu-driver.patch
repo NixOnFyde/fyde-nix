@@ -1929,7 +1929,7 @@ new file mode 100644
 index 000000000..d8db3a34c
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_devfreq.c
-@@ -0,0 +1,871 @@
+@@ -0,0 +1,876 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
