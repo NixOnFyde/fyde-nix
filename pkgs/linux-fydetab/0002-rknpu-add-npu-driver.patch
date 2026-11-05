@@ -1929,7 +1929,7 @@ new file mode 100644
 index 000000000..d8db3a34c
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_devfreq.c
-@@ -0,0 +1,876 @@
+@@ -0,0 +1,878 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -2476,7 +2476,9 @@ index 000000000..d8db3a34c
 +	u32 target_rm = UINT_MAX;
 +	int ret = 0;
 +
-+	if (!pm_runtime_active(dev)) {
++	/* Jobs use the driver's power refcount rather than runtime PM. */
++	if (!pm_runtime_active(dev) &&
++	    !atomic_read(&rknpu_dev->power_refcount)) {
 +		is_set_rm = false;
 +		if (opp_info->scmi_clk)
 +			is_set_clk = false;
