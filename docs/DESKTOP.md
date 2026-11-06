@@ -194,6 +194,18 @@ This appends `scale <factor>` to the kanshi output definition (both portrait and
 
 This differs from the NixOS default (which powers off on short press). The tablet firmware expects suspend on short press.
 
+### Keyboard lock key
+
+The keyboard's key marked with a lock icon sends the Linux `KEY_SLEEP` event. By default, fyde-nix maps it to the built-in labwc screen lock and prevents logind from suspending the tablet. The physical power button still suspends on a short press.
+
+Choose another action with `hardware.fydetabduo.shell.power.keyboardSleepKeyAction`:
+
+```nix
+hardware.fydetabduo.shell.power.keyboardSleepKeyAction = "suspend"; # "lock" (default), "suspend", or "ignore"
+```
+
+The `lock` action uses the built-in labwc key binding. If you use another compositor, set the option to `"ignore"` so logind leaves the key to it, then configure its `XF86Sleep` binding to lock the session.
+
 ### fydetab-perf
 
 The `fydetab-perf` script toggles CPU and GPU governors directly:
