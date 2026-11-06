@@ -2756,8 +2756,8 @@ index 000000000..d8db3a34c
 +	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 +
 +	if (opp_info->scmi_clk) {
-+		if (clk_set_rate(opp_info->scmi_clk, POWER_DOWN_FREQ))
-+			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
++		if (clk_set_rate(opp_info->scmi_clk, rknpu_dev->current_freq))
++			LOG_DEV_ERROR(dev, "failed to restore active clk rate\n");
 +	}
 +	opp_info->current_rm = UINT_MAX;
 +
