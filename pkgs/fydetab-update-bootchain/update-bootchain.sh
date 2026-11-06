@@ -12,6 +12,7 @@ UBOOT_LBA=16384
 RESOURCE_LBA=24580
 
 current_root_partition=$(findmnt -n -o SOURCE /)
+current_root_partition=${current_root_partition%%\[*}
 boot_disk_device=$(lsblk -npo PKNAME "$current_root_partition")
 [ -n "$boot_disk_device" ] || { echo "error: cannot determine boot disk of $current_root_partition" >&2; exit 1; }
 
