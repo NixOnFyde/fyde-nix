@@ -29,7 +29,7 @@ The image boots from internal storage. The columns use:
 
 | Feature                                                            | Level      | Notes                                                                                                                                           |
 | ------------------------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Boot chain (SPL/U-Boot/boot.scr/initrd/stage-2)                    | `working`  | boots to NixOS from SD and eMMC                                                                                                                 |
+| Boot chain (SPL/U-Boot/boot.scr/initrd/stage-2)                    | `working`  | boots to NixOS from microSD and eMMC                                                                                                            |
 | Vendor 6.12.43 kernel builds in nixpkgs sandbox                    | `build`    | defconfig-based, ChromeOS-isms undone, broken vendor drivers disabled                                                                           |
 | Panthor GPU driver (G610)                                          | `working`  | CSF FW loads; EGL reports Mesa/Panthor and Vulkan sees ARM on device                                                                            |
 | Graphical greeter (labwc + ReGreet)                                | `working`  | greeter runs ReGreet under its own labwc with kanshi rotation + calibrated touch/stylus                                                         |

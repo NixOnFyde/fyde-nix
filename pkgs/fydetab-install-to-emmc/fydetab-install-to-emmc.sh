@@ -263,5 +263,5 @@ root_mount_point=""
 echo
 echo "Done. Now:"
 echo "  1. power off:        systemctl poweroff"
-echo "  2. remove the SD card"
+echo "  2. remove the microSD card"
 echo "  3. power on: the tablet boots from eMMC"

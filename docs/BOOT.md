@@ -39,7 +39,7 @@ The vendor U-Boot build (rockchip-linux 2017.09) has some strict requirements:
    the root of the FAT filesystem.
 3. **Silent fallback:** If the target medium lacks the `legacy_boot` attribute or
    fails to load, U-Boot will move to the next bootable medium (usually internal
-   eMMC). So, if micro SD card boot fails with no output, check the partition
+   eMMC). So, if microSD card boot fails with no output, check the partition
    attributes first.
 4. **Modified `boot.scr` header:** Rockchip patched the payload parser to check
    for a non-standard terminator: `while (*data++ != IMAGE_PARAM_INVAL)`

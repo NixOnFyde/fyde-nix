@@ -25,14 +25,14 @@ the official Arch/Omarchy images for this device.
    openFyde cros build environment (`./make.sh rk3588s_fydetab_duo/--spl/--idblock`)
    to reproduce.
 3. These are the exact same as the known-good official images execute, so NixOS
-   therefore borrows an identical cold-boot, SD-boot and charging-mode behaviour.
+   therefore inherits an identical cold-boot, microSD-boot and charging-mode behaviour.
 
 ## What each blob is
 
 - `idblock.bin`: DDR init + SPL idblock ("U-Boot SPL 2017.09-231221-dirty",
   Sep 2024 field loader), dumped from a ref device's FydeOS eMMC.
   The boot ROM prefers an eMMC idblock when present; this blob matters for
-  SD-only / blank-eMMC boots.
+  microSD-only / blank-eMMC boots.
 - `uboot.img`: U-Boot FIT (rockchip-linux/u-boot @ `63c55618`, built Jul 2024)
   including the deep-suspend-capable BL31. Understands: FAT32 ESP marked with
   the GPT `legacy_boot` attribute (bit 2), loads `/boot.scr` from its root,
