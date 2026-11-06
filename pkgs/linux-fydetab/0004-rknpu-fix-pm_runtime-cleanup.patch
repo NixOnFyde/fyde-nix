@@ -23,16 +23,24 @@ regulators, and power-domain attachments on probe failures.
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -955,0 +963,2 @@
+@@ -960,2 +965,4 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
+ 				ret);
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
-@@ -964,0 +974,6 @@
+ 			return ret;
+@@ -966,6 +973,12 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
+ 	ret = clk_bulk_prepare_enable(rknpu_dev->num_clks, rknpu_dev->clks);
+ 	if (ret) {
+ 		LOG_DEV_ERROR(dev, "failed to enable clk for rknpu, ret: %d\n",
+ 			      ret);
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
 +		if (rknpu_dev->vdd)
 +			regulator_disable(rknpu_dev->vdd);
 +#endif
+ 		return ret;
+ 	}
 @@ -1377 +1392,2 @@
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
