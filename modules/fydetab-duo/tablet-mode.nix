@@ -43,7 +43,6 @@ let
     INOTIFYWAIT="${pkgs.inotify-tools}/bin/inotifywait"
     KILLALL="${pkgs.toybox}/bin/killall"
     PGREP="${pkgs.toybox}/bin/pgrep"
-    STATE_FILE="${stateFile}"
     USER_STATE_DIR="${userStateDir}"
     MANUAL_OFF="$USER_STATE_DIR/manual-off"
 
@@ -53,21 +52,17 @@ let
     trap cleanup TERM
 
     read_keyboard_state() {
-      kb=$(cat "$STATE_FILE" 2>/dev/null || true)
-      case "$kb" in
-        attached | detached) ;;
-        *)
-          kb="detached"
-          for device in /sys/bus/usb/devices/*; do
-            [ -r "$device/idVendor" ] && [ -r "$device/idProduct" ] || continue
-            if [ "$(cat "$device/idVendor")" = "05ac" ] &&
-               [ "$(cat "$device/idProduct")" = "8502" ]; then
-              kb="attached"
-              break
-            fi
-          done
-          ;;
-      esac
+      # Treat sysfs as authoritative, as udev emits one event per input node, so
+      # a composite keyboard can remove one node while another remains bound.
+      kb="detached"
+      for device in /sys/bus/usb/devices/*; do
+        [ -r "$device/idVendor" ] && [ -r "$device/idProduct" ] || continue
+        if [ "$(cat "$device/idVendor")" = "05ac" ] &&
+           [ "$(cat "$device/idProduct")" = "8502" ]; then
+          kb="attached"
+          break
+        fi
+      done
     }
 
     show_wvkbd() {
@@ -130,8 +125,11 @@ let
 
     # Watch root-owned keyboard state and this user's manual toggle separately.
     while true; do
-      $INOTIFYWAIT -qq -e modify,create,delete "${stateDir}" "$USER_STATE_DIR"
-      act
+      $INOTIFYWAIT -m -q -e modify,create,delete,moved_to,moved_from "${stateDir}" "$USER_STATE_DIR" |
+        while IFS= read -r _event; do
+          act
+        done || true
+      ${pkgs.coreutils}/bin/sleep 1
     done
   '';
 in
