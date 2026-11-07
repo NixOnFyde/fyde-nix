@@ -1,65 +1,71 @@
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
-Subject: [PATCH] rknpu: balance runtime PM and unwind probe cleanup
+Subject: [PATCH] rknpu: resume IOMMU with active NPU references
 
-Balance power and runtime-PM references, propagate power-up errors, unwind
-regulators, and power-domain attachments on probe failures.
+Keep runtime PM active while the driver's power reference is held. The
+Rockchip IOMMU is a runtime-PM supplier of the NPU, so this also resumes its
+translation hardware before buffers are mapped or jobs are submitted. Balance
+the runtime-PM reference on all power-off and failure paths.
 
 --- a/drivers/rknpu/rknpu_drv.c
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -375 +375 @@
+@@ -362,0 +363,2 @@
++		else
++			pm_runtime_put_sync_suspend(rknpu_dev->dev);
+@@ -375,2 +377,10 @@
 -	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1)
+-		ret = rknpu_power_on(rknpu_dev);
 +	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1) {
-@@ -376,0 +377,3 @@
++		ret = pm_runtime_resume_and_get(rknpu_dev->dev);
++		if (!ret) {
++			ret = rknpu_power_on(rknpu_dev);
++			if (ret)
++				pm_runtime_put_sync_suspend(rknpu_dev->dev);
++		}
 +		if (ret)
 +			atomic_dec(&rknpu_dev->power_refcount);
 +	}
-@@ -627 +630,3 @@
+@@ -390,0 +401,2 @@
++		else
++			pm_runtime_put_sync_suspend(rknpu_dev->dev);
+@@ -627 +639,3 @@
 -	rknpu_power_get(rknpu_dev);
 +	ret = rknpu_power_get(rknpu_dev);
 +	if (ret)
 +		return ret;
-@@ -689 +694,3 @@
+@@ -689 +703,3 @@
 -		rknpu_power_get(rknpu_dev);                                 \
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -960,2 +965,4 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
- 				ret);
+@@ -960,0 +977,2 @@
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
- 			return ret;
-@@ -966,6 +973,12 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
- 	ret = clk_bulk_prepare_enable(rknpu_dev->num_clks, rknpu_dev->clks);
- 	if (ret) {
- 		LOG_DEV_ERROR(dev, "failed to enable clk for rknpu, ret: %d\n",
- 			      ret);
+@@ -969,0 +988,6 @@
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
 +		if (rknpu_dev->vdd)
 +			regulator_disable(rknpu_dev->vdd);
 +#endif
- 		return ret;
- 	}
-@@ -1377 +1392,2 @@
+@@ -1382 +1406,2 @@
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
 +		pm_runtime_enable(dev);
-@@ -1412 +1428,2 @@
+@@ -1417 +1442,2 @@
 -		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
 +		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
 +			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
-@@ -1423 +1440 @@
+@@ -1428 +1454 @@
 -		goto err_power_off;
 +		goto err_power_off_no_pm_put;
-@@ -1486 +1502,0 @@
+@@ -1487 +1512,0 @@
 -err_power_off:
-@@ -1487 +1503,0 @@
+@@ -1492 +1516,0 @@
 -	rknpu_power_off(rknpu_dev);
-@@ -1488,0 +1505,2 @@
+@@ -1493,0 +1518,2 @@
 +err_power_off_no_pm_put:
 +	rknpu_power_off(rknpu_dev);
-@@ -1496,0 +1515,13 @@
+@@ -1501,0 +1528,13 @@
 +	if (pm_runtime_enabled(dev))
 +		pm_runtime_disable(dev);
 +	if (rknpu_dev->multiple_domains) {
@@ -73,13 +79,19 @@ regulators, and power-domain attachments on probe failures.
 +		if (rknpu_dev->genpd_dev_npu2)
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
 +	}
-@@ -1551 +1582,2 @@
+@@ -1551 +1590 @@
+-	if (atomic_read(&rknpu_dev->power_refcount) > 0)
++	if (atomic_read(&rknpu_dev->power_refcount) > 0) {
+@@ -1552,0 +1592,2 @@
++		pm_runtime_put_sync_suspend(&pdev->dev);
++	}
+@@ -1556 +1597,2 @@
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
 +			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
-@@ -1552,0 +1585 @@
+@@ -1557,0 +1600 @@
 +		}
-@@ -1568 +1601,4 @@
+@@ -1575 +1618,4 @@
 -	rknpu_power_get(rknpu_dev);
 +	int ret = rknpu_power_get(rknpu_dev);
 +
