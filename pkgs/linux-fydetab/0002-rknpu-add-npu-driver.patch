@@ -1929,7 +1929,7 @@ new file mode 100644
 index 000000000..d8db3a34c
 --- /dev/null
 +++ b/drivers/rknpu/rknpu_devfreq.c
-@@ -0,0 +1,885 @@
+@@ -0,0 +1,886 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) Rockchip Electronics Co., Ltd.
@@ -2376,7 +2376,8 @@ index 000000000..d8db3a34c
 +		rknpu_dev->mdev_info = NULL;
 +	}
 +
-+	rknpu_dev->current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
++	/* Preserve the OPP-rounded initial frequency, not the SCMI boot rate. */
++	rknpu_dev->current_freq = dp->initial_freq;
 +	rknpu_dev->ondemand_freq = rknpu_dev->current_freq;
 +	rknpu_dev->current_volt = regulator_get_voltage(rknpu_dev->vdd);
 +
