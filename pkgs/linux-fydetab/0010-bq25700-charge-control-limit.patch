@@ -25,6 +25,9 @@
  	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
  	POWER_SUPPLY_PROP_VOLTAGE_MAX,
  	POWER_SUPPLY_PROP_CURRENT_MAX,
+@@ -1247,1 +1250,1 @@
+-		ret = bq25700_field_read(bq, OUTPUT_CHG_CUR);
++		ret = bq25700_field_read(bq, OUTPUT_DSG_CUR);
 @@ -1279,6 +1284,15 @@
  		val->intval = bq25700_tables[TBL_INPUTVOL].rt.max;
  		break;
@@ -135,6 +138,11 @@
  };
  
  static int bq25700_power_supply_init(struct bq25700_device *charger)
+@@ -1378,1 +1467,3 @@
+-		vol_idx = bq25700_find_idx(prop.intval, TBL_INPUTVOL);
++		/* Keep the charger's 1.28 V VINDPM margin below adapter VBUS. */
++		vol_idx = bq25700_find_idx(prop.intval - 1280000,
++					   TBL_INPUTVOL);
 @@ -2084,7 +2175,10 @@
  	}
  	dev_info(charger->dev, "Battery found\n");
