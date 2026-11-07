@@ -58,6 +58,9 @@ diff --git a/drivers/phy/rockchip/phy-rockchip-inno-usb2.c b/drivers/phy/rockchi
 diff --git a/drivers/usb/dwc3/drd.c b/drivers/usb/dwc3/drd.c
 --- a/drivers/usb/dwc3/drd.c
 +++ b/drivers/usb/dwc3/drd.c
+@@ -10,1 +10,2 @@
+ #include <linux/extcon.h>
++#include <linux/extcon-provider.h>
 @@ -448,6 +448,7 @@
  {
  	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
