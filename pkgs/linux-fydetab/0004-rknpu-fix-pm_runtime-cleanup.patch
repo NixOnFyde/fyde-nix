@@ -37,10 +37,10 @@ the runtime-PM reference on all power-off and failure paths.
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -960,0 +977,2 @@
+@@ -955,0 +972,2 @@
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
-@@ -969,0 +988,6 @@
+@@ -964,0 +983,6 @@
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
