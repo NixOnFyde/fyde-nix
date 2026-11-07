@@ -34,15 +34,15 @@ diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/b
 diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq25700_charger.c
 --- a/drivers/power/supply/bq25700_charger.c
 +++ b/drivers/power/supply/bq25700_charger.c
-@@ -1467,1 +1467,22 @@
+@@ -1467,1 +1467,31 @@
 -	if (prop.intval > 0) {
 +	if (prop.intval <= 0) {
 +		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
 +						&prop);
 +		if (ret != 0 || prop.intval < 4500000)
 +			return NOTIFY_OK;
-+		if (bq->typec0_status != USB_STATUS_PD &&
-+		    bq->typec1_status != USB_STATUS_PD &&
++		bq->typec0_status = USB_STATUS_NONE;
++		if (bq->typec1_status != USB_STATUS_PD &&
 +		    bq->cable_edev &&
 +		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_SDP) <= 0 &&
 +		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_DCP) <= 0 &&
@@ -57,7 +57,16 @@ diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq257
 +		return NOTIFY_OK;
 +	}
 +	if (prop.intval > 0) {
-+		bq->typec0_status = USB_STATUS_PD;
++		union power_supply_propval usb_type;
++
++		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_USB_TYPE,
++						&usb_type);
++		if (!ret &&
++		    (usb_type.intval == POWER_SUPPLY_USB_TYPE_PD ||
++		     usb_type.intval == POWER_SUPPLY_USB_TYPE_PD_PPS))
++			bq->typec0_status = USB_STATUS_PD;
++		else
++			bq->typec0_status = USB_STATUS_NONE;
 @@ -1511,0 +1532,17 @@
 +		/*
 +		 * Some legacy USB sources do not produce a BC1.2 extcon event.

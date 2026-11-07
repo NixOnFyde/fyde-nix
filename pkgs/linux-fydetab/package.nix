@@ -57,6 +57,10 @@ let
       name = "bq25700-fix-legacy-usb-charger-detection";
       patch = ./0012-bq25700-fix-legacy-usb-charger-detection.patch;
     }
+    {
+      name = "rockchip-typec-role-extcon";
+      patch = ./0013-rockchip-typec-role-extcon.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

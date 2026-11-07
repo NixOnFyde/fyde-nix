@@ -25,10 +25,7 @@
  	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
  	POWER_SUPPLY_PROP_VOLTAGE_MAX,
  	POWER_SUPPLY_PROP_CURRENT_MAX,
-@@ -1247,1 +1250,1 @@
--		ret = bq25700_field_read(bq, OUTPUT_CHG_CUR);
-+		ret = bq25700_field_read(bq, OUTPUT_DSG_CUR);
-@@ -1279,6 +1284,15 @@
+@@ -1279,6 +1284,18 @@
  		val->intval = bq25700_tables[TBL_INPUTVOL].rt.max;
  		break;
  
@@ -42,9 +39,19 @@
 +		break;
 +
  	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
- 		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
+-		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
++		ret = bq25700_field_read(bq, INPUT_CURRENT);
++		if (ret < 0)
++			return ret;
++		val->intval = ret * 50000;
  		break;
-@@ -1300,6 +1315,84 @@
+@@ -1292,1 +1309,1 @@
+-		ret = bq25700_field_read(bq, CHARGE_CURRENT);
++		ret = bq25700_field_read(bq, INPUT_CURRENT);
+@@ -1293,1 +1310,1 @@
+-		val->intval = ret * 64;
++		val->intval = ret * 50000;
+@@ -1300,6 +1320,84 @@
  	return 0;
  }
  
