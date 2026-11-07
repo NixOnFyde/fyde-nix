@@ -1,10 +1,11 @@
 From: fyde-nix
-Subject: [PATCH] arm64: dts: rockchip: Fix legacy USB charger detection
+Subject: [PATCH] power: supply: bq25700: handle unclassified legacy input
 
-The SC8886 driver uses its extcon phandle for BC1.2 charger-type events.
-Point it at the USB2 PHY extcon provider rather than the HUSB311 TCPM
-controller. Use conservative input limits for legacy SDP, CDP, and DCP
-sources; negotiated Type-C/PD current continues to come from TCPM.
+Use the USB2 PHY extcon for BC1.2 charger-type events and conservative
+limits for SDP, CDP, and DCP sources. If the PHY reports no charger type,
+use a safe SDP fallback when the charger detects input. Refresh the cached
+charger state on input detection, and mark negotiated PD input to prevent
+the fallback from overriding its current limit.
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
 --- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
@@ -30,3 +31,25 @@ diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/b
      ti,minimum-sys-voltage = <9216000>;
      ti,otg-voltage = <5000000>;
      ti,otg-current = <3000000>;
+diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq25700_charger.c
+--- a/drivers/power/supply/bq25700_charger.c
++++ b/drivers/power/supply/bq25700_charger.c
+@@ -1394,0 +1395,1 @@
++		bq->typec0_status = USB_STATUS_PD;
+@@ -1414,0 +1415,16 @@
++		/*
++		 * Some legacy USB sources do not produce a BC1.2 extcon event.
++		 * Keep their fallback conservative, but do not leave the charger
++		 * disabled after the delayed initialization work set zero currents.
++		 */
++		if (charger->typec0_status != USB_STATUS_PD &&
++		    charger->typec1_status != USB_STATUS_PD &&
++		    charger->cable_edev &&
++		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_SDP) <= 0 &&
++		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_DCP) <= 0 &&
++		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_CDP) <= 0)
++			bq25700_enable_charger(charger,
++					       charger->init_data.input_current_sdp);
++		bq25700_get_chip_state(charger, &state);
++		charger->state = state;
++		power_supply_changed(charger->supply_charger);
