@@ -1,71 +1,145 @@
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
 Subject: [PATCH] rknpu: resume IOMMU with active NPU references
 
-Keep runtime PM active while the driver's power reference is held. The
-Rockchip IOMMU is a runtime-PM supplier of the NPU, so this also resumes its
-translation hardware before buffers are mapped or jobs are submitted. Balance
-the runtime-PM reference on all power-off and failure paths.
+Power the NPU before resuming its runtime-PM supplier, the Rockchip IOMMU,
+because the IOMMU's MMIO is inaccessible while NPU power is off. Suspend the
+IOMMU before powering the NPU down, and balance PM references on failure.
 
 --- a/drivers/rknpu/rknpu_drv.c
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -362,0 +363,2 @@
-+		else
-+			pm_runtime_put_sync_suspend(rknpu_dev->dev);
-@@ -375,2 +377,10 @@
+@@ -360,3 +360,31 @@
+-		ret = rknpu_power_off(rknpu_dev);
+-		if (ret)
+-			atomic_inc(&rknpu_dev->power_refcount);
++		ret = pm_runtime_put_sync_suspend(rknpu_dev->dev);
++		if (ret < 0) {
++			pm_runtime_get_noresume(rknpu_dev->dev);
++			atomic_inc(&rknpu_dev->power_refcount);
++		} else {
++			if (rknpu_dev->multiple_domains &&
++			    rknpu_dev->genpd_dev_npu0) {
++				ret = pm_runtime_put_sync_suspend(
++					rknpu_dev->genpd_dev_npu0);
++				if (ret < 0) {
++					pm_runtime_get_noresume(
++						rknpu_dev->genpd_dev_npu0);
++					if (pm_runtime_resume_and_get(
++						rknpu_dev->dev) >= 0) {
++						atomic_inc(&rknpu_dev->power_refcount);
++					} else {
++						pm_runtime_put_noidle(
++							rknpu_dev->genpd_dev_npu0);
++						rknpu_power_off(rknpu_dev);
++					}
++				} else {
++					ret = rknpu_power_off(rknpu_dev);
++					if (ret)
++						atomic_inc(&rknpu_dev->power_refcount);
++				}
++			} else {
++				ret = rknpu_power_off(rknpu_dev);
++				if (ret)
++					atomic_inc(&rknpu_dev->power_refcount);
++			}
++		}
+@@ -375,2 +403,18 @@
 -	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1)
 -		ret = rknpu_power_on(rknpu_dev);
 +	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1) {
-+		ret = pm_runtime_resume_and_get(rknpu_dev->dev);
++		ret = rknpu_power_on(rknpu_dev);
++		if (!ret && rknpu_dev->multiple_domains &&
++		    rknpu_dev->genpd_dev_npu0)
++			ret = pm_runtime_resume_and_get(
++				rknpu_dev->genpd_dev_npu0);
 +		if (!ret) {
-+			ret = rknpu_power_on(rknpu_dev);
-+			if (ret)
-+				pm_runtime_put_sync_suspend(rknpu_dev->dev);
++			ret = pm_runtime_resume_and_get(rknpu_dev->dev);
++			if (ret && rknpu_dev->multiple_domains &&
++			    rknpu_dev->genpd_dev_npu0)
++				pm_runtime_put_sync_suspend(
++					rknpu_dev->genpd_dev_npu0);
 +		}
-+		if (ret)
++		if (ret) {
++			rknpu_power_off(rknpu_dev);
 +			atomic_dec(&rknpu_dev->power_refcount);
++		}
 +	}
-@@ -390,0 +401,2 @@
-+		else
-+			pm_runtime_put_sync_suspend(rknpu_dev->dev);
-@@ -627 +639,3 @@
+@@ -387,4 +431,33 @@
+-	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
+-		ret = rknpu_power_off(rknpu_dev);
+-		if (ret)
+-			atomic_inc(&rknpu_dev->power_refcount);
++	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
++		ret = pm_runtime_put_sync_suspend(rknpu_dev->dev);
++		if (ret < 0) {
++			pm_runtime_get_noresume(rknpu_dev->dev);
++			atomic_inc(&rknpu_dev->power_refcount);
++		} else {
++			if (rknpu_dev->multiple_domains &&
++			    rknpu_dev->genpd_dev_npu0) {
++				ret = pm_runtime_put_sync_suspend(
++					rknpu_dev->genpd_dev_npu0);
++				if (ret < 0) {
++					pm_runtime_get_noresume(
++						rknpu_dev->genpd_dev_npu0);
++					if (pm_runtime_resume_and_get(
++						rknpu_dev->dev) >= 0) {
++						atomic_inc(&rknpu_dev->power_refcount);
++					} else {
++						pm_runtime_put_noidle(
++							rknpu_dev->genpd_dev_npu0);
++						rknpu_power_off(rknpu_dev);
++					}
++				} else {
++					ret = rknpu_power_off(rknpu_dev);
++					if (ret)
++						atomic_inc(&rknpu_dev->power_refcount);
++				}
++			} else {
++				ret = rknpu_power_off(rknpu_dev);
++				if (ret)
++					atomic_inc(&rknpu_dev->power_refcount);
++			}
++		}
++	}
+@@ -627,1 +700,3 @@
 -	rknpu_power_get(rknpu_dev);
 +	ret = rknpu_power_get(rknpu_dev);
 +	if (ret)
 +		return ret;
-@@ -689 +703,3 @@
+@@ -689,1 +764,3 @@
 -		rknpu_power_get(rknpu_dev);                                 \
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -955,0 +972,2 @@
+@@ -955,0 +1032,2 @@
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
-@@ -964,0 +983,6 @@
+@@ -964,0 +1043,6 @@
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
 +		if (rknpu_dev->vdd)
 +			regulator_disable(rknpu_dev->vdd);
 +#endif
-@@ -1382 +1406,2 @@
+@@ -1382,1 +1467,2 @@
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
 +		pm_runtime_enable(dev);
-@@ -1417 +1442,2 @@
+@@ -1417,1 +1503,2 @@
 -		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
 +		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
 +			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
-@@ -1428 +1454 @@
+@@ -1428,1 +1515,1 @@
 -		goto err_power_off;
 +		goto err_power_off_no_pm_put;
-@@ -1487 +1512,0 @@
+@@ -1487,1 +1574,0 @@
 -err_power_off:
-@@ -1492 +1516,0 @@
+@@ -1492,1 +1578,0 @@
 -	rknpu_power_off(rknpu_dev);
-@@ -1493,0 +1518,2 @@
+@@ -1493,0 +1578,2 @@
 +err_power_off_no_pm_put:
 +	rknpu_power_off(rknpu_dev);
-@@ -1501,0 +1528,13 @@
+@@ -1501,0 +1588,13 @@
 +	if (pm_runtime_enabled(dev))
 +		pm_runtime_disable(dev);
 +	if (rknpu_dev->multiple_domains) {
@@ -79,19 +153,19 @@ the runtime-PM reference on all power-off and failure paths.
 +		if (rknpu_dev->genpd_dev_npu2)
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
 +	}
-@@ -1551 +1590 @@
+@@ -1551,1 +1651,1 @@
 -	if (atomic_read(&rknpu_dev->power_refcount) > 0)
 +	if (atomic_read(&rknpu_dev->power_refcount) > 0) {
-@@ -1552,0 +1592,2 @@
+@@ -1552,0 +1652,2 @@
 +		pm_runtime_put_sync_suspend(&pdev->dev);
 +	}
-@@ -1556 +1597,2 @@
+@@ -1556,1 +1658,2 @@
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
 +			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
-@@ -1557,0 +1600 @@
+@@ -1557,0 +1660,1 @@
 +		}
-@@ -1575 +1618,4 @@
+@@ -1575,1 +1679,4 @@
 -	rknpu_power_get(rknpu_dev);
 +	int ret = rknpu_power_get(rknpu_dev);
 +
