@@ -63,7 +63,7 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +			atomic_dec(&rknpu_dev->power_refcount);
 +		}
 +	}
-@@ -387,4 +431,33 @@
+@@ -387,4 +431,32 @@
 -	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
 -		ret = rknpu_power_off(rknpu_dev);
 -		if (ret)
@@ -100,46 +100,45 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +					atomic_inc(&rknpu_dev->power_refcount);
 +			}
 +		}
-+	}
-@@ -627,1 +700,3 @@
+@@ -627,1 +699,3 @@
 -	rknpu_power_get(rknpu_dev);
 +	ret = rknpu_power_get(rknpu_dev);
 +	if (ret)
 +		return ret;
-@@ -689,1 +764,3 @@
+@@ -689,1 +763,3 @@
 -		rknpu_power_get(rknpu_dev);                                 \
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -955,0 +1032,2 @@
+@@ -955,0 +1031,2 @@
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
-@@ -964,0 +1043,6 @@
+@@ -964,0 +1042,6 @@
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
 +		if (rknpu_dev->vdd)
 +			regulator_disable(rknpu_dev->vdd);
 +#endif
-@@ -1382,1 +1467,2 @@
+@@ -1382,1 +1466,2 @@
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
 +		pm_runtime_enable(dev);
-@@ -1417,1 +1503,2 @@
+@@ -1417,1 +1502,2 @@
 -		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
 +		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
 +			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
-@@ -1428,1 +1515,1 @@
+@@ -1428,1 +1514,1 @@
 -		goto err_power_off;
 +		goto err_power_off_no_pm_put;
-@@ -1487,1 +1574,0 @@
+@@ -1487,1 +1573,0 @@
 -err_power_off:
-@@ -1492,1 +1578,0 @@
+@@ -1492,1 +1577,0 @@
 -	rknpu_power_off(rknpu_dev);
-@@ -1493,0 +1578,2 @@
+@@ -1493,0 +1577,2 @@
 +err_power_off_no_pm_put:
 +	rknpu_power_off(rknpu_dev);
-@@ -1501,0 +1588,13 @@
+@@ -1501,0 +1587,13 @@
 +	if (pm_runtime_enabled(dev))
 +		pm_runtime_disable(dev);
 +	if (rknpu_dev->multiple_domains) {
@@ -153,19 +152,19 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +		if (rknpu_dev->genpd_dev_npu2)
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
 +	}
-@@ -1551,1 +1651,1 @@
+@@ -1551,1 +1650,1 @@
 -	if (atomic_read(&rknpu_dev->power_refcount) > 0)
 +	if (atomic_read(&rknpu_dev->power_refcount) > 0) {
-@@ -1552,0 +1652,2 @@
+@@ -1552,0 +1651,2 @@
 +		pm_runtime_put_sync_suspend(&pdev->dev);
 +	}
-@@ -1556,1 +1658,2 @@
+@@ -1556,1 +1657,2 @@
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
 +			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
-@@ -1557,0 +1660,1 @@
+@@ -1557,0 +1659,1 @@
 +		}
-@@ -1575,1 +1679,4 @@
+@@ -1575,1 +1678,4 @@
 -	rknpu_power_get(rknpu_dev);
 +	int ret = rknpu_power_get(rknpu_dev);
 +
