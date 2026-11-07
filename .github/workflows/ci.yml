@@ -16,6 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Check kernel patch integrity
         run: python3 scripts/check-kernel-patches.py
@@ -27,6 +29,16 @@ jobs:
           sudo mkdir -p /etc/nix
           echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
           sudo pkill -HUP nix-daemon || true
+
+      - name: Compile objects affected by changed kernel patches
+        run: |
+          nix develop --impure --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              pkgs = flake.inputs.nixpkgs.legacyPackages.aarch64-linux;
+            in pkgs.mkShell {
+              packages = with pkgs; [ gcc gnumake bison flex bc perl patch ripgrep ];
+            }' --command scripts/check-kernel-patch-build.sh
 
       - uses: cachix/cachix-action@v17
         with:

@@ -286,7 +286,7 @@ def main(argv: list[str]) -> int:
 
     print(
         "kernel patch check: %d patches in %s are consistent "
-        "(hunks, diffstat, package.nix)" % (len(patches), patch_dir)
+        "(hunks, diffstat, C delimiters, package.nix)" % (len(patches), patch_dir)
     )
     return 0
 
