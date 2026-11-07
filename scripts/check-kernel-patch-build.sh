@@ -6,7 +6,7 @@ patch_dir="$repo/pkgs/linux-fydetab"
 patch_rel=${patch_dir#"$repo"/}
 source_tree=${1:-}
 patch_dir=${2:-$patch_dir}
-base_ref=${3:-${KERNEL_PATCH_BASE:-HEAD^}}
+base_ref=${3:-${KERNEL_PATCH_BASE:-origin/main}}
 jobs=${JOBS:-$(nproc)}
 
 if git -C "$repo" rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1; then
