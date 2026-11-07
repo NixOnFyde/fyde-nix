@@ -30,6 +30,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | --------------------------- | --------- | ---------- | ------- | ---------------------------------------------------------------------------- |
 | Boot from eMMC              | `working` | `working`  | done    | community imagebuild bootchain                                               |
 | Deep suspend/resume (`mem`) | `working` | `working`  | done    | lid-close, touch and wifi work after                                         |
+| Hibernation (S4)            | `none`    | `untested` | planned | opt-in `hardware.fydetabduo.hibernation`                                     |
 | GPU (Panthor + Mesa)        | `working` | `working`  | done    | EGL + Vulkan verified                                                        |
 | WiFi 6 (AP6275P)            | `working` | `working`  | done    | NM; permanent MAC pin for NM                                                 |
 | Bluetooth (BCM4362A2)       | `working` | `working`  | done    | phone connected, media metadata sent                                         |
