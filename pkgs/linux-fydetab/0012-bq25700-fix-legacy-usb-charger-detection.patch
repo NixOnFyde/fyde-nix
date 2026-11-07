@@ -1,11 +1,11 @@
 From: fyde-nix
-Subject: [PATCH] power: supply: bq25700: handle unclassified legacy input
+Subject: [PATCH] power: supply: bq25700: handle unclassified USB-C input
 
 Use the USB2 PHY extcon for BC1.2 charger-type events and conservative
-limits for SDP, CDP, and DCP sources. If the PHY reports no charger type,
-use a safe SDP fallback when the charger detects input. Refresh the cached
-charger state on input detection, and mark negotiated PD input to prevent
-the fallback from overriding its current limit.
+limits for SDP, CDP, and DCP sources. Some Type-C controllers report zero
+current for default-Rp sources, so use a 500 mA fallback for an attached
+5 V input when no BC1.2 type or PD current is available. Refresh the cached
+charger state when applying the fallback.
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
 --- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
@@ -34,9 +34,31 @@ diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/b
 diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq25700_charger.c
 --- a/drivers/power/supply/bq25700_charger.c
 +++ b/drivers/power/supply/bq25700_charger.c
-@@ -1467,0 +1468,1 @@
+@@ -1467,1 +1467,22 @@
+-	if (prop.intval > 0) {
++	if (prop.intval <= 0) {
++		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
++						&prop);
++		if (ret != 0 || prop.intval < 4500000)
++			return NOTIFY_OK;
++		if (bq->typec0_status != USB_STATUS_PD &&
++		    bq->typec1_status != USB_STATUS_PD &&
++		    bq->cable_edev &&
++		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_SDP) <= 0 &&
++		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_DCP) <= 0 &&
++		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_CDP) <= 0) {
++			bq25700_enable_charger(bq, bq->init_data.input_current_sdp);
++			bq25700_get_chip_state(bq, &state);
++			bq->state = state;
++			power_supply_changed(bq->supply_charger);
++			if (bq25700_field_read(bq, AC_STAT))
++				bq25700_notify_battery(bq);
++		}
++		return NOTIFY_OK;
++	}
++	if (prop.intval > 0) {
 +		bq->typec0_status = USB_STATUS_PD;
-@@ -1511,0 +1513,13 @@
+@@ -1511,0 +1532,17 @@
 +		/*
 +		 * Some legacy USB sources do not produce a BC1.2 extcon event.
 +		 * Keep their fallback conservative, but do not leave the charger
@@ -47,6 +69,10 @@ diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq257
 +		    charger->cable_edev &&
 +		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_SDP) <= 0 &&
 +		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_DCP) <= 0 &&
-+		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_CDP) <= 0)
++		    extcon_get_state(charger->cable_edev, EXTCON_CHG_USB_CDP) <= 0) {
 +			bq25700_enable_charger(charger,
 +					       charger->init_data.input_current_sdp);
++			bq25700_get_chip_state(charger, &state);
++			charger->state = state;
++			power_supply_changed(charger->supply_charger);
++		}
