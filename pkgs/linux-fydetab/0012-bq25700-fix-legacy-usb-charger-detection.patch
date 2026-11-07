@@ -1,0 +1,32 @@
+From: fyde-nix
+Subject: [PATCH] arm64: dts: rockchip: Fix legacy USB charger detection
+
+The SC8886 driver uses its extcon phandle for BC1.2 charger-type events.
+Point it at the USB2 PHY extcon provider rather than the HUSB311 TCPM
+controller. Use conservative input limits for legacy SDP, CDP, and DCP
+sources; negotiated Type-C/PD current continues to come from TCPM.
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+--- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+@@ -1164,16 +1164,16 @@
+     otg-mode-en-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+     pinctrl-names = "default";
+     pinctrl-0 = <&charger_ok>;
+-    extcon = <&usbc0>;
++    extcon = <&u2phy0>;
+     ti,battery = <&battery>;
+     ti,charge-current = <2500000>;
+     ti,max-input-voltage = <20000000>;
+     ti,max-input-current = <5000000>;
+     ti,max-charge-voltage = <13200000>;
+     ti,input-current = <3000000>;
+-    ti,input-current-sdp = <3000000>;
+-    ti,input-current-dcp = <3000000>;
+-    ti,input-current-cdp = <3000000>;
++    ti,input-current-sdp = <500000>;
++    ti,input-current-dcp = <1500000>;
++    ti,input-current-cdp = <1500000>;
+     ti,minimum-sys-voltage = <9216000>;
+     ti,otg-voltage = <5000000>;
+     ti,otg-current = <3000000>;

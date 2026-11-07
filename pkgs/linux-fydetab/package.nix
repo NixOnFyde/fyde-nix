@@ -53,6 +53,10 @@ let
       name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
       patch = ./0011-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
+    {
+      name = "bq25700-fix-legacy-usb-charger-detection";
+      patch = ./0012-bq25700-fix-legacy-usb-charger-detection.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
