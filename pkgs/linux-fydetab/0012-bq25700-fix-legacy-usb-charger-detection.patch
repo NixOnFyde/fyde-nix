@@ -34,25 +34,46 @@ diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/b
 diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq25700_charger.c
 --- a/drivers/power/supply/bq25700_charger.c
 +++ b/drivers/power/supply/bq25700_charger.c
-@@ -1467,1 +1467,31 @@
+@@ -124,0 +125,5 @@
++
++struct bq25700_device;
++static void bq25700_charger_evt_handel(struct bq25700_device *charger,
++				       struct extcon_dev *edev,
++				       enum tpyec_port_t port);
+@@ -1467,1 +1472,46 @@
 -	if (prop.intval > 0) {
 +	if (prop.intval <= 0) {
++		union power_supply_propval usb_type;
 +		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
 +						&prop);
 +		if (ret != 0 || prop.intval < 4500000)
 +			return NOTIFY_OK;
++		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_USB_TYPE,
++						&usb_type);
++		if (!ret &&
++		    (usb_type.intval == POWER_SUPPLY_USB_TYPE_PD ||
++		     usb_type.intval == POWER_SUPPLY_USB_TYPE_PD_PPS)) {
++			bq->typec0_status = USB_STATUS_PD;
++			return NOTIFY_OK;
++		}
 +		bq->typec0_status = USB_STATUS_NONE;
 +		if (bq->typec1_status != USB_STATUS_PD &&
-+		    bq->cable_edev &&
-+		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_SDP) <= 0 &&
-+		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_DCP) <= 0 &&
-+		    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_CDP) <= 0) {
-+			bq25700_enable_charger(bq, bq->init_data.input_current_sdp);
-+			bq25700_get_chip_state(bq, &state);
-+			bq->state = state;
-+			power_supply_changed(bq->supply_charger);
-+			if (bq25700_field_read(bq, AC_STAT))
-+				bq25700_notify_battery(bq);
++		    bq->cable_edev) {
++			if (extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_SDP) > 0 ||
++			    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_DCP) > 0 ||
++			    extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_CDP) > 0) {
++				/* Reconcile BC1.2 state after a Type-C detach. */
++				bq25700_charger_evt_handel(bq, bq->cable_edev,
++							   USB_TYPEC_0);
++			} else {
++				bq25700_enable_charger(bq,
++						       bq->init_data.input_current_sdp);
++				bq25700_get_chip_state(bq, &state);
++				bq->state = state;
++				power_supply_changed(bq->supply_charger);
++				if (bq25700_field_read(bq, AC_STAT))
++					bq25700_notify_battery(bq);
++			}
 +		}
 +		return NOTIFY_OK;
 +	}
