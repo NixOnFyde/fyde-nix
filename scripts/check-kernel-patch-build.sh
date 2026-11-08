@@ -91,4 +91,22 @@ for dir in "${!changed_dirs[@]}"; do
   make -C "$work/src" O="$build" ARCH=arm64 -j"$jobs" "$dir/"
 done
 
+# brcmfmac's logging wrappers have different signatures with and without
+# BRCMDBG. Check both configurations when a patch changes this driver so the
+# fast compile catches call sites that only fail in one of the two branches.
+brcmfmac_dir=drivers/net/wireless/broadcom/brcm80211/brcmfmac
+if [[ -n "${changed_dirs[$brcmfmac_dir]+present}" ]]; then
+  if grep -q '^CONFIG_BRCMDBG=y$' "$build/.config"; then
+    brcmdbg_option=--disable
+    brcmdbg_mode=disabled
+  else
+    brcmdbg_option=--enable
+    brcmdbg_mode=enabled
+  fi
+  echo "Compiling changed kernel directory with BRCMDBG $brcmdbg_mode: $brcmfmac_dir"
+  "$work/src/scripts/config" --file "$build/.config" "$brcmdbg_option" BRCMDBG
+  make -C "$work/src" O="$build" ARCH=arm64 olddefconfig
+  make -C "$work/src" O="$build" ARCH=arm64 -j"$jobs" "$brcmfmac_dir/"
+fi
+
 echo "Changed kernel patch object build passed."
