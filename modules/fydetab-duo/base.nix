@@ -97,6 +97,13 @@ in
     # actual per-country power/channel limits instead of only the world domain.
     hardware.wirelessRegulatoryDatabase = lib.mkDefault true;
 
+    # As cfg80211 is built in and can read the regulatory database before
+    # the root fs is mounted, we include it in the initrd as well.
+    boot.initrd.extraFirmwarePaths = lib.optionals config.hardware.wirelessRegulatoryDatabase [
+      "regulatory.db"
+      "regulatory.db.p7s"
+    ];
+
     hardware.firmware = [
       pkgs.ap6275p-firmware
       pkgs.linux-firmware
