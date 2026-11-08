@@ -32,6 +32,7 @@ if [[ -z "$source_tree" ]]; then
 fi
 
 declare -A changed_dirs=()
+declare -A changed_dtbs=()
 for changed_patch in "${changed_patches[@]}"; do
   patch_file="$patch_dir/${changed_patch##*/}"
   [[ -f "$patch_file" ]] || continue
@@ -44,11 +45,26 @@ for changed_patch in "${changed_patches[@]}"; do
       while IFS= read -r consumer; do
         changed_dirs["$(dirname "${consumer#"$source_tree"/}")"]=1
       done < <(rg -l --glob '*.c' --fixed-strings "$header" "$source_tree" 2>/dev/null || true)
+    elif [[ "$path" == *.dts ]]; then
+      dtb=${path%.dts}.dtb
+      changed_dtbs["${dtb#*dts/}"]=1
+    elif [[ "$path" == *.dtsi ]]; then
+      # A shared include can affect several boards; compile every direct .dts
+      # consumer so a broken include or binding change is caught quickly.
+      header=${path##*/}
+      while IFS= read -r consumer; do
+        consumer=${consumer#"$source_tree"/}
+        dtb=${consumer%.dts}.dtb
+        changed_dtbs["${dtb#*dts/}"]=1
+      done < <(
+        rg -l --glob '*.dts' --fixed-strings "$header" \
+          "$source_tree/arch/arm64/boot/dts" 2>/dev/null || true
+      )
     fi
   done < <(
     awk '
-      /^--- a\/.*\.(c|h)$/ { old = substr($0, 7) }
-      /^\+\+\+ b\/.*\.(c|h)$/ { print substr($0, 7); old = "" }
+      /^--- a\/.*\.(c|h|dts|dtsi)$/ { old = substr($0, 7) }
+      /^\+\+\+ b\/.*\.(c|h|dts|dtsi)$/ { print substr($0, 7); old = "" }
       /^\+\+\+ \/dev\/null$/ && old != "" { print old; old = "" }
     ' "$patch_file"
   )
@@ -89,6 +105,11 @@ fi
 for dir in "${!changed_dirs[@]}"; do
   echo "Compiling changed kernel directory: $dir"
   make -C "$work/src" O="$build" ARCH=arm64 -j"$jobs" "$dir/"
+done
+
+for dtb in "${!changed_dtbs[@]}"; do
+  echo "Compiling changed device tree: $dtb"
+  make -C "$work/src" O="$build" ARCH=arm64 -j"$jobs" "$dtb"
 done
 
 # brcmfmac's logging wrappers have different signatures with and without
