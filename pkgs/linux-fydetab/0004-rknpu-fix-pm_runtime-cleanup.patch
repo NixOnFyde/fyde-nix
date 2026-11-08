@@ -1,40 +1,90 @@
 diff --git a/drivers/rknpu/rknpu_drv.c b/drivers/rknpu/rknpu_drv.c
-Subject: [PATCH] rknpu: resume IOMMU with active NPU references
+Subject: [PATCH] rknpu: power all NPU IOMMU domains
 
-Power the NPU before resuming its runtime-PM supplier, the Rockchip IOMMU,
-because the IOMMU's MMIO is inaccessible while NPU power is off. Suspend the
-IOMMU before powering the NPU down, and balance PM references on failure.
+Keep every RK3588 NPU power domain active while runtime PM resumes the IOMMU, whose resume path reads all MMU register banks. Suspend the NPU device first, then release child domains before their parent.
 
 --- a/drivers/rknpu/rknpu_drv.c
 +++ b/drivers/rknpu/rknpu_drv.c
-@@ -360,3 +360,31 @@
+@@ -349,6 +349,61 @@ static int rknpu_get_drv_version(uint32_t *version)
+ static int rknpu_power_on(struct rknpu_device *rknpu_dev);
+ static int rknpu_power_off(struct rknpu_device *rknpu_dev);
+ 
++static int rknpu_genpd_get(struct rknpu_device *rknpu_dev)
++{
++	/* The IOMMU resume path reads all banks, including NPU1 and NPU2. */
++	struct device *domains[] = {
++		rknpu_dev->genpd_dev_npu0,
++		rknpu_dev->genpd_dev_npu1,
++		rknpu_dev->genpd_dev_npu2,
++	};
++	int i, ret;
++
++	for (i = 0; i < ARRAY_SIZE(domains); i++) {
++		if (!domains[i])
++			continue;
++
++		ret = pm_runtime_resume_and_get(domains[i]);
++		if (ret < 0) {
++			while (--i >= 0) {
++				if (domains[i])
++					pm_runtime_put_sync_suspend(domains[i]);
++			}
++			return ret;
++		}
++	}
++
++	return 0;
++}
++
++static int rknpu_genpd_put(struct rknpu_device *rknpu_dev)
++{
++	struct device *domains[] = {
++		rknpu_dev->genpd_dev_npu0,
++		rknpu_dev->genpd_dev_npu1,
++		rknpu_dev->genpd_dev_npu2,
++	};
++	int i, j, ret;
++
++	for (i = ARRAY_SIZE(domains) - 1; i >= 0; i--) {
++		if (!domains[i])
++			continue;
++
++		ret = pm_runtime_put_sync_suspend(domains[i]);
++		if (ret < 0) {
++			pm_runtime_get_noresume(domains[i]);
++			/* Restore already released child domains before returning. */
++			for (j = i + 1; j < ARRAY_SIZE(domains); j++) {
++				if (domains[j])
++					pm_runtime_resume_and_get(domains[j]);
++			}
++			return ret;
++		}
++	}
++
++	return 0;
++}
++
+ static void rknpu_power_off_delay_work(struct work_struct *power_off_work)
+ {
+ 	int ret = 0;
+@@ -357,9 +412,25 @@ static void rknpu_power_off_delay_work(struct work_struct *power_off_work)
+ 			     struct rknpu_device, power_off_work);
+ 	mutex_lock(&rknpu_dev->power_lock);
+ 	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
 -		ret = rknpu_power_off(rknpu_dev);
 -		if (ret)
--			atomic_inc(&rknpu_dev->power_refcount);
 +		ret = pm_runtime_put_sync_suspend(rknpu_dev->dev);
 +		if (ret < 0) {
 +			pm_runtime_get_noresume(rknpu_dev->dev);
-+			atomic_inc(&rknpu_dev->power_refcount);
+ 			atomic_inc(&rknpu_dev->power_refcount);
 +		} else {
-+			if (rknpu_dev->multiple_domains &&
-+			    rknpu_dev->genpd_dev_npu0) {
-+				ret = pm_runtime_put_sync_suspend(
-+					rknpu_dev->genpd_dev_npu0);
-+				if (ret < 0) {
-+					pm_runtime_get_noresume(
-+						rknpu_dev->genpd_dev_npu0);
-+					if (pm_runtime_resume_and_get(
-+						rknpu_dev->dev) >= 0) {
-+						atomic_inc(&rknpu_dev->power_refcount);
-+					} else {
-+						pm_runtime_put_noidle(
-+							rknpu_dev->genpd_dev_npu0);
-+						rknpu_power_off(rknpu_dev);
-+					}
-+				} else {
-+					ret = rknpu_power_off(rknpu_dev);
-+					if (ret)
-+						atomic_inc(&rknpu_dev->power_refcount);
++			ret = rknpu_genpd_put(rknpu_dev);
++			if (ret < 0) {
++				if (pm_runtime_resume_and_get(rknpu_dev->dev) >= 0)
++					atomic_inc(&rknpu_dev->power_refcount);
++				else {
++					rknpu_genpd_put(rknpu_dev);
++					rknpu_power_off(rknpu_dev);
 +				}
 +			} else {
 +				ret = rknpu_power_off(rknpu_dev);
@@ -42,57 +92,49 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +					atomic_inc(&rknpu_dev->power_refcount);
 +			}
 +		}
-@@ -375,2 +403,18 @@
+ 	}
+ 	mutex_unlock(&rknpu_dev->power_lock);
+ 
+@@ -372,8 +443,20 @@ int rknpu_power_get(struct rknpu_device *rknpu_dev)
+ 	int ret = 0;
+ 
+ 	mutex_lock(&rknpu_dev->power_lock);
 -	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1)
--		ret = rknpu_power_on(rknpu_dev);
 +	if (atomic_inc_return(&rknpu_dev->power_refcount) == 1) {
-+		ret = rknpu_power_on(rknpu_dev);
-+		if (!ret && rknpu_dev->multiple_domains &&
-+		    rknpu_dev->genpd_dev_npu0)
-+			ret = pm_runtime_resume_and_get(
-+				rknpu_dev->genpd_dev_npu0);
+ 		ret = rknpu_power_on(rknpu_dev);
++		if (!ret)
++			ret = rknpu_genpd_get(rknpu_dev);
 +		if (!ret) {
 +			ret = pm_runtime_resume_and_get(rknpu_dev->dev);
-+			if (ret && rknpu_dev->multiple_domains &&
-+			    rknpu_dev->genpd_dev_npu0)
-+				pm_runtime_put_sync_suspend(
-+					rknpu_dev->genpd_dev_npu0);
++			if (ret)
++				rknpu_genpd_put(rknpu_dev);
 +		}
 +		if (ret) {
 +			rknpu_power_off(rknpu_dev);
 +			atomic_dec(&rknpu_dev->power_refcount);
 +		}
 +	}
-@@ -387,4 +431,32 @@
--	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
+ 	mutex_unlock(&rknpu_dev->power_lock);
+ 
+ 	return ret;
+@@ -385,9 +468,25 @@ int rknpu_power_put(struct rknpu_device *rknpu_dev)
+ 
+ 	mutex_lock(&rknpu_dev->power_lock);
+ 	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
 -		ret = rknpu_power_off(rknpu_dev);
 -		if (ret)
--			atomic_inc(&rknpu_dev->power_refcount);
-+	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
 +		ret = pm_runtime_put_sync_suspend(rknpu_dev->dev);
 +		if (ret < 0) {
 +			pm_runtime_get_noresume(rknpu_dev->dev);
-+			atomic_inc(&rknpu_dev->power_refcount);
+ 			atomic_inc(&rknpu_dev->power_refcount);
 +		} else {
-+			if (rknpu_dev->multiple_domains &&
-+			    rknpu_dev->genpd_dev_npu0) {
-+				ret = pm_runtime_put_sync_suspend(
-+					rknpu_dev->genpd_dev_npu0);
-+				if (ret < 0) {
-+					pm_runtime_get_noresume(
-+						rknpu_dev->genpd_dev_npu0);
-+					if (pm_runtime_resume_and_get(
-+						rknpu_dev->dev) >= 0) {
-+						atomic_inc(&rknpu_dev->power_refcount);
-+					} else {
-+						pm_runtime_put_noidle(
-+							rknpu_dev->genpd_dev_npu0);
-+						rknpu_power_off(rknpu_dev);
-+					}
-+				} else {
-+					ret = rknpu_power_off(rknpu_dev);
-+					if (ret)
-+						atomic_inc(&rknpu_dev->power_refcount);
++			ret = rknpu_genpd_put(rknpu_dev);
++			if (ret < 0) {
++				if (pm_runtime_resume_and_get(rknpu_dev->dev) >= 0)
++					atomic_inc(&rknpu_dev->power_refcount);
++				else {
++					rknpu_genpd_put(rknpu_dev);
++					rknpu_power_off(rknpu_dev);
 +				}
 +			} else {
 +				ret = rknpu_power_off(rknpu_dev);
@@ -100,45 +142,115 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +					atomic_inc(&rknpu_dev->power_refcount);
 +			}
 +		}
-@@ -627,1 +699,3 @@
+ 	}
+ 	mutex_unlock(&rknpu_dev->power_lock);
+ 
+@@ -624,7 +723,9 @@ static long rknpu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 
+ 	rknpu_dev = ((struct rknpu_session *)file->private_data)->rknpu_dev;
+ 
 -	rknpu_power_get(rknpu_dev);
 +	ret = rknpu_power_get(rknpu_dev);
 +	if (ret)
 +		return ret;
-@@ -689,1 +763,3 @@
+ 
+ 	switch (_IOC_NR(cmd)) {
+ 	case RKNPU_ACTION:
+@@ -686,7 +787,9 @@ static int rknpu_action_ioctl(struct drm_device *dev, void *data,
+ 	{                                                                   \
+ 		struct rknpu_device *rknpu_dev = dev_get_drvdata(dev->dev); \
+ 		int ret = -EINVAL;                                          \
 -		rknpu_power_get(rknpu_dev);                                 \
 +		ret = rknpu_power_get(rknpu_dev);                           \
 +		if (ret)                                                    \
 +			return ret;                                           \
-@@ -955,0 +1031,2 @@
+ 		ret = func(dev, data, file_priv);                           \
+ 		rknpu_power_put_delay(rknpu_dev);                           \
+ 		return ret;                                                 \
+@@ -953,6 +1056,8 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
+ 				dev,
+ 				"failed to enable mem reg for rknpu, ret: %d\n",
+ 				ret);
 +			if (rknpu_dev->vdd)
 +				regulator_disable(rknpu_dev->vdd);
-@@ -964,0 +1042,6 @@
+ 			return ret;
+ 		}
+ 	}
+@@ -962,6 +1067,12 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
+ 	if (ret) {
+ 		LOG_DEV_ERROR(dev, "failed to enable clk for rknpu, ret: %d\n",
+ 			      ret);
 +#ifndef FPGA_PLATFORM
 +		if (rknpu_dev->mem)
 +			regulator_disable(rknpu_dev->mem);
 +		if (rknpu_dev->vdd)
 +			regulator_disable(rknpu_dev->vdd);
 +#endif
-@@ -1382,1 +1466,2 @@
+ 		return ret;
+ 	}
+ 
+@@ -1374,7 +1485,8 @@ static int rknpu_probe(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, rknpu_dev);
+ 
 -	pm_runtime_enable(dev);
 +	if (!pm_runtime_enabled(dev))
 +		pm_runtime_enable(dev);
-@@ -1417,1 +1502,2 @@
+ 
+ 	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+ 				       "#power-domain-cells") > 1) {
+@@ -1390,6 +1502,12 @@ static int rknpu_probe(struct platform_device *pdev)
+ 				rknpu_dev->genpd_dev_npu2 = virt_dev;
+ 		}
+ 		rknpu_dev->multiple_domains = true;
++		if (rknpu_dev->genpd_dev_npu1 &&
++		    !pm_runtime_enabled(rknpu_dev->genpd_dev_npu1))
++			pm_runtime_enable(rknpu_dev->genpd_dev_npu1);
++		if (rknpu_dev->genpd_dev_npu2 &&
++		    !pm_runtime_enabled(rknpu_dev->genpd_dev_npu2))
++			pm_runtime_enable(rknpu_dev->genpd_dev_npu2);
+ 	}
+ 
+ 	ret = rknpu_power_on(rknpu_dev);
+@@ -1409,7 +1527,8 @@ static int rknpu_probe(struct platform_device *pdev)
+ 	 * pm_domain is correctly wired to PD_NPUTOP.
+ 	 */
+ 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0) {
 -		pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
 +		if (!pm_runtime_enabled(rknpu_dev->genpd_dev_npu0))
 +			pm_runtime_enable(rknpu_dev->genpd_dev_npu0);
-@@ -1428,1 +1514,1 @@
+ 		ret = pm_runtime_get_sync(rknpu_dev->genpd_dev_npu0);
+ 	} else {
+ 		ret = pm_runtime_get_sync(dev);
+@@ -1420,7 +1539,7 @@ static int rknpu_probe(struct platform_device *pdev)
+ 			pm_runtime_put_noidle(rknpu_dev->genpd_dev_npu0);
+ 		else
+ 			pm_runtime_put_noidle(dev);
 -		goto err_power_off;
 +		goto err_power_off_no_pm_put;
-@@ -1487,1 +1573,0 @@
+ 	}
+ 
+ #ifndef FPGA_PLATFORM
+@@ -1479,13 +1598,13 @@ err_devfreq_remove:
+ 	rknpu_devfreq_remove(rknpu_dev);
+ #endif
+ 
 -err_power_off:
-@@ -1492,1 +1577,0 @@
+ 	if (rknpu_dev->multiple_domains && rknpu_dev->genpd_dev_npu0)
+ 		pm_runtime_put_sync_suspend(rknpu_dev->genpd_dev_npu0);
+ 	else
+ 		pm_runtime_put_sync_suspend(dev);
 -	rknpu_power_off(rknpu_dev);
-@@ -1493,0 +1577,2 @@
+ 
 +err_power_off_no_pm_put:
 +	rknpu_power_off(rknpu_dev);
-@@ -1501,0 +1587,13 @@
+ err_remove_drv:
+ #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
+ 	rknpu_drm_remove(rknpu_dev);
+@@ -1494,6 +1613,25 @@ err_remove_drv:
+ 	misc_deregister(&(rknpu_dev->miscdev));
+ #endif
+ 
 +	if (pm_runtime_enabled(dev))
 +		pm_runtime_disable(dev);
 +	if (rknpu_dev->multiple_domains) {
@@ -147,26 +259,60 @@ IOMMU before powering the NPU down, and balance PM references on failure.
 +				pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
 +		}
-+		if (rknpu_dev->genpd_dev_npu1)
++		if (rknpu_dev->genpd_dev_npu1) {
++			if (pm_runtime_enabled(rknpu_dev->genpd_dev_npu1))
++				pm_runtime_disable(rknpu_dev->genpd_dev_npu1);
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
-+		if (rknpu_dev->genpd_dev_npu2)
++		}
++		if (rknpu_dev->genpd_dev_npu2) {
++			if (pm_runtime_enabled(rknpu_dev->genpd_dev_npu2))
++				pm_runtime_disable(rknpu_dev->genpd_dev_npu2);
 +			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
++		}
 +	}
-@@ -1551,1 +1650,1 @@
+ 	return ret;
+ }
+ 
+@@ -1543,17 +1681,26 @@ static void rknpu_remove(struct platform_device *pdev)
+ #endif
+ 
+ 	mutex_lock(&rknpu_dev->power_lock);
 -	if (atomic_read(&rknpu_dev->power_refcount) > 0)
 +	if (atomic_read(&rknpu_dev->power_refcount) > 0) {
-@@ -1552,0 +1651,2 @@
 +		pm_runtime_put_sync_suspend(&pdev->dev);
++		rknpu_genpd_put(rknpu_dev);
+ 		rknpu_power_off(rknpu_dev);
 +	}
-@@ -1556,1 +1657,2 @@
+ 	mutex_unlock(&rknpu_dev->power_lock);
+ 
+ 	if (rknpu_dev->multiple_domains) {
 -		if (rknpu_dev->genpd_dev_npu0)
 +		if (rknpu_dev->genpd_dev_npu0) {
 +			pm_runtime_disable(rknpu_dev->genpd_dev_npu0);
-@@ -1557,0 +1659,1 @@
+ 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
+-		if (rknpu_dev->genpd_dev_npu1)
 +		}
-@@ -1575,1 +1678,4 @@
++		if (rknpu_dev->genpd_dev_npu1) {
++			pm_runtime_disable(rknpu_dev->genpd_dev_npu1);
+ 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
+-		if (rknpu_dev->genpd_dev_npu2)
++		}
++		if (rknpu_dev->genpd_dev_npu2) {
++			pm_runtime_disable(rknpu_dev->genpd_dev_npu2);
+ 			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
++		}
+ 	}
+ 
+ 	pm_runtime_disable(&pdev->dev);
+@@ -1565,7 +1712,10 @@ static int rknpu_suspend(struct device *dev)
+ {
+ 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+ 
 -	rknpu_power_get(rknpu_dev);
 +	int ret = rknpu_power_get(rknpu_dev);
 +
 +	if (ret)
 +		return ret;
+ 
+ 	return pm_runtime_force_suspend(dev);
+ }
