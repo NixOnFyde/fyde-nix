@@ -23,7 +23,7 @@ index 5dee54819..7d668f1c0 100644
 +	 * to cause a clean firmware reload.
 +	 */
 +	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
-+		brcmf_info("BCM43752: skipping D3 mailbox handshake, using config-lvl D3hot\n");
++		brcmf_info(bus, "BCM43752: skipping D3 mailbox handshake, using config-lvl D3hot\n");
 +		devinfo->state = BRCMFMAC_PCIE_STATE_DOWN;
 +		return 0;
 +	}
@@ -49,7 +49,7 @@ index 5dee54819..7d668f1c0 100644
 +	 * core with pci_restore_state() before this callback runs.
 +	 */
 +	if (devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
-+		brcmf_info("BCM43752: D3hot resume, deferring chip re-init to user-level rebind\n");
++		brcmf_info(bus, "BCM43752: D3hot resume, deferring chip re-init to user-level rebind\n");
 +		return 0;
 +	}
 +
