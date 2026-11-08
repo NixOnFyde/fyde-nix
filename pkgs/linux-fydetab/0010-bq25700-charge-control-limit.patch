@@ -45,12 +45,6 @@
 +			return ret;
 +		val->intval = ret * 50000;
  		break;
-@@ -1292,1 +1309,1 @@
--		ret = bq25700_field_read(bq, CHARGE_CURRENT);
-+		ret = bq25700_field_read(bq, INPUT_CURRENT);
-@@ -1293,1 +1310,1 @@
--		val->intval = ret * 64;
-+		val->intval = ret * 50000;
 @@ -1300,6 +1320,84 @@
  	return 0;
  }

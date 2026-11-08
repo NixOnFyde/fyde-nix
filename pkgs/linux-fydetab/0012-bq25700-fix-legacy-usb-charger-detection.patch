@@ -40,7 +40,7 @@ diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq257
 +static void bq25700_charger_evt_handel(struct bq25700_device *charger,
 +				       struct extcon_dev *edev,
 +				       enum tpyec_port_t port);
-@@ -1467,1 +1472,46 @@
+@@ -1467,1 +1472,58 @@
 -	if (prop.intval > 0) {
 +	if (prop.intval <= 0) {
 +		union power_supply_propval usb_type;
@@ -88,6 +88,18 @@ diff --git a/drivers/power/supply/bq25700_charger.c b/drivers/power/supply/bq257
 +			bq->typec0_status = USB_STATUS_PD;
 +		else
 +			bq->typec0_status = USB_STATUS_NONE;
++		/* Prefer a confirmed BC1.2 classification over a Type-C current
++		 * value that may describe an adapter's advertised current. */
++		if (bq->typec0_status != USB_STATUS_PD &&
++		    bq->typec1_status != USB_STATUS_PD &&
++		    bq->cable_edev &&
++		    (extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_SDP) > 0 ||
++		     extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_DCP) > 0 ||
++		     extcon_get_state(bq->cable_edev, EXTCON_CHG_USB_CDP) > 0)) {
++			bq25700_charger_evt_handel(bq, bq->cable_edev,
++						   USB_TYPEC_0);
++			return NOTIFY_OK;
++		}
 @@ -1511,0 +1532,17 @@
 +		/*
 +		 * Some legacy USB sources do not produce a BC1.2 extcon event.
