@@ -34,8 +34,7 @@ in
   config = lib.mkIf (cfg.chargeLimit != null) {
     assertions = [
       {
-        assertion =
-          cfg.chargeLimit > rechargeAt;
+        assertion = cfg.chargeLimit > rechargeAt;
         message = "hardware.fydetabduo.battery.rechargeAt must be less than chargeLimit";
       }
     ];
