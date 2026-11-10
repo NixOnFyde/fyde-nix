@@ -8,6 +8,7 @@
   - [Partition layout](#partition-layout)
   - [NixOS `boot.scr` generation](#nixos-bootscr-generation)
     - [Serial & display console notes](#serial--display-console-notes)
+    - [Plymouth splash](#plymouth-splash)
   - [Updates & maintenance](#updates--maintenance)
 
 <!-- /toc -->
@@ -93,3 +94,17 @@ automatically by
 - `ttyFIQ0` is the hardware FIQ debugger on UART2 (1.5 MBaud).
 - Arguments inside the device tree's `/chosen` node take precedence over
   U-Boot's `bootargs` in the case of duplicate keys.
+- Plymouth (`hardware.fydetabduo.plymouth.enable`) needs
+  `plymouth.ignore-serial-consoles`, because `ttyFIQ0` is always a console.
+  Without it Plymouth stays in text mode and the splash can appear to hang.
+  The panel driver (`CONFIG_DRM_PANEL_FYDETAB`) and the Rockchip DRM stack are
+  built into the kernel, so no extra initrd module is required.
+
+### Plymouth splash
+
+`hardware.fydetabduo.plymouth.enable` defaults to `true`. It selects the
+`nixonfyde` script theme from
+[`../pkgs/fydetabduo-plymouth-theme`](../pkgs/fydetabduo-plymouth-theme):
+the NixOS snowflake and FydeTab wordmark, a smooth ring spinner, a boot
+progress bar, a password dialog, and boot messages rendered in DejaVu Sans
+Mono.

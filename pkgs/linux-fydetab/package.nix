@@ -58,6 +58,14 @@ let
       patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
     {
+      name = "bq25700-fix-legacy-usb-charger-detection";
+      patch = ./0013-bq25700-fix-legacy-usb-charger-detection.patch;
+    }
+    {
+      name = "rockchip-typec-role-extcon";
+      patch = ./0014-rockchip-typec-role-extcon.patch;
+    }
+    {
       name = "arm64-dts-fydetab-duo-enable-emmc-cqe";
       patch = ./0015-arm64-dts-fydetab-duo-enable-emmc-cqe.patch;
     }

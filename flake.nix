@@ -95,6 +95,7 @@
         bluetooth = ./modules/fydetab-duo/bluetooth.nix;
         suspend = ./modules/fydetab-duo/suspend.nix;
         display-fix = ./modules/fydetab-duo/display-fix.nix;
+        plymouth = ./modules/fydetab-duo/plymouth.nix;
         audio = ./modules/fydetab-duo/es8388-audio.nix;
         input = ./modules/fydetab-duo/input.nix;
         sensors = ./modules/fydetab-duo/sensors.nix;

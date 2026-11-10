@@ -9,7 +9,7 @@
 
 <!-- /toc -->
 
-Last updated: 2026-09-10.
+Last updated: 2026-11-10.
 
 The image boots from internal storage. The columns use:
 
@@ -33,6 +33,7 @@ The image boots from internal storage. The columns use:
 | Vendor 6.12.43 kernel builds in nixpkgs sandbox                    | `build`    | defconfig-based, ChromeOS-isms undone, broken vendor drivers disabled                                                                           |
 | Panthor GPU driver (G610)                                          | `working`  | CSF FW loads; EGL reports Mesa/Panthor and Vulkan sees ARM on device                                                                            |
 | Graphical greeter (labwc + ReGreet)                                | `working`  | greeter runs ReGreet under its own labwc with kanshi rotation + calibrated touch/stylus                                                         |
+| Plymouth boot splash                                               | `working`  | custom `nixonfyde` theme: NixOS snowflake + FydeTab wordmark, smooth spinner, progress bar; DejaVu Sans Mono text                                |
 | tty2 autologin shell for debugging                                 | `working`  | Ctrl+Alt+F2 always gives a terminal even when the session dies - use it for journalctl                                                          |
 | Himax touchscreen + stylus                                         | `working`  | touch/stylus works; calibration matrices work                                                                                                   |
 | AP6275P WiFi + firmware                                            | `working`  | NM uses wpa_supplicant backend by default (`hardware.fydetabduo.wifi.backend`); NM pinned to permanent MAC (brcmfmac rejects MAC randomization) |

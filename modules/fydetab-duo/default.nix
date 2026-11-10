@@ -7,6 +7,7 @@
 #   nixosModules.bluetooth         -- AP6275P bluetooth
 #   nixosModules.suspend           -- deep suspend (DRAM self-refresh)
 #   nixosModules.display-fix       -- fb0 cold-boot fix
+#   nixosModules.plymouth          -- Plymouth boot splash
 #   nixosModules.audio             -- ES8388 codec routing
 #   nixosModules.input             -- touchscreen / stylus udev
 #   nixosModules.sensors           -- accelerometer + auto-rotate
@@ -54,6 +55,7 @@
     ./suspend.nix
     ./bluetooth.nix
     ./display-fix.nix
+    ./plymouth.nix
     ./es8388-audio.nix
     ./input.nix
     ./sensors.nix
