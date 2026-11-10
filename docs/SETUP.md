@@ -37,7 +37,9 @@ You should then:
 
 You will then be able to use NixOS on the Fydetab Duo!
 
-- The default username is `user`, password `fydetab`.
+- The default username is `user`, password `fydetab`. This shared initial
+  password is intended for just the first login; SSH is disabled by default.
+  Change the password before enabling `services.openssh` in your configuration.
 - If you are planning to install to eMMC after testing, you must do this before your first rebuild. This is because while we package tools such as `fydetab-install-to-emmc` to clone the running system to eMMC, the shipped configuration in `/etc/nixos` disables them - so unless you re-enable `hardware.fydetabduo.installer-tools.enable`, they will be gone after a rebuild.
 
 When you are satisfied to install to eMMC, do the following:

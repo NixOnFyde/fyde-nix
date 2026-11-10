@@ -143,7 +143,6 @@
   networking.hostName = "fydetabduo";
   networking.networkmanager.enable = true;
   networking.modemmanager.enable = true;
-  networking.firewall.allowedTCPPorts = [ 22 ];
 
   # Locale & timezone
   time.timeZone = "Europe/London";
@@ -168,7 +167,9 @@
   ];
 
   # Services
-  services.openssh.enable = true;
+  # SSH is opt-in. Change the shared initial password below before enabling it.
+  # services.openssh.enable = true;
+  # services.openssh.openFirewall = true;
 
   # HM
   home-manager = {
