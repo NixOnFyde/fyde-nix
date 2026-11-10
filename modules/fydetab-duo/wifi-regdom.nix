@@ -69,9 +69,9 @@ in
 
   config = lib.mkMerge [
     # WiFi management backend. Applies whenever this module is imported,
-    # independently of the (opt-in) regulatory-domain service below. iwd is
-    # the default because it handles modern WPA3/SAE/OWE connections more
-    # reliably than wpa_supplicant.
+    # independently of the (opt-in) regulatory-domain service below.
+    # wpa_supplicant is the default; iwd can be selected explicitly with
+    # hardware.fydetabduo.wifi.backend = "iwd".
     {
       networking.wireless.iwd.enable = usingIwd;
       networking.networkmanager = {
