@@ -61,6 +61,10 @@ let
       name = "rockchip-typec-role-extcon";
       patch = ./0014-rockchip-typec-role-extcon.patch;
     }
+    {
+      name = "arm64-dts-fydetab-duo-enable-emmc-cqe";
+      patch = ./0015-arm64-dts-fydetab-duo-enable-emmc-cqe.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
