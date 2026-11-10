@@ -89,6 +89,16 @@ in
 
     hardware.enableRedistributableFirmware = lib.mkDefault true;
 
+    # Make the regulatory database available for country-specific Wi-Fi rules.
+    hardware.wirelessRegulatoryDatabase = lib.mkDefault true;
+
+    # cfg80211 is built into this kernel and may request the database before
+    # the root filesystem is mounted, so include it in the initrd as well.
+    boot.initrd.extraFirmwarePaths = lib.optionals config.hardware.wirelessRegulatoryDatabase [
+      "regulatory.db"
+      "regulatory.db.p7s"
+    ];
+
     hardware.firmware = [
       pkgs.ap6275p-firmware
       pkgs.linux-firmware
