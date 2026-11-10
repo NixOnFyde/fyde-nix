@@ -28,6 +28,7 @@ final: _prev: {
   fydetab-snapshot = final.callPackage ../pkgs/fydetab-snapshot/package.nix { };
   fydetab-update = final.callPackage ../pkgs/fydetab-update/package.nix { };
   fydetab-wallpaper = final.callPackage ../pkgs/fydetab-wallpaper/package.nix { };
+  fydetabduo-plymouth-theme = final.callPackage ../pkgs/fydetabduo-plymouth-theme/default.nix { };
   fydetab-update-bootchain = final.callPackage ../pkgs/fydetab-update-bootchain/package.nix {
     idblock = final.fydetab-blob-idblock;
     uboot = final.fydetab-blob-uboot;

@@ -1,0 +1,21 @@
+NixOS snowflake
+  Source: NixOS icons package from Nixpkgs
+  Copyright: NixOS contributors
+  License: Creative Commons Attribution 4.0 International
+  https://creativecommons.org/licenses/by/4.0/
+  Rendered from the scalable SVG at 80x80 for this theme.
+
+FydeTab Duo wordmark
+  Source: 2560x1440 recovery-screen reference depicting fydetab_batt1.bmp
+  from the openFyde Fydetab Duo overlay
+  Copyright: openFyde contributors
+  License: BSD 3-Clause
+  https://github.com/openFyde/overlay-fydetab_duo-openfyde/blob/main/sys-boot/rk-uboot-resource/files/fydetab_batt1.bmp
+  Cropped from the supplied reference at its displayed resolution.
+  Downsampled to 554px wide during the Nix package build for 2x theme assets.
+
+Spinner animation
+  Adapted from SVG Spinners by Utkarsh Verma
+  https://github.com/n3r4zzurr0/svg-spinners
+  MIT License: https://github.com/n3r4zzurr0/svg-spinners/blob/main/LICENSE
+  The arc is rendered as fixed-opacity frames and rotated for Plymouth.

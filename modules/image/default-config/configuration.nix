@@ -23,6 +23,7 @@
 #   bluetooth             AP6275P bluetooth over ttyS9
 #   suspend               deep suspend (DRAM self-refresh)
 #   display-fix           fb0 cold-boot fix
+#   plymouth              Plymouth boot splash
 #   audio                 ES8388 codec routing
 #   input                 touchscreen / stylus udev rules + calibration
 #   sensors               lis2dw12 accelerometer + auto-rotate
@@ -48,6 +49,7 @@
 #     inputs.fyde-nix.nixosModules.base
 #     inputs.fyde-nix.nixosModules.bluetooth
 #     inputs.fyde-nix.nixosModules.suspend
+#     inputs.fyde-nix.nixosModules.plymouth
 #     inputs.fyde-nix.nixosModules.audio
 #     inputs.fyde-nix.nixosModules.input
 #     inputs.fyde-nix.nixosModules.npu
@@ -93,6 +95,9 @@
       # ability of tablet mode to toggle on keyboard state change, on or off.
       # Can also be toggle in the wayle bar
       tabletMode.enable = true;
+
+      # Show a Plymouth boot splash.
+      plymouth.enable = true;
 
       # Even without this option enabled the modem is detected automatically as it
       # is a USB 2.0 device. However, this enables integration for the in-built
