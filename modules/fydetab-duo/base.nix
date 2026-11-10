@@ -67,10 +67,16 @@ in
     boot.kernelPackages = pkgs.linuxPackages_fydetab;
 
     boot.kernelParams = [
-      "console=ttyFIQ0,1500000n8"
+      # console=ttyFIQ0 is required, but the vendor DTB already provides it via
+      # /chosen/bootargs ("earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0"),
+      # which U-Boot appends to the kernel command line. Do not re-add
+      # "console=ttyFIQ0,1500000n8" here: it duplicates the console and uses one
+      # of the finite argv slots in the generated `setenv bootargs` line
+      # (U-Boot's CONFIG_SYS_MAXARGS is 16). See docs/RECOVERY.md.
       "console=tty1"
-      "quiet"
     ];
+    # consoleLogLevel=3 already suppresses quiet's level-4-and-below output,
+    # while avoiding another U-Boot bootargs token.
     boot.consoleLogLevel = lib.mkDefault 3;
 
     # Keep hung-task detection for diagnostics, but don't panic just because

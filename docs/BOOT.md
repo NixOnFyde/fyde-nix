@@ -9,6 +9,7 @@
   - [NixOS `boot.scr` generation](#nixos-bootscr-generation)
     - [Serial & display console notes](#serial--display-console-notes)
     - [Plymouth splash](#plymouth-splash)
+  - [Recovery](#recovery)
   - [Updates & maintenance](#updates--maintenance)
 
 <!-- /toc -->
@@ -49,6 +50,13 @@ The vendor U-Boot build (rockchip-linux 2017.09) has some strict requirements:
    [`../pkgs/rk-boot-script`](../pkgs/rk-boot-script) to match Rockchip's format.
 5. **Runtime environment:** At boot time, U-Boot populates `${devtype}`,
    `${devnum}`, `${kernel_addr_c}`, `${fdt_addr_r}`, and `${ramdisk_addr_r}`.
+6. **Argument limit:** the vendor build has `CONFIG_HUSH_PARSER=y` and
+   `CONFIG_SYS_MAXARGS=16`. A `setenv bootargs …` line with more than 16 argv
+   tokens (including `setenv` and `bootargs`) is rejected, and hush continues
+   with the previous environment. The build-time assertion in
+   [`../modules/fydetab-duo/boot-loader.nix`](../modules/fydetab-duo/boot-loader.nix)
+   enforces the limit; see
+   [`RECOVERY.md`](RECOVERY.md#3-the-16-argument-uboot-limit).
 
 ## Partition layout
 
@@ -94,13 +102,14 @@ automatically by
 - `ttyFIQ0` is the hardware FIQ debugger on UART2 (1.5 MBaud).
 - Arguments inside the device tree's `/chosen` node take precedence over
   U-Boot's `bootargs` in the case of duplicate keys.
+
+### Plymouth splash
+
 - Plymouth (`hardware.fydetabduo.plymouth.enable`) needs
   `plymouth.ignore-serial-consoles`, because `ttyFIQ0` is always a console.
   Without it Plymouth stays in text mode and the splash can appear to hang.
   The panel driver (`CONFIG_DRM_PANEL_FYDETAB`) and the Rockchip DRM stack are
   built into the kernel, so no extra initrd module is required.
-
-### Plymouth splash
 
 `hardware.fydetabduo.plymouth.enable` defaults to `true`. It selects the
 `nixonfyde` script theme from
@@ -108,3 +117,9 @@ automatically by
 the NixOS snowflake and FydeTab wordmark, a smooth ring spinner, a boot
 progress bar, a password dialog, and boot messages rendered in DejaVu Sans
 Mono.
+
+## Recovery
+
+If the device no longer boots after a rebuild, see
+[`RECOVERY.md`](RECOVERY.md) for diagnosis, rollback, and U-Boot UMS restore
+procedures.
