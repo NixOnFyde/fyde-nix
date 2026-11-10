@@ -34,10 +34,6 @@ let
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
     {
-      name = "himax-fix-stylus-physical-dimensions";
-      patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
-    }
-    {
       name = "brcmfmac-add-bcm43752-pcie-support";
       patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
     }
@@ -81,11 +77,6 @@ linuxKernel.buildLinux rec {
   modDirVersion = version;
   pname = "linux-fydetab";
 
-  # The himax vendor driver file (himax_common.c) has CRLF line endings.
-  # nix applies kernel patches with just `patch -p1` (no --binary), which cannot
-  # match a CRLF file against any patch. LF-normalise just that file so the 0007
-  # patch applies without errors. Both the kernel and linux-config derivations share
-  # this src, so it fixes both.
   src = runCommand "linux-fydetabduo-src" { } ''
     cp -r ${
       fetchFromGitHub {
@@ -96,7 +87,6 @@ linuxKernel.buildLinux rec {
       }
     } $out
     chmod -R u+w $out
-    sed -i 's/\r$//' $out/drivers/input/touchscreen/hxchipset/himax_common.c
   '';
 
   defconfig = "fydetabduo_defconfig";
