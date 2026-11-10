@@ -20,6 +20,20 @@ in
       '';
     };
 
+    keyboardSleepKeyAction = lib.mkOption {
+      type = lib.types.enum [
+        "lock"
+        "suspend"
+        "ignore"
+      ];
+      default = "lock";
+      description = ''
+        Action for the keyboard's lock key. "lock" locks the built-in
+        labwc session without suspending; "suspend" makes logind suspend;
+        "ignore" leaves the key to (e.g., your own) compositor.
+      '';
+    };
+
     autoProfile = {
       enable = lib.mkEnableOption ''
         Automatically switch power profiles based on battery percentage.
@@ -61,6 +75,7 @@ in
     services.logind.settings.Login = {
       HandlePowerKey = "suspend";
       HandlePowerKeyLongPress = "poweroff";
+      HandleSuspendKey = if shell.power.keyboardSleepKeyAction == "suspend" then "suspend" else "ignore";
     };
 
     # power-profiles-daemon cannot give us a performance profile here:
