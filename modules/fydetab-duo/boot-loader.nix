@@ -28,6 +28,21 @@ let
   kernelImage = "${config.boot.kernelPackages.kernel}/${config.system.boot.loader.kernelFile}";
   dtb = "${config.boot.kernelPackages.kernel}/dtbs/rockchip/rk3588s-fydetab_duo.dtb";
 
+  # The vendor U-Boot is built with CONFIG_HUSH_PARSER=y and the default
+  # CONFIG_SYS_MAXARGS=16. If the generated `setenv bootargs` line has more than
+  # 16 argv tokens, U-Boot rejects it as CMD_RET_USAGE; hush then continues, so
+  # `load`/`booti` still run with the stale bootargs (no root=, no init=) and
+  # stage 1 fails. See docs/RECOVERY.md.
+  #
+  # Fixed prefix: setenv bootargs rootfstype=… rootwait rw root=… init=…
+  bootargsFixedWords = 7;
+  ubootMaxArgs = 16;
+  kernelParamWords = builtins.length (
+    builtins.filter (word: word != "") (
+      lib.splitString " " (lib.concatStringsSep " " config.boot.kernelParams)
+    )
+  );
+
   installHook = pkgs.writeShellScript "fydetabduo-install-bootloader" ''
     set -euo pipefail
 
@@ -66,9 +81,8 @@ let
           if mount "$esp_dev" "$work" 2>/dev/null; then
             echo "note: /boot mounted from different device; writing boot files to $esp_dev" >&2
           else
-            # Fallback: use current mount
-            work="$esp"
-            echo "warning: failed to mount $esp_dev, writing to $esp" >&2
+            echo "refusing to update boot files: could not mount the ESP on the root disk ($esp_dev)" >&2
+            exit 1
           fi
         fi
       else
@@ -160,6 +174,17 @@ in
         assertion =
           cfg.rootFilesystemType != "btrfs" || cfg.btrfsSubvolume == null || cfg.btrfsSubvolume != "";
         message = "boot.loader.fydetabduo.btrfsSubvolume must not be empty.";
+      }
+      {
+        assertion = bootargsFixedWords + kernelParamWords <= ubootMaxArgs;
+        message = ''
+          boot.loader.fydetabduo: the generated `setenv bootargs` line has
+          ${toString (bootargsFixedWords + kernelParamWords)} argv tokens, but the
+          vendor U-Boot is limited to CONFIG_SYS_MAXARGS=${toString ubootMaxArgs}.
+          U-Boot would reject the line and continue with stale bootargs, leaving
+          stage 1 without root= or init=. Remove a kernel parameter, or raise the
+          limit in the vendor U-Boot build.
+        '';
       }
     ];
 
