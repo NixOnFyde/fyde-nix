@@ -68,7 +68,7 @@ in
     systemd.services.growpart.serviceConfig.ExecStart =
       let
         # The image's GPT only spans the (shrunk) image size; when flashed to
-        # a larger disk (bigger SD, or the inbuilt 256G eMMC) the backup GPT
+        # a larger disk (bigger microSD, or the inbuilt 256G eMMC) the backup GPT
         # sits at the end, so growpart sees no free space. Relocate it to the
         # actual end of the disk first (does nothing when it's already correct).
         #
