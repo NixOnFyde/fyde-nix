@@ -135,8 +135,15 @@ linuxKernel.buildLinux rec {
 
     BTRFS_FS = module;
 
+    # systemd's pids controller (TasksMax=) needs CGROUP_PIDS.
+    CGROUP_PIDS = yes;
+
+    # The NixOS firewall and Docker use iptables-nft, which needs the
+    # nftables families for IPv4/IPv6 (not just the inet family).
     NF_TABLES = module;
     NF_TABLES_INET = yes;
+    NF_TABLES_IPV4 = yes;
+    NF_TABLES_IPV6 = yes;
     NFT_COMPAT = module;
     NFT_LOG = module;
     NFT_LIMIT = module;
@@ -144,6 +151,9 @@ linuxKernel.buildLinux rec {
     NFT_NAT = module;
     NFT_MASQ = module;
     NFT_REJECT = module;
+    NFT_FIB_INET = module;
+    NFT_FIB_IPV4 = module;
+    NFT_FIB_IPV6 = module;
     NETFILTER_XT_TARGET_LOG = module;
     NETFILTER_XT_MATCH_MULTIPORT = module;
     NETFILTER_XT_MATCH_RECENT = module;
