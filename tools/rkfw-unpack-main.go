@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 func readUint32LE(data []byte, offset int) uint32 {
@@ -21,6 +22,10 @@ func parseCString(data []byte) string {
 	}
 
 	return strings.TrimSpace(string(data))
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func main() {
@@ -56,15 +61,31 @@ func main() {
 	loaderLength := readUint32LE(rkfwHeader, 0x1D)
 	imageOffset := readUint32LE(rkfwHeader, 0x21)
 	imageLength := readUint32LE(rkfwHeader, 0x25)
+	imageInfo, err := imageFile.Stat()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "stat input image: %v\n", err)
+		os.Exit(1)
+	}
+	imageSize := imageInfo.Size()
+	if int64(imageOffset) > imageSize || int64(imageLength) > imageSize-int64(imageOffset) {
+		fmt.Fprintln(os.Stderr, "declared image payload is outside the input file")
+		os.Exit(1)
+	}
 
 	fmt.Printf("Loader: offset=%#x size=%d (%.1f KB)\n", loaderOffset, loaderLength, float64(loaderLength)/1024)
 	fmt.Printf("Image:  offset=%#x size=%d (%.1f MB)\n", imageOffset, imageLength, float64(imageLength)/1024/1024)
 
-	if _, err := imageFile.Seek(int64(imageOffset), io.SeekStart); err != nil {
+	rkafHeader := make([]byte, 0x800)
+	if int64(imageLength) < int64(len(rkafHeader)) {
+		fmt.Fprintln(os.Stderr, "declared RKAF payload is too small for its header")
 		os.Exit(1)
 	}
 
-	rkafHeader := make([]byte, 0x800)
+	if _, err := imageFile.Seek(int64(imageOffset), io.SeekStart); err != nil {
+		fmt.Fprintf(os.Stderr, "seek to RKAF header: %v\n", err)
+		os.Exit(1)
+	}
+
 	if _, err := io.ReadFull(imageFile, rkafHeader); err != nil {
 		fmt.Fprintf(os.Stderr, "read RKAF header: %v\n", err)
 		os.Exit(1)
@@ -79,12 +100,17 @@ func main() {
 	fmt.Printf("Model: %s | Partitions: %d\n\n", deviceModel, partitionCount)
 
 	if partitionCount > 16 {
-		partitionCount = 16
+		fmt.Fprintf(os.Stderr, "invalid RKAF partition count: %d (maximum 16)\n", partitionCount)
+		os.Exit(1)
 	}
 
-	os.MkdirAll(outputDirectory, 0755)
-
 	extractRange := func(offset, size int64, destinationPath string) error {
+		if offset < 0 || size < 0 || offset > imageSize || size > imageSize-offset {
+			return fmt.Errorf("range [%#x, %#x) is outside the %d-byte image", offset, offset+size, imageSize)
+		}
+		if size == 0 {
+			return fmt.Errorf("refusing to extract an empty range")
+		}
 		if _, err := imageFile.Seek(offset, io.SeekStart); err != nil {
 			return err
 		}
@@ -93,23 +119,30 @@ func main() {
 		if err != nil {
 			return err
 		}
-		defer outFile.Close()
 
 		_, err = io.CopyN(outFile, imageFile, size)
-		return err
+		if err != nil {
+			outFile.Close()
+			return err
+		}
+		return outFile.Close()
 	}
 
-	loaderOutputPath := filepath.Join(outputDirectory, "MiniLoaderAll.bin")
-	if err := extractRange(int64(loaderOffset), int64(loaderLength), loaderOutputPath); err == nil {
-		fmt.Printf("Extracted loader -> %s (%d bytes)\n", loaderOutputPath, loaderLength)
-	}
-
-	type flashTarget struct {
+	type partition struct {
+		index        int
 		name         string
-		fileName     string
+		baseName     string
+		relativePos  uint32
+		flashAddress uint32
+		size         uint32
+	}
+	type flashTarget struct {
+		baseName     string
 		flashAddress uint32
 	}
+	partitions := make([]partition, 0, partitionCount)
 	var pendingFlashTargets []flashTarget
+	seenOutputNames := map[string]struct{}{"MiniLoaderAll.bin": {}}
 
 	for index := 0; index < int(partitionCount); index++ {
 		entryOffset := 0x8C + index*0x70
@@ -119,34 +152,73 @@ func main() {
 		flashAddress := readUint32LE(rkafHeader, entryOffset+0x64)
 		entrySize := readUint32LE(rkafHeader, entryOffset+0x6C)
 
+		if partitionName == "" && fileName == "" {
+			continue
+		}
 		if partitionName == "" || fileName == "" {
-			continue
+			fmt.Fprintf(os.Stderr, "invalid RKAF partition entry %d: missing partition or file name\n", index)
+			os.Exit(1)
 		}
-
-		absoluteOffset := int64(imageOffset) + int64(relativePosition)
-		partitionOutputPath := filepath.Join(outputDirectory, filepath.Base(fileName))
-
-		if err := extractRange(absoluteOffset, int64(entrySize), partitionOutputPath); err != nil {
-			fmt.Fprintf(os.Stderr, "  Error %s: %v\n", partitionName, err)
-			continue
+		if strings.IndexFunc(partitionName, unicode.IsControl) >= 0 {
+			fmt.Fprintf(os.Stderr, "invalid control character in partition name at entry %d\n", index)
+			os.Exit(1)
 		}
-
-		fmt.Printf("  [%2d] %-20s -> %-28s (%8.1f MB) flash@%#x\n",
-			index, partitionName, partitionOutputPath, float64(entrySize)/1024/1024, flashAddress)
-
+		baseName := filepath.Base(fileName)
+		if baseName == "." || baseName == ".." || baseName == string(filepath.Separator) || strings.IndexFunc(baseName, unicode.IsControl) >= 0 {
+			fmt.Fprintf(os.Stderr, "invalid output filename for partition %s: %q\n", partitionName, fileName)
+			os.Exit(1)
+		}
+		if _, exists := seenOutputNames[baseName]; exists {
+			fmt.Fprintf(os.Stderr, "duplicate RKAF output filename %q\n", baseName)
+			os.Exit(1)
+		}
+		seenOutputNames[baseName] = struct{}{}
+		if entrySize == 0 || uint64(relativePosition)+uint64(entrySize) > uint64(imageLength) {
+			fmt.Fprintf(os.Stderr, "partition %s has an invalid range in the declared image payload\n", partitionName)
+			os.Exit(1)
+		}
+		partitions = append(partitions, partition{
+			index:        index,
+			name:         partitionName,
+			baseName:     baseName,
+			relativePos:  relativePosition,
+			flashAddress: flashAddress,
+			size:         entrySize,
+		})
 		if partitionName != "package-file" && partitionName != "bootloader" {
 			pendingFlashTargets = append(pendingFlashTargets, flashTarget{
-				name:         partitionName,
-				fileName:     fileName,
+				baseName:     baseName,
 				flashAddress: flashAddress,
 			})
 		}
 	}
 
+	if err := os.MkdirAll(outputDirectory, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "create output directory: %v\n", err)
+		os.Exit(1)
+	}
+	loaderOutputPath := filepath.Join(outputDirectory, "MiniLoaderAll.bin")
+	if err := extractRange(int64(loaderOffset), int64(loaderLength), loaderOutputPath); err != nil {
+		fmt.Fprintf(os.Stderr, "extract loader: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Extracted loader -> %s (%d bytes)\n", loaderOutputPath, loaderLength)
+
+	for _, partition := range partitions {
+		absoluteOffset := int64(imageOffset) + int64(partition.relativePos)
+		partitionOutputPath := filepath.Join(outputDirectory, partition.baseName)
+		if err := extractRange(absoluteOffset, int64(partition.size), partitionOutputPath); err != nil {
+			fmt.Fprintf(os.Stderr, "extract partition %s: %v\n", partition.name, err)
+			os.Exit(1)
+		}
+		fmt.Printf("  [%2d] %-20s -> %-28s (%8.1f MB) flash@%#x\n",
+			partition.index, partition.name, partitionOutputPath, float64(partition.size)/1024/1024, partition.flashAddress)
+	}
+
 	fmt.Printf("\n -Flash commands- \n")
 	for _, target := range pendingFlashTargets {
 		fmt.Printf("rkdeveloptool wl %#06x %s\n",
-			target.flashAddress, filepath.Join(outputDirectory, filepath.Base(target.fileName)))
+			target.flashAddress, shellQuote(filepath.Join(outputDirectory, target.baseName)))
 	}
 	fmt.Printf("rkdeveloptool rd\n")
 }
