@@ -57,6 +57,10 @@ let
       name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
       patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
+    {
+      name = "arm64-dts-fydetab-duo-enable-emmc-cqe";
+      patch = ./0015-arm64-dts-fydetab-duo-enable-emmc-cqe.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
