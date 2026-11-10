@@ -9,6 +9,7 @@ let
   weather = config.fydetabShell.wayle.weather;
   autoRotate = config.fydetabShell.wayle.autoRotate;
   bar = config.fydetabShell.wayle.bar;
+  tabletModeStateDir = "$XDG_RUNTIME_DIR/tablet-mode";
 in
 {
   options.fydetabShell.wayle.bar = {
@@ -300,12 +301,12 @@ in
               label-color = "fg-default";
             }
             {
-              # Tablet mode: watch /run/tablet-mode/ for fs events.
+              # Tablet mode: watch this user's runtime directory for toggles.
               id = "tablet-mode";
               mode = "watch";
               restart-policy = "on-failure";
               command = pkgs.writeShellScript "wayle-tablet-watch" ''
-                DIR="/run/tablet-mode"
+                DIR="${tabletModeStateDir}"
                 mkdir -p "$DIR"
 
                 emit() {
@@ -325,15 +326,17 @@ in
                 done
               '';
               left-click = ''
-                if [ -f /run/tablet-mode/manual-off ]; then
-                  rm -f /run/tablet-mode/manual-off
+                DIR="${tabletModeStateDir}"
+                mkdir -p "$DIR"
+                if [ -f "$DIR/manual-off" ]; then
+                  rm -f "$DIR/manual-off"
                   notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK enabling..."
                 else
-                  touch /run/tablet-mode/manual-off
+                  touch "$DIR/manual-off"
                   notify-send -a wayle -u low -t 2500 "Tablet mode" "OSK disabling..."
                 fi
               '';
-              on-action = ''[ -f /run/tablet-mode/manual-off ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';
+              on-action = ''[ -f "${tabletModeStateDir}/manual-off" ] && printf '{"state":"Off"}' || printf '{"state":"On"}' '';
               format = "{{ state }}";
               icon-name = "input-keyboard-symbolic";
               icon-color = "fg-default";
