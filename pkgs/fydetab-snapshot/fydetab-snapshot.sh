@@ -72,7 +72,7 @@ rollback)
   echo "default subvolume -> $target_subvolume_path (id $target_subvolume_id)"
   echo "reboot to boot into the rolled-back system."
   echo "note: kernel/initrd on the ESP stay as-is; roll back ESP assets with:"
-  echo "  sudo nixos-rebuild switch   (from SD boot) or restore /boot from a backup"
+  echo "  sudo nixos-rebuild switch   (from microSD boot) or restore /boot from a backup"
   ;;
 
 delete)
