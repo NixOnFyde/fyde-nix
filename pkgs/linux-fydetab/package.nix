@@ -102,6 +102,9 @@ linuxKernel.buildLinux rec {
 
     DPM_WATCHDOG = no;
 
+    # Keep hung-task warnings from triggering a kernel panic and data loss.
+    BOOTPARAM_HUNG_TASK_PANIC = no;
+
     DRM_PANTHOR = module;
 
     FW_LOADER_COMPRESS = yes;
