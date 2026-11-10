@@ -6,6 +6,8 @@
 }:
 let
   cfg = config.hardware.fydetabduo.battery;
+  defaultRechargeAt = builtins.min (builtins.max 10 (cfg.chargeLimit - 5)) (cfg.chargeLimit - 1);
+  rechargeAt = if cfg.rechargeAt != null then cfg.rechargeAt else defaultRechargeAt;
 in
 {
   options.hardware.fydetabduo.battery = {
@@ -32,8 +34,7 @@ in
   config = lib.mkIf (cfg.chargeLimit != null) {
     assertions = [
       {
-        assertion =
-          cfg.chargeLimit > (if cfg.rechargeAt != null then cfg.rechargeAt else (cfg.chargeLimit - 5));
+        assertion = cfg.chargeLimit > rechargeAt;
         message = "hardware.fydetabduo.battery.rechargeAt must be less than chargeLimit";
       }
     ];
@@ -52,8 +53,16 @@ in
           echo "$2" > "$CHARGER/$1" 2>/dev/null
         }
 
+        validate_percent() {
+          case "$1" in
+            "" | *[!0-9]*) return 1 ;;
+          esac
+          [ "''${#1}" -le 3 ]
+        }
+
         case "''${1:-status}" in
         status)
+          [ "$#" -le 1 ] || { echo "usage: fydetab-chargelimit status" >&2; exit 2; }
           limit=$(read_val charge_control_limit)
           start=$(read_val charge_control_start_threshold)
           if [ -z "$limit" ] || [ "$limit" = "100" ]; then
@@ -63,14 +72,32 @@ in
           fi
           ;;
         set)
-          end_val="''${2:-80}"
-          start_val="''${3:-$((end_val - 5))}"
-          [ "$start_val" -lt 10 ] && start_val=10
+          [ "$#" -ge 2 ] && [ "$#" -le 3 ] || { echo "usage: fydetab-chargelimit set <end> [start]" >&2; exit 2; }
+          end_val="$2"
+          validate_percent "$end_val" || { echo "error: end must be an integer from 1 to 100" >&2; exit 2; }
+          end_num=$((10#$end_val))
+          [ "$end_num" -ge 1 ] && [ "$end_num" -le 100 ] || { echo "error: end must be from 1 to 100" >&2; exit 2; }
+
+          if [ "$#" -eq 3 ]; then
+            start_val="$3"
+          else
+            start_num=$((end_num - 5))
+            [ "$start_num" -lt 10 ] && start_num=10
+            [ "$start_num" -ge "$end_num" ] && start_num=$((end_num - 1))
+            start_val="$start_num"
+          fi
+          validate_percent "$start_val" || { echo "error: start must be an integer from 0 to 99" >&2; exit 2; }
+          start_num=$((10#$start_val))
+          [ "$start_num" -lt "$end_num" ] || { echo "error: start must be less than end" >&2; exit 2; }
+          [ "$start_num" -le 99 ] || { echo "error: start must be from 0 to 99" >&2; exit 2; }
+
+          start_val="$start_num"
           write_val charge_control_start_threshold "$start_val"
-          write_val charge_control_limit "$end_val"
-          echo "charge limit: $end_val%, recharge below $start_val%"
+          write_val charge_control_limit "$end_num"
+          echo "charge limit: $end_num%, recharge below $start_num%"
           ;;
         off)
+          [ "$#" -eq 1 ] || { echo "usage: fydetab-chargelimit off" >&2; exit 2; }
           write_val charge_control_limit 100
           echo "charge limit: off (charging to full)"
           ;;
@@ -105,9 +132,7 @@ in
         ExecStart = pkgs.writeShellScript "fydetab-charge-limit-apply" ''
           CHARGER="/sys/class/power_supply/bq25700-charger"
           LIMIT=${toString cfg.chargeLimit}
-          START=${toString (if cfg.rechargeAt != null then cfg.rechargeAt else (cfg.chargeLimit - 5))}
-
-          [ "$START" -lt 10 ] && START=10
+          START=${toString rechargeAt}
 
           echo "$START" > "$CHARGER/charge_control_start_threshold"
           echo "$LIMIT"  > "$CHARGER/charge_control_limit"
