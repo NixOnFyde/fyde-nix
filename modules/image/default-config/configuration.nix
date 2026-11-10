@@ -23,6 +23,7 @@
 #   bluetooth             AP6275P bluetooth over ttyS9
 #   suspend               deep suspend (DRAM self-refresh)
 #   display-fix           fb0 cold-boot fix
+#   plymouth              Plymouth boot splash
 #   audio                 ES8388 codec routing
 #   input                 touchscreen / stylus udev rules + calibration
 #   sensors               lis2dw12 accelerometer + auto-rotate
@@ -48,6 +49,7 @@
 #     inputs.fyde-nix.nixosModules.base
 #     inputs.fyde-nix.nixosModules.bluetooth
 #     inputs.fyde-nix.nixosModules.suspend
+#     inputs.fyde-nix.nixosModules.plymouth
 #     inputs.fyde-nix.nixosModules.audio
 #     inputs.fyde-nix.nixosModules.input
 #     inputs.fyde-nix.nixosModules.npu
@@ -94,6 +96,9 @@
       # Can also be toggle in the wayle bar
       tabletMode.enable = true;
 
+      # Show a Plymouth boot splash.
+      plymouth.enable = true;
+
       # Even without this option enabled the modem is detected automatically as it
       # is a USB 2.0 device. However, this enables integration for the in-built
       # modem module with ModemManager and NetworkManager.
@@ -127,12 +132,18 @@
     # Applied using kanshi output scale in both orientations.
     # desktop.scale = 1.25;
 
-    power.autoProfile = {
-      # Automatically change power profile based on current charge.
-      enable = true;
+    power = {
+      # The keyboard's lock key locks the session by default. Change to
+      # "suspend" to suspend, or "ignore" to leave the key to your compositor.
+      keyboardSleepKeyAction = "lock";
 
-      # Force performance mode when plugged into AC power.
-      forcePerformanceOnAC = true;
+      autoProfile = {
+        # Automatically change power profile based on current charge.
+        enable = true;
+
+        # Force performance mode when plugged into AC power.
+        forcePerformanceOnAC = true;
+      };
     };
   };
 
@@ -143,7 +154,6 @@
   networking.hostName = "fydetabduo";
   networking.networkmanager.enable = true;
   networking.modemmanager.enable = true;
-  networking.firewall.allowedTCPPorts = [ 22 ];
 
   # Locale & timezone
   time.timeZone = "Europe/London";
@@ -168,7 +178,9 @@
   ];
 
   # Services
-  services.openssh.enable = true;
+  # SSH is opt-in. Change the shared initial password below before enabling it.
+  # services.openssh.enable = true;
+  # services.openssh.openFirewall = true;
 
   # HM
   home-manager = {

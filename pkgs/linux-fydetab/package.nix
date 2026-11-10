@@ -34,10 +34,6 @@ let
       patch = ./0006-tcpci-husb311-fix-drp-role-negotiation.patch;
     }
     {
-      name = "himax-fix-stylus-physical-dimensions";
-      patch = ./0007-himax-fix-stylus-physical-dimensions.patch;
-    }
-    {
       name = "brcmfmac-add-bcm43752-pcie-support";
       patch = ./0008-brcmfmac-add-bcm43752-pcie-support.patch;
     }
@@ -57,6 +53,14 @@ let
       name = "sdhci-dwcmshc-add-cqe-support-for-rk35xx";
       patch = ./0012-sdhci-dwcmshc-add-cqe-support-for-rk35xx.patch;
     }
+    {
+      name = "bq25700-fix-legacy-usb-charger-detection";
+      patch = ./0013-bq25700-fix-legacy-usb-charger-detection.patch;
+    }
+    {
+      name = "rockchip-typec-role-extcon";
+      patch = ./0014-rockchip-typec-role-extcon.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
@@ -73,11 +77,6 @@ linuxKernel.buildLinux rec {
   modDirVersion = version;
   pname = "linux-fydetab";
 
-  # The himax vendor driver file (himax_common.c) has CRLF line endings.
-  # nix applies kernel patches with just `patch -p1` (no --binary), which cannot
-  # match a CRLF file against any patch. LF-normalise just that file so the 0007
-  # patch applies without errors. Both the kernel and linux-config derivations share
-  # this src, so it fixes both.
   src = runCommand "linux-fydetabduo-src" { } ''
     cp -r ${
       fetchFromGitHub {
@@ -88,7 +87,6 @@ linuxKernel.buildLinux rec {
       }
     } $out
     chmod -R u+w $out
-    sed -i 's/\r$//' $out/drivers/input/touchscreen/hxchipset/himax_common.c
   '';
 
   defconfig = "fydetabduo_defconfig";
@@ -101,6 +99,9 @@ linuxKernel.buildLinux rec {
     SECURITY_LOADPIN = no;
 
     DPM_WATCHDOG = no;
+
+    # Keep hung-task warnings from triggering a kernel panic and data loss.
+    BOOTPARAM_HUNG_TASK_PANIC = no;
 
     DRM_PANTHOR = module;
 
@@ -135,8 +136,15 @@ linuxKernel.buildLinux rec {
 
     BTRFS_FS = module;
 
+    # systemd's pids controller (TasksMax=) needs CGROUP_PIDS.
+    CGROUP_PIDS = yes;
+
+    # The NixOS firewall and Docker use iptables-nft, which needs the
+    # nftables families for IPv4/IPv6 (not just the inet family).
     NF_TABLES = module;
     NF_TABLES_INET = yes;
+    NF_TABLES_IPV4 = yes;
+    NF_TABLES_IPV6 = yes;
     NFT_COMPAT = module;
     NFT_LOG = module;
     NFT_LIMIT = module;
@@ -144,6 +152,9 @@ linuxKernel.buildLinux rec {
     NFT_NAT = module;
     NFT_MASQ = module;
     NFT_REJECT = module;
+    NFT_FIB_INET = module;
+    NFT_FIB_IPV4 = module;
+    NFT_FIB_IPV6 = module;
     NETFILTER_XT_TARGET_LOG = module;
     NETFILTER_XT_MATCH_MULTIPORT = module;
     NETFILTER_XT_MATCH_RECENT = module;

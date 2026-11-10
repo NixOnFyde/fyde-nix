@@ -25,7 +25,7 @@
  	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
  	POWER_SUPPLY_PROP_VOLTAGE_MAX,
  	POWER_SUPPLY_PROP_CURRENT_MAX,
-@@ -1279,6 +1284,15 @@
+@@ -1279,6 +1284,18 @@
  		val->intval = bq25700_tables[TBL_INPUTVOL].rt.max;
  		break;
  
@@ -39,9 +39,13 @@
 +		break;
 +
  	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
- 		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
+-		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
++		ret = bq25700_field_read(bq, INPUT_CURRENT);
++		if (ret < 0)
++			return ret;
++		val->intval = ret * 50000;
  		break;
-@@ -1300,6 +1315,84 @@
+@@ -1300,6 +1320,84 @@
  	return 0;
  }
  
@@ -135,6 +139,11 @@
  };
  
  static int bq25700_power_supply_init(struct bq25700_device *charger)
+@@ -1378,1 +1467,3 @@
+-		vol_idx = bq25700_find_idx(prop.intval, TBL_INPUTVOL);
++		/* Keep the charger's 1.28 V VINDPM margin below adapter VBUS. */
++		vol_idx = bq25700_find_idx(prop.intval - 1280000,
++					   TBL_INPUTVOL);
 @@ -2084,7 +2175,10 @@
  	}
  	dev_info(charger->dev, "Battery found\n");
@@ -150,8 +159,9 @@
 @@ -2129,6 +2223,8 @@
  	struct bq25700_device *charger = i2c_get_clientdata(client);
    if (charger->delay_charge_current)
-     cancel_delayed_work(&charger->init_charger_current);
-+  cancel_delayed_work(&charger->charge_control_work);
+-    cancel_delayed_work(&charger->init_charger_current);
++    cancel_delayed_work_sync(&charger->init_charger_current);
++  cancel_delayed_work_sync(&charger->charge_control_work);
 +  bq25700_field_write(charger, CHRG_INHIBIT, 0);
  
  	vol_idx = bq25700_find_idx(DEFAULT_INPUTVOL, TBL_INPUTVOL);

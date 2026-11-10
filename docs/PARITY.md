@@ -17,9 +17,9 @@ reference.
 
 | Category    | Done   | Total  | Percent |
 | ----------- | ------ | ------ | ------- |
-| Hardware    | 16     | 18     | 89%     |
+| Hardware    | 17     | 19     | 89%     |
 | Software    | 7      | 14     | 50%     |
-| **Overall** | **23** | **32** | **72%** |
+| **Overall** | **24** | **33** | **73%** |
 
 Hardware parity is nearly complete. Software parity is lower because many
 FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€” or aren't desired (e.g., proprietary).
@@ -45,6 +45,7 @@ FydeOS features are ChromeOS-specific and don't have direct NixOS equivalents â€
 | Battery charge limit        | `working` | `working`  | done    | SC8886 CHRG_INHIBIT, persisted systemd unit                                  |
 | Fingerprint reader          | `working` | `partial`  | partial | module loads + binds at boot; `/dev/madev0` accessible; no open driver (yet) |
 | NPU (6 TOPS)                | `working` | `working`  | done    | vendor rknpu driver + librknnrt runtime                                      |
+| Plymouth boot splash        | built-in? | `working`  | done    | `nixonfyde` script theme: wordmark, spinner, progress bar; `plymouth.ignore-serial-consoles` for ttyFIQ0 |
 
 ## Software features
 

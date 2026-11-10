@@ -1,0 +1,104 @@
+From: fyde-nix
+Subject: [PATCH] usb: rockchip: sync Type-C role to USB2 PHY extcon
+
+The Fydetab Duo Type-C port uses a TCPM role switch, while the RK3588
+USB2 PHY reports its legacy ID pin as EXTCON_USB_HOST. That leaves
+the PHY OTG state machine stuck in host mode and prevents BC1.2
+charger detection. Ignore the legacy ID state on this Type-C port and
+have DWC3 publish its Type-C-selected host role to the PHY extcon.
+
+diff --git a/drivers/phy/rockchip/phy-rockchip-inno-usb2.c b/drivers/phy/rockchip/phy-rockchip-inno-usb2.c
+--- a/drivers/phy/rockchip/phy-rockchip-inno-usb2.c
++++ b/drivers/phy/rockchip/phy-rockchip-inno-usb2.c
+@@ -189,6 +189,7 @@
+  * @port_id: flag for otg port or host port.
+  * @suspended: phy suspended flag.
+  * @vbus_attached: otg device vbus status.
++ * @typec_role_switch: Type-C role switch controls EXTCON_USB_HOST.
+  * @host_disconnect: usb host disconnect status.
+  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
+  * @id_irq: IRQ number assigned for ID pin detection.
+@@ -209,6 +210,7 @@
+ 	unsigned int	port_id;
+ 	bool		suspended;
+ 	bool		vbus_attached;
++	bool		typec_role_switch;
+ 	bool            host_disconnect;
+ 	int		bvalid_irq;
+ 	int		id_irq;
+@@ -1060,7 +1062,8 @@
+ 		property_enable(rphy->grf, &rport->port_cfg->idrise_det_clr, true);
+ 
+ 	id = property_enabled(rphy->grf, &rport->port_cfg->utmi_id);
+-	extcon_set_state_sync(rphy->edev, EXTCON_USB_HOST, !id);
++	if (!rport->typec_role_switch)
++		extcon_set_state_sync(rphy->edev, EXTCON_USB_HOST, !id);
+ 
+ 	return IRQ_HANDLED;
+ }
+@@ -1269,6 +1272,8 @@
+ 	rport->port_id = USB2PHY_PORT_OTG;
+ 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_OTG];
+ 	rport->state = OTG_STATE_UNDEFINED;
++	rport->typec_role_switch = of_property_read_bool(child_np,
++						"rockchip,typec-role-switch");
+ 
+ 	/*
+ 	 * set suspended flag to true, but actually don't
+@@ -1307,7 +1312,8 @@
+ 			goto out;
+ 		}
+ 
+-		if (!of_property_read_bool(rphy->dev->of_node, "extcon")) {
++		if (!rport->typec_role_switch &&
++		    !of_property_read_bool(rphy->dev->of_node, "extcon")) {
+ 			/* do initial sync of usb state */
+ 			id = property_enabled(rphy->grf, &rport->port_cfg->utmi_id);
+ 			extcon_set_state_sync(rphy->edev, EXTCON_USB_HOST, !id);
+diff --git a/drivers/usb/dwc3/drd.c b/drivers/usb/dwc3/drd.c
+--- a/drivers/usb/dwc3/drd.c
++++ b/drivers/usb/dwc3/drd.c
+@@ -10,1 +10,2 @@
+ #include <linux/extcon.h>
++#include <linux/extcon-provider.h>
+@@ -448,6 +448,7 @@
+ {
+ 	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
+ 	u32 mode;
++	int ret;
+ 
+ 	switch (role) {
+ 	case USB_ROLE_HOST:
+@@ -465,6 +466,13 @@
+ 	}
+ 
+ 	dwc3_set_mode(dwc, mode);
++	if (dwc->edev) {
++		ret = extcon_set_state_sync(dwc->edev, EXTCON_USB_HOST,
++					      mode == DWC3_GCTL_PRTCAP_HOST);
++		if (ret)
++			dev_warn(dwc->dev, "failed to update USB host extcon: %d\n",
++				 ret);
++	}
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+--- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+@@ -594,6 +594,7 @@
+ &u2phy0_otg {
+   status = "okay";
+ 	rockchip,typec-vbus-det;
++	rockchip,typec-role-switch;
+ };
+ 
+ &u2phy2_host {
+@@ -648,6 +649,7 @@
+   dr_mode = "otg";
+   status = "okay";
+   usb-role-switch;
++  extcon = <&u2phy0>;
+   snps,parkmode-disable-hs-quirk;
+   snps,parkmode-disable-ss-quirk;
+   port {

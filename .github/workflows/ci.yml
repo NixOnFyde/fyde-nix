@@ -76,6 +76,22 @@ jobs:
           WORK=$(mktemp -d)
           zstd -d -f -c "$IMAGE" > "$WORK/img.img"
           LOOP=$(sudo losetup -Pf --show "$WORK/img.img")
+          # The loop device can be returned before udev creates partition nodes.
+          for _ in $(seq 1 50); do
+            if [ -b "${LOOP}p3" ]; then
+              break
+            fi
+            sleep 0.1
+          done
+          if [ ! -b "${LOOP}p3" ]; then
+            sudo partx --add --nr 3 "$LOOP" || true
+            sudo udevadm settle --timeout=10 || true
+          fi
+          [ -b "${LOOP}p3" ] || {
+            echo "Root partition node ${LOOP}p3 did not appear" >&2
+            sudo lsblk "$LOOP"
+            exit 1
+          }
           MNT=$(mktemp -d)
           sudo mount "${LOOP}p3" "$MNT"
           # The image builder chowns the seed tree to 0:0, but some

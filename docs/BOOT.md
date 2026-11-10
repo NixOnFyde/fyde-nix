@@ -8,6 +8,7 @@
   - [Partition layout](#partition-layout)
   - [NixOS `boot.scr` generation](#nixos-bootscr-generation)
     - [Serial & display console notes](#serial--display-console-notes)
+    - [Plymouth splash](#plymouth-splash)
   - [Recovery](#recovery)
   - [Updates & maintenance](#updates--maintenance)
 
@@ -40,7 +41,7 @@ The vendor U-Boot build (rockchip-linux 2017.09) has some strict requirements:
    the root of the FAT filesystem.
 3. **Silent fallback:** If the target medium lacks the `legacy_boot` attribute or
    fails to load, U-Boot will move to the next bootable medium (usually internal
-   eMMC). So, if micro SD card boot fails with no output, check the partition
+   eMMC). So, if microSD card boot fails with no output, check the partition
    attributes first.
 4. **Modified `boot.scr` header:** Rockchip patched the payload parser to check
    for a non-standard terminator: `while (*data++ != IMAGE_PARAM_INVAL)`
@@ -101,6 +102,21 @@ automatically by
 - `ttyFIQ0` is the hardware FIQ debugger on UART2 (1.5 MBaud).
 - Arguments inside the device tree's `/chosen` node take precedence over
   U-Boot's `bootargs` in the case of duplicate keys.
+
+### Plymouth splash
+
+- Plymouth (`hardware.fydetabduo.plymouth.enable`) needs
+  `plymouth.ignore-serial-consoles`, because `ttyFIQ0` is always a console.
+  Without it Plymouth stays in text mode and the splash can appear to hang.
+  The panel driver (`CONFIG_DRM_PANEL_FYDETAB`) and the Rockchip DRM stack are
+  built into the kernel, so no extra initrd module is required.
+
+`hardware.fydetabduo.plymouth.enable` defaults to `true`. It selects the
+`nixonfyde` script theme from
+[`../pkgs/fydetabduo-plymouth-theme`](../pkgs/fydetabduo-plymouth-theme):
+the NixOS snowflake and FydeTab wordmark, a smooth ring spinner, a boot
+progress bar, a password dialog, and boot messages rendered in DejaVu Sans
+Mono.
 
 ## Recovery
 

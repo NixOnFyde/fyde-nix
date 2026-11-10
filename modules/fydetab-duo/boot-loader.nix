@@ -59,7 +59,7 @@ let
 
     # U-Boot always loads boot files from the ESP on the disk it booted from.
     # /boot might be mounted from a different disk (e.g., eMMC ESP mounted
-    # when booting from MicroSD). We must write to the ESP on the same disk
+    # when booting from microSD). We must write to the ESP on the same disk
     # as the root filesystem (/), which is the disk U-Boot booted from.
     root_dev=$(findmnt -rno SOURCE / 2>/dev/null | sed 's/\[.*//')
 

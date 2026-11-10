@@ -20,6 +20,20 @@ in
       '';
     };
 
+    keyboardSleepKeyAction = lib.mkOption {
+      type = lib.types.enum [
+        "lock"
+        "suspend"
+        "ignore"
+      ];
+      default = "lock";
+      description = ''
+        Action for the keyboard's lock key. "lock" locks the built-in
+        labwc session without suspending; "suspend" makes logind suspend;
+        "ignore" leaves the key to (e.g., your own) compositor.
+      '';
+    };
+
     autoProfile = {
       enable = lib.mkEnableOption ''
         Automatically switch power profiles based on battery percentage.
@@ -61,6 +75,7 @@ in
     services.logind.settings.Login = {
       HandlePowerKey = "suspend";
       HandlePowerKeyLongPress = "poweroff";
+      HandleSuspendKey = if shell.power.keyboardSleepKeyAction == "suspend" then "suspend" else "ignore";
     };
 
     # power-profiles-daemon cannot give us a performance profile here:
@@ -95,7 +110,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo powersave >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo powersave >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: power-saver (powersave governor)"
@@ -104,7 +119,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo schedutil >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo simple_ondemand >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: balanced (schedutil governor)"
@@ -113,7 +128,7 @@ in
                   for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
                     echo performance >"$g" 2>/dev/null || true
                   done
-                  for g in /sys/class/devfreq/*/governor; do
+                  for g in /sys/class/devfreq/*gpu*/governor; do
                     echo performance >"$g" 2>/dev/null || true
                   done
                   echo "ppd-bridge: performance (performance governor)"
@@ -137,7 +152,7 @@ in
           for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
             echo performance >"$g" 2>/dev/null || true
           done
-          for g in /sys/class/devfreq/*/governor; do
+          for g in /sys/class/devfreq/*gpu*/governor; do
             echo performance >"$g" 2>/dev/null || true
           done
           echo "performance mode ON"
@@ -146,7 +161,7 @@ in
           for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
             echo schedutil >"$g" 2>/dev/null || true
           done
-          for g in /sys/class/devfreq/*/governor; do
+          for g in /sys/class/devfreq/*gpu*/governor; do
             echo simple_ondemand >"$g" 2>/dev/null || true
           done
           echo "performance mode OFF"

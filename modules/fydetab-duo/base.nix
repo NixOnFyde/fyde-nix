@@ -79,6 +79,10 @@ in
     # while avoiding another U-Boot bootargs token.
     boot.consoleLogLevel = lib.mkDefault 3;
 
+    # Keep hung-task detection for diagnostics, but don't panic just because
+    # a task is blocked. The vendor kernel defconfig enables this behavior.
+    boot.kernel.sysctl."kernel.hung_task_panic" = lib.mkDefault 0;
+
     boot.kernelModules = [
       "brcmfmac"
       # "dhd" # DISABLED because we use `brcmfmac` now not `bcmdhd`!
@@ -94,6 +98,16 @@ in
     ];
 
     hardware.enableRedistributableFirmware = lib.mkDefault true;
+
+    # Make the regulatory database available for country-specific Wi-Fi rules.
+    hardware.wirelessRegulatoryDatabase = lib.mkDefault true;
+
+    # cfg80211 is built into this kernel and may request the database before
+    # the root filesystem is mounted, so include it in the initrd as well.
+    boot.initrd.extraFirmwarePaths = lib.optionals config.hardware.wirelessRegulatoryDatabase [
+      "regulatory.db"
+      "regulatory.db.p7s"
+    ];
 
     hardware.firmware = [
       pkgs.ap6275p-firmware

@@ -30,6 +30,7 @@
 #   modules = [
 #     fyde-nix.nixosModules.base
 #     fyde-nix.nixosModules.bluetooth
+#     fyde-nix.nixosModules.plymouth
 #     fyde-nix.nixosModules.audio
 #     fyde-nix.nixosModules.input
 #     fyde-nix.nixosModules.npu
