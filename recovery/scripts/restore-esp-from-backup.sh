@@ -19,21 +19,49 @@ test -f "$B/boot.scr"
 test -f "$B/vmlinuz-fydetab"
 test -f "$B/initramfs-fydetab.img"
 test -f "$B/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
-mkdir -p "$E/dtbs/rockchip"
+mountpoint -q "$E" || { echo "E must be a mounted ESP: $E" >&2; exit 1; }
+fstype=$(findmnt -n -o FSTYPE --target "$E")
+case "$fstype" in
+  vfat | fat | msdos) ;;
+  *) echo "E must be a FAT ESP (found $fstype): $E" >&2; exit 1 ;;
+esac
+B_REAL=$(realpath "$B")
+E_REAL=$(realpath "$E")
+case "$B_REAL/" in
+  "$E_REAL/"*) echo "backup source must be outside the ESP: $B" >&2; exit 1 ;;
+esac
+case "$E_REAL/" in
+  "$B_REAL/"*) echo "backup source must not contain the ESP: $B" >&2; exit 1 ;;
+esac
+
+tokens=$(awk '$1 == "setenv" && $2 == "bootargs" { print NF; exit }' "$B/boot.cmd")
+if [ -z "$tokens" ] || [ "$tokens" -gt 16 ]; then
+  echo "ERROR: backup boot.cmd must contain a setenv bootargs line with at most 16 tokens" >&2
+  exit 1
+fi
+command -v node >/dev/null || { echo "node is required to validate the backup boot.scr" >&2; exit 1; }
+node "$(dirname "$0")/validate-boot-scr.js" "$B/boot.scr" "$B/boot.cmd"
+
+ESP_STAGE=$(mktemp -d "$E/.fydetab-restore.XXXXXX")
+cleanup() {
+  rm -rf "$ESP_STAGE"
+}
+trap cleanup EXIT
+mkdir -p "$ESP_STAGE/dtbs/rockchip"
 
 echo "== restoring ESP files from $B to $E =="
-cp -a "$B/vmlinuz-fydetab" "$E/vmlinuz-fydetab.tmp"
-cp -a "$B/initramfs-fydetab.img" "$E/initramfs-fydetab.img.tmp"
+cp -a "$B/vmlinuz-fydetab" "$ESP_STAGE/vmlinuz-fydetab"
+cp -a "$B/initramfs-fydetab.img" "$ESP_STAGE/initramfs-fydetab.img"
 cp -a "$B/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
-      "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
-cp -a "$B/boot.cmd" "$E/boot.cmd.tmp"
-cp -a "$B/boot.scr" "$E/boot.scr.tmp"
-mv -f "$E/vmlinuz-fydetab.tmp" "$E/vmlinuz-fydetab"
-mv -f "$E/initramfs-fydetab.img.tmp" "$E/initramfs-fydetab.img"
-mv -f "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
+      "$ESP_STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+cp -a "$B/boot.cmd" "$ESP_STAGE/boot.cmd"
+cp -a "$B/boot.scr" "$ESP_STAGE/boot.scr"
+mv -f "$ESP_STAGE/vmlinuz-fydetab" "$E/vmlinuz-fydetab"
+mv -f "$ESP_STAGE/initramfs-fydetab.img" "$E/initramfs-fydetab.img"
+mv -f "$ESP_STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
       "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
-mv -f "$E/boot.cmd.tmp" "$E/boot.cmd"
-mv -f "$E/boot.scr.tmp" "$E/boot.scr"
+mv -f "$ESP_STAGE/boot.cmd" "$E/boot.cmd"
+mv -f "$ESP_STAGE/boot.scr" "$E/boot.scr"
 sync
 
 echo "== verify =="
@@ -51,10 +79,6 @@ if [ "$tokens" -gt 16 ]; then
 fi
 echo "setenv bootargs argv tokens: $tokens (limit 16)"
 
-if command -v node >/dev/null; then
-  node "$(dirname "$0")/validate-boot-scr.js" "$E/boot.scr" "$E/boot.cmd"
-else
-  echo "note: node not found; skipping structural boot.scr validation" >&2
-fi
+node "$(dirname "$0")/validate-boot-scr.js" "$E/boot.scr" "$E/boot.cmd"
 
 echo "done"

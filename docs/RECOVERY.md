@@ -184,7 +184,8 @@ Prefer this path; it uses the normal install hook.
    the uImage CRCs. It auto-detects the generation's
    `*-fydetab-duo-boot.cmd` template; set `BOOTCMD_TPL=` if several exist.
    A full backup of the current ESP is written to `B=` (default
-   `/tmp/esp-before-restore`).
+   `/tmp/esp-before-restore-<timestamp>`). Existing backup paths are never
+   replaced.
 
 4. Never mix files from different generations. This is very important!
 
@@ -242,6 +243,6 @@ theme's `Font=` line. The theme also draws a progress bar at the bottom edge.
 
 | File                                                                           | Purpose                                                                                                                                                                                        |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`restore-esp-from-backup.sh`](../recovery/scripts/restore-esp-from-backup.sh) | Copy a full known-good ESP backup to the mounted ESP over UMS. Set `B=` and `E=`; writes atomically, prints hashes, checks the token count, and validates `boot.scr` when `node` is available. |
+| [`restore-esp-from-backup.sh`](../recovery/scripts/restore-esp-from-backup.sh) | Copy a full known-good ESP backup to the mounted ESP over UMS. Set `B=` and `E=`; validates the boot script and token count before writing, then prints hashes. Requires `node`. |
 | [`rebuild-esp-from-store.sh`](../recovery/scripts/rebuild-esp-from-store.sh)   | Rebuild the ESP from any generation present in the tablet's store. Set `M=`, `E=`, `T=` and optionally `BOOTCMD_TPL=`/`PY=`/`B=`.                                                              |
 | [`validate-boot-scr.js`](../recovery/scripts/validate-boot-scr.js)             | Validate a Rockchip script uImage; optionally compare its payload with a `boot.cmd`.                                                                                                           |

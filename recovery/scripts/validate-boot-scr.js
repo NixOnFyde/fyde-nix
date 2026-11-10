@@ -42,6 +42,7 @@ function parse(path) {
 
   if (magic !== 0x27051956) problems.push(`bad magic 0x${magic.toString(16)}`);
   if (crc32(headerZeroed) !== hcrc) problems.push("header CRC mismatch");
+  if (size !== payload.length) problems.push("uImage data-size mismatch");
   if (crc32(payload) !== dcrc) problems.push("payload CRC mismatch");
   if (marker !== 0xffffffff)
     problems.push(`bad Rockchip terminator 0x${marker.toString(16)}`);

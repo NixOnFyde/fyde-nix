@@ -11,7 +11,7 @@
 # Optional:
 #   BOOTCMD_TPL=/nix/store/<...>-fydetab-duo-boot.cmd   (auto-detected if unique)
 #   PY=/path/to/python3                                 (default: python3)
-#   B=/path/to/backup-current-esp                       (default: /tmp/esp-before-restore)
+#   B=/path/to/backup-current-esp                       (default: unique /tmp path)
 #   RK=/path/to/rk-mkimage.py                           (default: this repo's copy)
 #
 # The generation's kernel, initrd and DTB are read through the tablet's store
@@ -34,7 +34,14 @@ esac
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 RK=${RK:-"$REPO/pkgs/rk-boot-script/rk-mkimage.py"}
 PY=${PY:-python3}
-B=${B:-/tmp/esp-before-restore}
+B=${B:-"/tmp/esp-before-restore-$(date +%Y%m%d-%H%M%S)"}
+STAGE=$(mktemp -d)
+ESP_STAGE=""
+cleanup() {
+  rm -rf "$STAGE"
+  if [ -n "$ESP_STAGE" ]; then rm -rf "$ESP_STAGE"; fi
+}
+trap cleanup EXIT
 
 if [ -z "${BOOTCMD_TPL:-}" ]; then
   mapfile -t templates < <(find "$M/nix/store" -maxdepth 1 -name '*-fydetab-duo-boot.cmd' -print)
@@ -48,6 +55,12 @@ fi
 
 test -d "$M/nix/store"
 test -d "$E"
+mountpoint -q "$E" || { echo "E must be a mounted ESP: $E" >&2; exit 1; }
+fstype=$(findmnt -n -o FSTYPE --target "$E")
+case "$fstype" in
+  vfat | fat | msdos) ;;
+  *) echo "E must be a FAT ESP (found $fstype): $E" >&2; exit 1 ;;
+esac
 test -f "$M$T/init"
 test -f "$BOOTCMD_TPL"
 test -f "$RK"
@@ -60,31 +73,16 @@ test -f "$M$K"
 test -f "$M$I"
 test -f "$M$D/rockchip/rk3588s-fydetab_duo.dtb"
 
-echo "== backing up current ESP to $B =="
-rm -rf "$B"
-mkdir -p "$B/dtbs/rockchip"
-for f in boot.cmd boot.scr vmlinuz-fydetab initramfs-fydetab.img \
-         dtbs/rockchip/rk3588s-fydetab_duo.dtb; do
-  if [ -e "$E/$f" ]; then
-    cp -a "$E/$f" "$B/$f"
-  fi
-done
-
-echo "== writing kernel, initrd and DTB from $T =="
-mkdir -p "$E/dtbs/rockchip"
-cp "$M$K" "$E/vmlinuz-fydetab.tmp"
-cp "$M$I" "$E/initramfs-fydetab.img.tmp"
+mkdir -p "$STAGE/dtbs/rockchip"
+cp "$M$K" "$STAGE/vmlinuz-fydetab"
+cp "$M$I" "$STAGE/initramfs-fydetab.img"
 cp "$M$D/rockchip/rk3588s-fydetab_duo.dtb" \
-   "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp"
-mv -f "$E/vmlinuz-fydetab.tmp" "$E/vmlinuz-fydetab"
-mv -f "$E/initramfs-fydetab.img.tmp" "$E/initramfs-fydetab.img"
-mv -f "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb.tmp" \
-      "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+   "$STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
 
 echo "== generating boot.cmd from $BOOTCMD_TPL =="
-sed "s|@INIT@|$T|g" "$BOOTCMD_TPL" > "$E/boot.cmd.tmp"
+sed "s|@INIT@|$T|g" "$BOOTCMD_TPL" > "$STAGE/boot.cmd"
 
-tokens=$(awk '$1 == "setenv" && $2 == "bootargs" { print NF; exit }' "$E/boot.cmd.tmp")
+tokens=$(awk '$1 == "setenv" && $2 == "bootargs" { print NF; exit }' "$STAGE/boot.cmd")
 if [ -z "$tokens" ]; then
   echo "ERROR: generated boot.cmd has no 'setenv bootargs' line" >&2
   exit 1
@@ -96,18 +94,14 @@ if [ "$tokens" -gt 16 ]; then
 fi
 
 echo "== generating boot.scr =="
-"$PY" "$RK" "$E/boot.cmd.tmp" "$E/boot.scr.tmp" "NixOS FydeTab Duo"
-mv -f "$E/boot.scr.tmp" "$E/boot.scr"
-mv -f "$E/boot.cmd.tmp" "$E/boot.cmd"
-sync
-
-echo "== verify =="
-sha256sum "$E/vmlinuz-fydetab" "$E/initramfs-fydetab.img" \
-          "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb" "$E/boot.cmd"
-grep -n "init=$T/init" "$E/boot.cmd"
+"$PY" "$RK" "$STAGE/boot.cmd" "$STAGE/boot.scr" "NixOS FydeTab Duo"
+grep -q "init=$T/init" "$STAGE/boot.cmd" || {
+  echo "ERROR: generated boot.cmd does not point to $T/init" >&2
+  exit 1
+}
 echo "setenv bootargs argv tokens: $tokens (limit 16)"
 
-"$PY" - "$E/boot.scr" "$E/boot.cmd" <<'PYEOF'
+"$PY" - "$STAGE/boot.scr" "$STAGE/boot.cmd" <<'PYEOF'
 import binascii, struct, sys
 
 scr = open(sys.argv[1], "rb").read()
@@ -132,4 +126,45 @@ print(
 )
 PYEOF
 
+E_REAL=$(realpath "$E")
+B_REAL=$(realpath -m "$B")
+case "$B_REAL/" in
+  "$E_REAL/"*) echo "B must be outside the ESP: $B" >&2; exit 1 ;;
+esac
+case "$E_REAL/" in
+  "$B_REAL/"*) echo "B must not contain the ESP: $B" >&2; exit 1 ;;
+esac
+[ ! -e "$B" ] && [ ! -L "$B" ] || {
+  echo "backup path already exists; refusing to replace it: $B" >&2
+  exit 1
+}
+
+echo "== backing up current ESP to $B =="
+mkdir -p "$B/dtbs/rockchip"
+for f in boot.cmd boot.scr vmlinuz-fydetab initramfs-fydetab.img \
+         dtbs/rockchip/rk3588s-fydetab_duo.dtb; do
+  if [ -e "$E/$f" ]; then cp -a "$E/$f" "$B/$f"; fi
+done
+
+echo "== writing validated files from $T =="
+ESP_STAGE=$(mktemp -d "$E/.fydetab-recovery.XXXXXX")
+mkdir -p "$ESP_STAGE/dtbs/rockchip"
+cp "$STAGE/vmlinuz-fydetab" "$ESP_STAGE/vmlinuz-fydetab"
+cp "$STAGE/initramfs-fydetab.img" "$ESP_STAGE/initramfs-fydetab.img"
+cp "$STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
+   "$ESP_STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+cp "$STAGE/boot.cmd" "$ESP_STAGE/boot.cmd"
+cp "$STAGE/boot.scr" "$ESP_STAGE/boot.scr"
+mv -f "$ESP_STAGE/vmlinuz-fydetab" "$E/vmlinuz-fydetab"
+mv -f "$ESP_STAGE/initramfs-fydetab.img" "$E/initramfs-fydetab.img"
+mv -f "$ESP_STAGE/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
+      "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb"
+mv -f "$ESP_STAGE/boot.cmd" "$E/boot.cmd"
+mv -f "$ESP_STAGE/boot.scr" "$E/boot.scr"
+sync
+
+echo "== verify =="
+sha256sum "$E/vmlinuz-fydetab" "$E/initramfs-fydetab.img" \
+          "$E/dtbs/rockchip/rk3588s-fydetab_duo.dtb" "$E/boot.cmd"
+grep -n "init=$T/init" "$E/boot.cmd"
 echo "== done; keep the backup in $B outside the repository =="
