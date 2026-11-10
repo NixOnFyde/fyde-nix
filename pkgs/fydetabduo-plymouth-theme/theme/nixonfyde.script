@@ -1,0 +1,195 @@
+# NixOnFyde Plymouth theme
+# FydeTab Duo branding with a centered circular loading indicator
+
+Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
+Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+
+status = "normal";
+
+# Center the NixOS mark and official FydeTab wordmark above the spinner.
+# Use native-size assets so Plymouth does not blur them through interpolation.
+brand.icon.image = Image("nix-snowflake.png");
+brand.icon.sprite = Sprite(brand.icon.image);
+brand.wordmark.image = Image("fydetab-wordmark.png");
+brand.wordmark.sprite = Sprite(brand.wordmark.image);
+brand.width = brand.icon.image.GetWidth() + 32 + brand.wordmark.image.GetWidth();
+brand.height = brand.icon.image.GetHeight();
+if (brand.wordmark.image.GetHeight() > brand.height) {
+    brand.height = brand.wordmark.image.GetHeight();
+}
+brand.x = Window.GetX() + (Window.GetWidth() - brand.width) / 2;
+brand.icon.x = brand.x;
+brand.wordmark.x = brand.icon.x + brand.icon.image.GetWidth() + 32;
+
+# Use a fixed-opacity, spiffing ring animation based on SVG Spinners.
+spinner.frame_count = 90;
+spinner.frame_names = [
+    "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
+    "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018",
+    "0019", "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027",
+    "0028", "0029", "0030", "0031", "0032", "0033", "0034", "0035", "0036",
+    "0037", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0045",
+    "0046", "0047", "0048", "0049", "0050", "0051", "0052", "0053", "0054",
+    "0055", "0056", "0057", "0058", "0059", "0060", "0061", "0062", "0063",
+    "0064", "0065", "0066", "0067", "0068", "0069", "0070", "0071", "0072",
+    "0073", "0074", "0075", "0076", "0077", "0078", "0079", "0080", "0081",
+    "0082", "0083", "0084", "0085", "0086", "0087", "0088", "0089", "0090"
+];
+spinner.images = [];
+for (i = 0; i < spinner.frame_count; i++) {
+    spinner.images[i] = Image("spinner/animation-" + spinner.frame_names[i] + ".png");
+}
+spinner.frame = 0;
+spinner.sprite = Sprite(spinner.images[spinner.frame]);
+spinner.x = Window.GetX() + (Window.GetWidth() - spinner.images[0].GetWidth()) / 2;
+brand.y = Window.GetY() + Window.GetHeight() / 2 - (brand.height + 48 + spinner.images[0].GetHeight()) / 2;
+brand.icon.y = brand.y;
+brand.icon.sprite.SetPosition(brand.icon.x, brand.icon.y, 100);
+brand.wordmark.y = brand.y + (brand.height - brand.wordmark.image.GetHeight()) / 2;
+brand.wordmark.sprite.SetPosition(brand.wordmark.x, brand.wordmark.y, 100);
+spinner.y = brand.y + brand.height + 48;
+spinner.sprite.SetPosition(spinner.x, spinner.y, 200);
+
+# Show Plymouth's reported boot progress as a lil bar at the bottom edge.
+progress_bar.track.image = Image("progress-track.png");
+progress_bar.track.sprite = Sprite(progress_bar.track.image);
+progress_bar.track.x = Window.GetX() + (Window.GetWidth() - progress_bar.track.image.GetWidth()) / 2;
+progress_bar.track.y = Window.GetY() + Window.GetHeight() - 160;
+progress_bar.track.sprite.SetPosition(progress_bar.track.x, progress_bar.track.y, 300);
+progress_bar.track.sprite.SetOpacity(0.22);
+
+progress_bar.fill.source = Image("progress-fill.png");
+progress_bar.fill.sprite = Sprite();
+progress_bar.fill.sprite.SetPosition(progress_bar.track.x, progress_bar.track.y, 301);
+progress_bar.fill.sprite.SetOpacity(0);
+progress_bar.current_width = 0;
+
+fun boot_progress_callback(duration, fraction_done) {
+    fraction_done = Math.Clamp(fraction_done, 0, 1);
+    width = Math.Int(progress_bar.fill.source.GetWidth() * fraction_done);
+
+    if (width <= 0) {
+        progress_bar.current_width = 0;
+        progress_bar.fill.sprite.SetOpacity(0);
+    } else if (width != progress_bar.current_width) {
+        progress_bar.current_width = width;
+        progress_bar.fill.image = progress_bar.fill.source.Scale(width, progress_bar.fill.source.GetHeight());
+        progress_bar.fill.sprite.SetImage(progress_bar.fill.image);
+        progress_bar.fill.sprite.SetOpacity(0.9);
+    }
+}
+
+Plymouth.SetBootProgressFunction(boot_progress_callback);
+
+# Animation
+fun refresh_callback() {
+    if (global.status == "normal") {
+        spinner.frame = (spinner.frame + 1) % spinner.frame_count;
+        spinner.sprite.SetImage(spinner.images[spinner.frame]);
+        spinner.sprite.SetOpacity(1);
+        brand.icon.sprite.SetOpacity(1);
+        brand.wordmark.sprite.SetOpacity(1);
+    } else {
+        spinner.sprite.SetOpacity(0);
+        brand.icon.sprite.SetOpacity(0.3);
+        brand.wordmark.sprite.SetOpacity(0.3);
+    }
+}
+
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# Dialog handling (password prompt, etc.)
+fun dialog_setup() {
+    box.image = Image("box.png");
+    lock.image = Image("lock.png");
+    entry.image = Image("entry.png");
+
+    box.sprite = Sprite(box.image);
+    box.x = Window.GetX() + Window.GetWidth()  / 2 - box.image.GetWidth()  / 2;
+    box.y = Window.GetY() + Window.GetHeight() / 2 - box.image.GetHeight() / 2 + 200;
+    box.sprite.SetPosition(box.x, box.y, 10000);
+
+    lock.sprite = Sprite(lock.image);
+    lock.x = box.x + box.image.GetWidth()/2 - (lock.image.GetWidth() + entry.image.GetWidth()) / 2;
+    lock.y = box.y + box.image.GetHeight()/2 - lock.image.GetHeight()/2;
+    lock.sprite.SetPosition(lock.x, lock.y, 10001);
+
+    entry.sprite = Sprite(entry.image);
+    entry.x = lock.x + lock.image.GetWidth();
+    entry.y = lock.y;
+    entry.sprite.SetPosition(entry.x, entry.y, 10001);
+
+    global.dialog.box = box;
+    global.dialog.lock = lock;
+    global.dialog.entry = entry;
+    global.dialog.bullet_image = Image("bullet.png");
+    dialog_opacity(1);
+}
+
+fun dialog_opacity(opacity) {
+    dialog.box.sprite.SetOpacity(opacity);
+    dialog.lock.sprite.SetOpacity(opacity);
+    dialog.entry.sprite.SetOpacity(opacity);
+    for (index = 0; dialog.bullet[index]; index++) {
+        dialog.bullet[index].sprite.SetOpacity(opacity);
+    }
+}
+
+fun display_normal_callback() {
+    global.status = "normal";
+    if (global.dialog) {
+        dialog_opacity(0);
+    }
+}
+
+fun display_password_callback(prompt, bullets) {
+    global.status = "password";
+    if (!global.dialog) {
+        dialog_setup();
+    } else {
+        dialog_opacity(1);
+    }
+
+    for (index = 0; dialog.bullet[index] || index < bullets; index++) {
+        if (!dialog.bullet[index]) {
+            dialog.bullet[index].sprite = Sprite(dialog.bullet_image);
+            dialog.bullet[index].x = dialog.entry.x + index * dialog.bullet_image.GetWidth();
+            dialog.bullet[index].y = dialog.entry.y + dialog.entry.image.GetHeight() / 2 - dialog.bullet_image.GetHeight() / 2;
+            dialog.bullet[index].sprite.SetPosition(dialog.bullet[index].x, dialog.bullet[index].y, 10002);
+        }
+
+        if (index < bullets) {
+            dialog.bullet[index].sprite.SetOpacity(1);
+        } else {
+            dialog.bullet[index].sprite.SetOpacity(0);
+        }
+    }
+}
+
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+
+# Boot messages shown when switching away from the splash.
+message.sprite = Sprite();
+message.sprite.SetPosition(Window.GetX() + 32, Window.GetY() + 32, 20000);
+
+fun display_message_callback(text) {
+    if (text != "") {
+        global.status = "message";
+        # The script plugin ignores Font= in its theme descriptor. Pass the
+        # family and size explicitly so the initrd monospaced DejaVu font is used.
+        message.image = Image.Text(text, 1.0, 1.0, 1.0, 1.0, "DejaVu Sans Mono 20");
+        message.sprite.SetImage(message.image);
+        message.sprite.SetOpacity(1);
+    }
+}
+
+fun hide_message_callback(text) {
+    message.sprite.SetOpacity(0);
+    if (global.status == "message") {
+        global.status = "normal";
+    }
+}
+
+Plymouth.SetDisplayMessageFunction(display_message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);
