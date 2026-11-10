@@ -24,6 +24,15 @@ ensure_snapshots_mounted() {
   fi
 }
 
+validate_snapshot_name() {
+  case "$1" in
+    "" | . | .. | *[!A-Za-z0-9._-]*)
+      echo "error: snapshot name must use only letters, numbers, '.', '_' or '-' and cannot be '.' or '..'" >&2
+      exit 2
+      ;;
+  esac
+}
+
 get_subvolume_id() {
   btrfs subvolume show "$1" | sed -n 's/^\s*Subvolume ID:\s*//p'
 }
@@ -32,6 +41,7 @@ case "${1:-}" in
 create)
   snapshot_name="${2:-}"
   [ -n "$snapshot_name" ] || { echo "error: snapshot name required" >&2; exit 2; }
+  validate_snapshot_name "$snapshot_name"
   ensure_snapshots_mounted
 
   target_snapshot_path="$SNAPSHOT_DIR/$snapshot_name"
@@ -54,6 +64,7 @@ list)
 rollback)
   snapshot_name="${2:-}"
   [ -n "$snapshot_name" ] || { echo "error: snapshot name required" >&2; exit 2; }
+  validate_snapshot_name "$snapshot_name"
   ensure_snapshots_mounted
 
   source_snapshot_path="$SNAPSHOT_DIR/$snapshot_name"
@@ -78,6 +89,7 @@ rollback)
 delete)
   snapshot_name="${2:-}"
   [ -n "$snapshot_name" ] || { echo "error: snapshot name required" >&2; exit 2; }
+  validate_snapshot_name "$snapshot_name"
   ensure_snapshots_mounted
 
   target_snapshot_path="$SNAPSHOT_DIR/$snapshot_name"
