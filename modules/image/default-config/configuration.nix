@@ -127,12 +127,18 @@
     # Applied using kanshi output scale in both orientations.
     # desktop.scale = 1.25;
 
-    power.autoProfile = {
-      # Automatically change power profile based on current charge.
-      enable = true;
+    power = {
+      # The keyboard's lock key locks the session by default. Change to
+      # "suspend" to suspend, or "ignore" to leave the key to your compositor.
+      keyboardSleepKeyAction = "lock";
 
-      # Force performance mode when plugged into AC power.
-      forcePerformanceOnAC = true;
+      autoProfile = {
+        # Automatically change power profile based on current charge.
+        enable = true;
+
+        # Force performance mode when plugged into AC power.
+        forcePerformanceOnAC = true;
+      };
     };
   };
 

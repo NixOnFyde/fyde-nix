@@ -9,6 +9,14 @@ let
   cfg = config.hardware.fydetabduo;
   pkgsUnstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.hostPlatform.system; };
 
+  keyboardSleepKeybind =
+    lib.optionalString (cfg.shell.power.enable && cfg.shell.power.keyboardSleepKeyAction == "lock")
+      ''
+        <keybind key="XF86Sleep">
+          <action name="Execute" command="${pkgs.swaylock-effects}/bin/swaylock -f --screenshots --effect-blur 7x5"/>
+        </keybind>
+      '';
+
   cursorTheme = "Bibata-Modern-Ice";
   cursorSize = "24";
 
@@ -447,6 +455,7 @@ in
           </menu>
           <keyboard>
             <default />
+            ${keyboardSleepKeybind}
             <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
             <keybind key="W-d"><action name="Execute" command="vicinae toggle"/></keybind>
             <keybind key="Print"><action name="Execute" command="sh -c 'mkdir -p $HOME/Pictures &amp;&amp; grim -g &quot;$(slurp)&quot; $HOME/Pictures/Screenshot-$(date +%s).png'"/></keybind>
@@ -490,6 +499,7 @@ in
           </menu>
           <keyboard>
             <default />
+            ${keyboardSleepKeybind}
             <keybind key="W-Return"><action name="Execute" command="alacritty"/></keybind>
             <keybind key="W-d"><action name="Execute" command="vicinae toggle"/></keybind>
             <keybind key="Print"><action name="Execute" command="sh -c 'mkdir -p $HOME/Pictures &amp;&amp; grim -g &quot;$(slurp)&quot; $HOME/Pictures/Screenshot-$(date +%s).png'"/></keybind>
