@@ -1,0 +1,50 @@
+name: Kernel patch checks
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/kernel-patch-check.yml"
+      - "pkgs/linux-fydetab/**"
+      - "scripts/check-kernel-patches.py"
+      - "scripts/check-kernel-patch-build.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/kernel-patch-check.yml"
+      - "pkgs/linux-fydetab/**"
+      - "scripts/check-kernel-patches.py"
+      - "scripts/check-kernel-patch-build.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  check-kernel-patches:
+    name: Check kernel patches
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check patch integrity
+        run: python3 scripts/check-kernel-patches.py
+
+      - uses: DeterminateSystems/nix-installer-action@v23
+
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
+
+      - name: Compile objects affected by changed kernel patches
+        run: |
+          nix develop --impure --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              pkgs = flake.inputs.nixpkgs.legacyPackages.aarch64-linux;
+            in pkgs.mkShell {
+              packages = with pkgs; [ gcc gnumake bison flex bc perl patch ripgrep ];
+            }' --command scripts/check-kernel-patch-build.sh

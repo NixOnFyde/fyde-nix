@@ -4,6 +4,7 @@ Checked for each patch file:
   * hunk headers agree with their bodies (and bodies contain no blank lines,
     which `patch` rejects),
   * the diffstat numbers match the diff itself,
+  * C and header hunks preserve delimiter balance ({}, (), []),
   * every patch is referenced by package.nix, and every patch
     package.nix references exists.
 
@@ -23,6 +24,108 @@ DELETIONS = re.compile(r"(\d+) deletions?\(-\)")
 DIFFSTAT = re.compile(
     r"^\s*(?P<path>\S.*?)\s*\|\s*(?P<total>\d+)\s*(?P<bar>[+\-]*)\s*$"
 )
+C_SOURCE = (".c", ".h")
+
+
+def c_delimiter_delta(lines: list[str]) -> tuple[int, int, int]:
+    """Count C delimiters outside comments and literals."""
+    source = "\n".join(lines)
+    pairs = {"{": 0, "}": 0, "(": 0, ")": 0, "[": 0, "]": 0}
+    state = "code"
+    i = 0
+    while i < len(source):
+        char = source[i]
+        next_char = source[i + 1] if i + 1 < len(source) else ""
+
+        if state == "line-comment":
+            if char == "\n":
+                state = "code"
+        elif state == "block-comment":
+            if char == "*" and next_char == "/":
+                state = "code"
+                i += 1
+        elif state in ("string", "char"):
+            if char == "\\":
+                i += 1
+            elif (state == "string" and char == '"') or (
+                state == "char" and char == "'"
+            ):
+                state = "code"
+        elif char == "/" and next_char == "/":
+            state = "line-comment"
+            i += 1
+        elif char == "/" and next_char == "*":
+            state = "block-comment"
+            i += 1
+        elif char == '"':
+            state = "string"
+        elif char == "'":
+            state = "char"
+        elif char in pairs:
+            pairs[char] += 1
+        i += 1
+
+    return (
+        pairs["{"] - pairs["}"],
+        pairs["("] - pairs[")"],
+        pairs["["] - pairs["]"],
+    )
+
+
+def check_c_delimiter_balance(path: Path, text: str) -> list[str]:
+    """Ensure each patch preserves C delimiter balance per modified file.
+
+    Comparing the total delimiter delta across all hunks in a file allows
+    brace changes split across adjacent hunks, while still catching an extra
+    or missing brace that would make the resulting file syntactically invalid.
+    """
+    file_changes: dict[str, list[list[int]]] = {}
+    filename = ""
+    lines = text.splitlines()
+    i = 0
+
+    while i < len(lines):
+        if lines[i].startswith("+++ b/"):
+            filename = lines[i][6:]
+
+        if not HUNK.match(lines[i]):
+            i += 1
+            continue
+
+        i += 1
+        old_lines: list[str] = []
+        new_lines: list[str] = []
+        while i < len(lines) and not lines[i].startswith("@@ "):
+            line = lines[i]
+            if line.startswith(" "):
+                old_lines.append(line[1:])
+                new_lines.append(line[1:])
+            elif line.startswith("-"):
+                old_lines.append(line[1:])
+            elif line.startswith("+"):
+                new_lines.append(line[1:])
+            elif line.startswith("\\"):
+                pass
+            else:
+                break
+            i += 1
+
+        if filename.endswith(C_SOURCE):
+            changes = file_changes.setdefault(filename, [[0, 0, 0], [0, 0, 0]])
+            old_delta = c_delimiter_delta(old_lines)
+            new_delta = c_delimiter_delta(new_lines)
+            for index in range(3):
+                changes[0][index] += old_delta[index]
+                changes[1][index] += new_delta[index]
+
+    problems = []
+    for filename, (old_delta, new_delta) in sorted(file_changes.items()):
+        if old_delta != new_delta:
+            problems.append(
+                "%s: C delimiter balance changes from %s to %s"
+                % (filename, tuple(old_delta), tuple(new_delta))
+            )
+    return problems
 
 
 def check_diff(path: Path, text: str) -> list[str]:
@@ -169,6 +272,10 @@ def main(argv: list[str]) -> int:
     for patch in patches:
         for problem in check_diff(patch, patch.read_text(errors="surrogateescape")):
             problems.append("%s: %s" % (patch.name, problem))
+        for problem in check_c_delimiter_balance(
+            patch, patch.read_text(errors="surrogateescape")
+        ):
+            problems.append("%s: %s" % (patch.name, problem))
     problems.extend(check_manifest(patch_dir))
 
     for problem in problems:
@@ -179,7 +286,7 @@ def main(argv: list[str]) -> int:
 
     print(
         "kernel patch check: %d patches in %s are consistent "
-        "(hunks, diffstat, package.nix)" % (len(patches), patch_dir)
+        "(hunks, diffstat, C delimiters, package.nix)" % (len(patches), patch_dir)
     )
     return 0
 
