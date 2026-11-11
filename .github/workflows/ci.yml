@@ -203,15 +203,15 @@ jobs:
           {
             if [ -n "$PREV" ] && ! git diff --quiet "$PREV" HEAD -- modules/image/default-config; then
               echo "<details>"
-              echo "<summary>Updating an already-flashed image</summary>"
+              echo "<summary>How to update an already-flashed system</summary>"
               echo
-              echo "If you already have FydeTab Duo NixOS installed, you do **not** need to reflash. Update as usual:"
+              echo "If you already have `fyde-nix` installed, you do **not** need to reflash. Update as usual:"
               echo
               echo '```bash'
               echo 'sudo fydetab-update'
               echo '```'
               echo
-              echo "Your own \`/etc/nixos/configuration.nix\` is not overwritten by updates. The image's default config changed in this release; please review the per-file diffs below and merge any new options you want into your own config."
+              echo "Your own \`/etc/nixos/configuration.nix\` is not overwritten by updates. However, the image's default config changed in this release; please review the per-file diffs below and merge any new options you want into your own config."
               echo
               echo "| Default config file | Diff since \`${PREV}\` |"
               echo "| --- | --- |"
