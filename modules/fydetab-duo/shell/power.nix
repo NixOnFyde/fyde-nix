@@ -157,23 +157,40 @@ in
       (pkgs.writeShellScriptBin "fydetab-perf" ''
         set -euo pipefail
 
+        # The governors are root-owned, so without this check just running
+        # `fydetab-perf on` would print one "permission denied" per policy
+        # which is a lot of spam and it would also still just exit 0.
+        require_root() {
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "error: fydetab-perf $1 needs root: run 'sudo fydetab-perf $1'" >&2
+            exit 1
+          fi
+        }
+
+        # Write $1 to every path in the remaining arguments, skipping
+        # unmatched globs and warning (instead of failing) on read-only paths.
+        set_value() {
+          local value="$1" path
+          shift
+          for path in "$@"; do
+            [ -e "$path" ] || continue
+            if ! { printf '%s\n' "$value" >"$path"; } 2>/dev/null; then
+              echo "warning: failed to write $value to $path" >&2
+            fi
+          done
+        }
+
         case "''${1:-}" in
         on)
-          for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-            echo performance >"$g" 2>/dev/null || true
-          done
-          for g in /sys/class/devfreq/*gpu*/governor; do
-            echo performance >"$g" 2>/dev/null || true
-          done
+          require_root on
+          set_value performance /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+          set_value performance /sys/class/devfreq/*gpu*/governor
           echo "performance mode ON"
           ;;
         off)
-          for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-            echo schedutil >"$g" 2>/dev/null || true
-          done
-          for g in /sys/class/devfreq/*gpu*/governor; do
-            echo simple_ondemand >"$g" 2>/dev/null || true
-          done
+          require_root off
+          set_value schedutil /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+          set_value simple_ondemand /sys/class/devfreq/*gpu*/governor
           echo "performance mode OFF"
           ;;
         status)
