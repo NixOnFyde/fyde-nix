@@ -3,12 +3,12 @@ Name=NixOnFyde
 Description=NixOnFyde custom boot splash
 ModuleName=script
 Font=DejaVu Sans Mono 20
-MonospaceFont=DejaVu Sans Mono 20
-ConsoleLogBackgroundColor=0x00000000
-ConsoleLogTextColor=0xffffffff
 
 [script]
 ImageDir=/usr/share/plymouth/themes/nixonfyde
 ScriptFile=/usr/share/plymouth/themes/nixonfyde/nixonfyde.script
+MonospaceFont=DejaVu Sans Mono 14
+ConsoleLogBackgroundColor=0x00000000
+ConsoleLogTextColor=0xffffffff
 BackgroundStartColor=0x000000
 BackgroundEndColor=0x000000

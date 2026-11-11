@@ -4,6 +4,7 @@
   replaceVars,
   runCommand,
   coreutils,
+  diffutils,
   util-linux,
   gnused,
   parted,
@@ -18,6 +19,7 @@
 let
   binPath = lib.makeBinPath [
     coreutils
+    diffutils
     util-linux
     gnused
     parted
