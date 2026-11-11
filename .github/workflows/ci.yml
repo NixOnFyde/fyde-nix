@@ -205,7 +205,7 @@ jobs:
               echo "<details>"
               echo "<summary>How to update an already-flashed system</summary>"
               echo
-              echo "If you already have `fyde-nix` installed, you do **not** need to reflash. Update as usual:"
+              echo "If you already have \`fyde-nix\` installed, you do **not** need to reflash. Update as usual:"
               echo
               echo '```bash'
               echo 'sudo fydetab-update'
