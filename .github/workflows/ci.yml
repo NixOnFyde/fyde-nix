@@ -201,9 +201,9 @@ jobs:
 
           mkdir -p default-config-diffs
           {
-            printf '%s\n\n' "$NOTES"
             if [ -n "$PREV" ] && ! git diff --quiet "$PREV" HEAD -- modules/image/default-config; then
-              echo "## Updating an already-flashed image"
+              echo "<details>"
+              echo "<summary>Updating an already-flashed image</summary>"
               echo
               echo "If you already have FydeTab Duo NixOS installed, you do **not** need to reflash. Update as usual:"
               echo
@@ -223,8 +223,10 @@ jobs:
                 echo "| \`${f}\` | [view diff](https://github.com/${GITHUB_REPOSITORY}/releases/download/${CUR}/${asset}) |"
               done < <(git diff --name-only "$PREV" HEAD -- modules/image/default-config)
               echo
-              echo "Full comparison: https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${CUR}"
+              echo "</details>"
+              echo
             fi
+            printf '%s\n' "$NOTES"
           } > release-body.md
 
           echo "=== release-body.md"
