@@ -150,8 +150,13 @@ jobs:
     if: github.ref_type == 'tag'
     permissions:
       contents: write
+      pull-requests: read
 
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Download CI artifact
         uses: actions/download-artifact@v8
         with:
@@ -172,11 +177,68 @@ jobs:
           sha256sum fydetab-duo-nixos.img.zst* > SHA256SUMS
           cat SHA256SUMS
 
+      - name: Generate release notes & default-config diffs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CUR="${GITHUB_REF_NAME}"
+          PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+          echo "current=$CUR previous=${PREV:-none}"
+
+          API_ARGS=(-f "tag_name=$CUR")
+          if [ -n "$PREV" ]; then
+            API_ARGS+=(-f "previous_tag_name=$PREV")
+          fi
+
+          # Generate the normal PR-based notes ourselves so we can append a
+          # default-config section without losing the generated content.
+          NOTES=$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" "${API_ARGS[@]}" --jq .body || true)
+          if [ -z "$NOTES" ]; then
+            echo "::warning::GitHub generated no release notes; using a minimal body"
+            NOTES="Release ${CUR}."
+          fi
+
+          mkdir -p default-config-diffs
+          {
+            printf '%s\n\n' "$NOTES"
+            if [ -n "$PREV" ] && ! git diff --quiet "$PREV" HEAD -- modules/image/default-config; then
+              echo "## Updating an already-flashed image"
+              echo
+              echo "If you already have FydeTab Duo NixOS installed, you do **not** need to reflash. Update as usual:"
+              echo
+              echo '```bash'
+              echo 'sudo fydetab-update'
+              echo '```'
+              echo
+              echo "Your own \`/etc/nixos/configuration.nix\` is not overwritten by updates. The image's default config changed in this release; please review the per-file diffs below and merge any new options you want into your own config."
+              echo
+              echo "| Default config file | Diff since \`${PREV}\` |"
+              echo "| --- | --- |"
+              while IFS= read -r f; do
+                [ -n "$f" ] || continue
+                base=$(basename "$f")
+                asset="default-config-${base}.diff"
+                git diff "$PREV" HEAD -- "$f" > "default-config-diffs/${asset}"
+                echo "| \`${f}\` | [view diff](https://github.com/${GITHUB_REPOSITORY}/releases/download/${CUR}/${asset}) |"
+              done < <(git diff --name-only "$PREV" HEAD -- modules/image/default-config)
+              echo
+              echo "Full comparison: https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${CUR}"
+            fi
+          } > release-body.md
+
+          echo "=== release-body.md"
+          cat release-body.md
+          echo "=== diff assets"
+          ls -l default-config-diffs/ || true
+
       - name: Release image
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release-body.md
+          fail_on_unmatched_files: false
           files: |
             fydetab-duo-nixos.img.zst*
             SHA256SUMS
+            default-config-diffs/*.diff

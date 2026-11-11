@@ -43,5 +43,4 @@ body:
     attributes:
       label: Checks
       options:
-        - label: The ESP has the legacy_boot attribute set (`sgdisk --attributes=2:show`).
         - label: I searched existing issues for this problem.
