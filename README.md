@@ -21,6 +21,10 @@ Nix flake for the [FydeTab Duo](https://fydetabduo.com/) — Fyde Innovation's o
 > [!TIP]
 > As long as you can enter MASKROM or LOADER mode — all can be restored. And, considering the amount of mistakes I made when making this flake — it's really, really hard to stop those modes from working — even if it seems all hope is lost.
 
+![Plymouth boot splash](docs/assets/plymouth-boot.gif)
+
+*Custom Plymouth boot splash, enabled by default on the full bundle.*
+
 ## Quick start
 
 Please read [docs/SETUP.md](docs/SETUP.md).
