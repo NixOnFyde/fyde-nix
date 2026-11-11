@@ -3,6 +3,7 @@
   stdenvNoCC,
   bash,
   coreutils,
+  gawk,
   git,
   gnugrep,
   gnused,
@@ -10,11 +11,13 @@
   nixos-rebuild,
   procps,
   sudo,
+  systemd,
   replaceVars,
 }:
 let
   binPath = lib.makeBinPath [
     coreutils
+    gawk
     git
     gnugrep
     gnused
@@ -22,6 +25,7 @@ let
     nixos-rebuild
     procps
     sudo
+    systemd
   ];
 in
 stdenvNoCC.mkDerivation {
