@@ -78,6 +78,16 @@ in
       HandleSuspendKey = if shell.power.keyboardSleepKeyAction == "suspend" then "suspend" else "ignore";
     };
 
+    # The keyboard's lock key uses the HID consumer "Power" usage (0x0C:0x30),
+    # which the kernel maps to KEY_POWER - the same code as the physical power
+    # button. logind would then suspend on it through HandlePowerKey, ignoring
+    # keyboardSleepKeyAction. Remap it to KEY_SLEEP in the input layer so logind
+    # actually honours our option and the compositor receives XF86Sleep.
+    services.udev.extraHwdb = ''
+      evdev:input:b0003v05ACp8502*
+       KEYBOARD_KEY_c0030=sleep
+    '';
+
     # power-profiles-daemon cannot give us a performance profile here:
     # that requires an ACPI platform-profile interface, which this SoC
     # does not expose. The CPU/GPU GOVERNORS do support it though,
