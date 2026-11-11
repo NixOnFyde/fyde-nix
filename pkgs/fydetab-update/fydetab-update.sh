@@ -24,10 +24,10 @@ latest tag (e.g., you tested an untagged commit), nothing changes.
 
 options:
   --check    show the latest tag vs what is currently pinned, without
-             changing anything
+             changing anything (does not need root)
   -h, --help show this help
 
-Run as root.
+Run as root to update.
 Requires network access to fetch tags and the new fyde-nix.
 EOF
 }
@@ -46,6 +46,52 @@ flake_lock_lastmodified() {
     | head -n 1
 }
 
+# True if flake.nix declares a fyde-nix input, in either form:
+#   fyde-nix.url = "...";                (dotted)
+#   fyde-nix = { url = "..."; ... };     (block)
+# A leading `inputs.` is accepted too.
+has_fyde_nix_input() {
+  grep -qE '(^|[^[:alnum:]_.-])(inputs\.)?fyde-nix[[:space:]]*(\.url[[:space:]]*=|=[[:space:]]*\{)' \
+    "$NIXOS_DIR/flake.nix"
+}
+
+# Pin the fyde-nix input to tag $1, handling the dotted and block forms.
+# Editing in place means the file keeps its owner and mode unless sed -i
+# replaces it, in which case the caller restores the metadata after.
+pin_fyde_nix_input() {
+  local tag="$1"
+  local url="$FLAKE_URL_BASE/$tag"
+  local flake="$NIXOS_DIR/flake.nix"
+  local range start end
+
+  # Find a block-form input by tracking brace depth from its opening line.
+  range=$(awk '
+    function delta(s,   t, n) {
+      t = s; n = gsub(/\{/, "", t)
+      t = s; return n - gsub(/\}/, "", t)
+    }
+    !started && !/^[[:space:]]*#/ && /(^|[^[:alnum:]_.-])(inputs\.)?fyde-nix[[:space:]]*=[[:space:]]*\{/ {
+      started = 1; depth = 0; start = NR
+    }
+    started {
+      depth += delta($0)
+      if (depth <= 0) { print start, NR; exit }
+    }
+  ' "$flake")
+
+  if [ -n "$range" ]; then
+    start=${range% *}
+    end=${range#* }
+    sed -i -E \
+      "${start},${end}s|url[[:space:]]*=[[:space:]]*\"github:NixOnFyde/fyde-nix[^\"]*\"|url = \"$url\"|" \
+      "$flake"
+  else
+    sed -i -E \
+      "s|((inputs\.)?fyde-nix)\.url[[:space:]]*=[[:space:]]*\"github:NixOnFyde/fyde-nix[^\"]*\"|\1.url = \"$url\"|" \
+      "$flake"
+  fi
+}
+
 # Newest tag matching v* on the fyde-nix repository ("" if none).
 latest_tag() {
   git ls-remote --tags "$GIT_REPO" 2>/dev/null \
@@ -54,17 +100,18 @@ latest_tag() {
     | tail -n 1
 }
 
-# Revision of a tag, as resolved by nix (e.g. v1.2.3).
+# Revision of a tag, as resolved by nix (e.g., v1.2.3).
+# --refresh is important when a tag is moved (e.g., rebuilding the same rc).
 tag_rev() {
-  nix flake metadata --json "$FLAKE_URL_BASE/$1" 2>/dev/null \
+  nix flake metadata --json --refresh "$FLAKE_URL_BASE/$1" 2>/dev/null \
     | grep -oE '"rev": ?"[0-9a-f]{40}"' \
     | head -n 1 \
     | sed 's/.*"\([0-9a-f]*\)"/\1/'
 }
 
-# lastModified of a tag, as resolved by nix (e.g. v1.2.3).
+# lastModified of a tag, as resolved by nix (e.g., v1.2.3).
 tag_lastmodified() {
-  nix flake metadata --json "$FLAKE_URL_BASE/$1" 2>/dev/null \
+  nix flake metadata --json --refresh "$FLAKE_URL_BASE/$1" 2>/dev/null \
     | grep -oE '"lastModified": ?[0-9]+' \
     | head -n 1 \
     | grep -oE '[0-9]+'
@@ -89,16 +136,11 @@ main() {
     ;;
   esac
 
-  if [ "$(id -u)" -ne 0 ]; then
-    echo "error: run as root (e.g. sudo fydetab-update)" >&2
-    exit 1
-  fi
-
   if [ ! -f "$LOCK_FILE" ]; then
     echo "error: $LOCK_FILE not found - run this on the FydeTab Duo" >&2
     exit 1
   fi
-  if ! grep -q 'fyde-nix.url' "$NIXOS_DIR/flake.nix"; then
+  if ! has_fyde_nix_input; then
     echo "error: no fyde-nix input in $NIXOS_DIR/flake.nix" >&2
     exit 1
   fi
@@ -108,6 +150,11 @@ main() {
   if [ -z "$tag" ]; then
     echo "error: no v* tags found on $GIT_REPO" >&2
     echo "note: fydetab-update only installs tagged releases; tag a release to enable updates" >&2
+    exit 1
+  fi
+  # The tag is embedded in flake.nix via sed, so keep it to a plain version.
+  if ! printf '%s' "$tag" | grep -qE '^v[0-9A-Za-z._-]+$'; then
+    echo "error: refusing to use unusual tag name: $tag" >&2
     exit 1
   fi
 
@@ -144,23 +191,51 @@ main() {
     exit 0
   fi
 
-  local backup="$NIXOS_DIR/flake.nix.fydetab-update.bak"
-  local lock_backup="$LOCK_FILE.fydetab-update.bak"
-  cp "$NIXOS_DIR/flake.nix" "$backup"
-  cp "$LOCK_FILE" "$lock_backup"
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "error: run as root to update (e.g. sudo fydetab-update)" >&2
+    exit 1
+  fi
+
+  # Keep backups out of /etc/nixos: that path may be a symlink into the
+  # user's home (as I do in my own config), and root-created files there
+  # could be seen as litter.
+  #
+  # These are deliberately not `local`: the EXIT trap runs after main
+  # returns, where locals no longer exist.
+  backup_dir=$(mktemp -d "${TMPDIR:-/tmp}/fydetab-update.XXXXXX")
+  cp -p "$NIXOS_DIR/flake.nix" "$backup_dir/flake.nix"
+  cp -p "$LOCK_FILE" "$backup_dir/flake.lock"
+
+  read -r flake_uid flake_gid flake_mode <<<"$(stat -c '%u %g %a' "$NIXOS_DIR/flake.nix")"
+  read -r lock_uid lock_gid lock_mode <<<"$(stat -c '%u %g %a' "$LOCK_FILE")"
+
+  # Both files may be in a user-owned /etc/nixos, so root-run sed and
+  # nix would otherwise leave them root-owned.
+  restore_owner_mode() {
+    chown "$flake_uid:$flake_gid" "$NIXOS_DIR/flake.nix" 2>/dev/null || true
+    chmod "$flake_mode" "$NIXOS_DIR/flake.nix" 2>/dev/null || true
+    chown "$lock_uid:$lock_gid" "$LOCK_FILE" 2>/dev/null || true
+    chmod "$lock_mode" "$LOCK_FILE" 2>/dev/null || true
+  }
+
+  cleanup() {
+    restore_owner_mode
+    rm -rf "$backup_dir"
+  }
+  trap cleanup EXIT
+
   echo "==> backed up flake.nix and flake.lock"
 
   restore_update_files() {
-    cp "$backup" "$NIXOS_DIR/flake.nix"
-    cp "$lock_backup" "$LOCK_FILE"
+    cp -p "$backup_dir/flake.nix" "$NIXOS_DIR/flake.nix"
+    cp -p "$backup_dir/flake.lock" "$LOCK_FILE"
   }
 
   # Pin the fyde-nix input to the tag (replaces unpinned / branch / commit forms).
-  sed -i -E \
-    "s|fyde-nix\.url = \"github:NixOnFyde/fyde-nix[^\"]*\"|fyde-nix.url = \"$FLAKE_URL_BASE/$tag\"|" \
-    "$NIXOS_DIR/flake.nix"
+  pin_fyde_nix_input "$tag"
+  restore_owner_mode
 
-  if ! grep -Fq "fyde-nix.url = \"$FLAKE_URL_BASE/$tag\"" "$NIXOS_DIR/flake.nix"; then
+  if ! grep -Fq "\"$FLAKE_URL_BASE/$tag\"" "$NIXOS_DIR/flake.nix"; then
     echo "error: failed to pin fyde-nix to $tag; restoring previous files" >&2
     restore_update_files
     exit 1
@@ -179,6 +254,12 @@ main() {
 
   local new_rev
   new_rev=$(flake_lock_rev || true)
+  if [ -z "$new_rev" ] || [ "$new_rev" != "$tag_rev" ]; then
+    echo "error: flake.lock did not resolve to $tag (${tag_rev:-?}); restoring previous files" >&2
+    restore_update_files
+    exit 1
+  fi
+  restore_owner_mode
   echo "==> fyde-nix: ${cur_rev:-?} -> ${new_rev:-?}"
 
   echo "==> rebuilding and activating the system (nixos-rebuild switch)"
