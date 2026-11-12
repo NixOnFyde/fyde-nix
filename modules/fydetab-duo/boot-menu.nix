@@ -168,8 +168,8 @@ let
             read -rsn3 -t 2 k < "$tty" || k=""
             printf 'fydetab-menu: ARROW seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
-              '[A'|'OA'|$'\x1b[A'|$'\x1bOA') sel=$(((sel - 1 + n) % n)) ;;
-              '[B'|'OB'|$'\x1b[B'|$'\x1bOB') sel=$(((sel + 1) % n)) ;;
+              '[A'|'OA'|$'\033[A'|$'\033OA') sel=$(((sel - 1 + n) % n)) ;;
+              '[B'|'OB'|$'\033[B'|$'\033OB') sel=$(((sel + 1) % n)) ;;
             esac
             ;;
           ' ')
