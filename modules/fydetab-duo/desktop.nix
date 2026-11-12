@@ -51,6 +51,43 @@ let
     <touch deviceName="himax-touchscreen" mapToOutput="${panelName}" />
     <tablet deviceName="himax-stylus" mapToOutput="${panelName}" />
   '';
+
+  # brightnessctl's relative step rounds the *raw* delta up (5% of 255 =
+  # 12.75 -> 13), so the displayed percentage creeps upward as you keep
+  # pressing: 0,5,10,15,20,25,31,36,41,... Round the percentage to a 5%
+  # band instead so both directions stay on clean multiples of five.
+  brightness = pkgs.writeShellApplication {
+    name = "fydetab-brightness";
+    runtimeInputs = [ pkgs.brightnessctl ];
+    text = ''
+      set -eu
+
+      case "''${1:-}" in
+        up) dir=up ;;
+        down) dir=down ;;
+        *)
+          echo "usage: fydetab-brightness {up|down}" >&2
+          exit 2
+          ;;
+      esac
+
+      # Machine-readable output is "<device>,<class>,<raw>,<percent>%".
+      pct=$(brightnessctl -m | head -n 1 | cut -d, -f4 | tr -d '%')
+      case "''${pct:-}" in
+        "" | *[!0-9]*) exit 0 ;;
+      esac
+
+      if [ "$dir" = up ]; then
+        next=$(( (pct / 5 + 1) * 5 ))
+        [ "$next" -gt 100 ] && next=100
+      else
+        next=$(( (pct - 1) / 5 * 5 ))
+        [ "$next" -lt 0 ] && next=0
+      fi
+
+      brightnessctl -q set "$next%"
+    '';
+  };
 in
 {
   options.hardware.fydetabduo.landscape = {
@@ -189,6 +226,7 @@ in
       environment.systemPackages = [
         pkgs.bibata-cursors
         pkgs.regreet
+        brightness
       ];
       environment.sessionVariables = {
         __EGL_VENDOR_LIBRARY_DIRS = "/run/opengl-driver/share/glvnd/egl_vendor.d";
@@ -469,10 +507,10 @@ in
               <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"/>
             </keybind>
             <keybind key="XF86MonBrightnessUp">
-              <action name="Execute" command="brightnessctl s +5%"/>
+              <action name="Execute" command="${brightness}/bin/fydetab-brightness up"/>
             </keybind>
             <keybind key="XF86MonBrightnessDown">
-              <action name="Execute" command="brightnessctl s 5%-"/>
+              <action name="Execute" command="${brightness}/bin/fydetab-brightness down"/>
             </keybind>
           </keyboard>
           ${touchMapToOutput}
@@ -513,10 +551,10 @@ in
               <action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"/>
             </keybind>
             <keybind key="XF86MonBrightnessUp">
-              <action name="Execute" command="brightnessctl s +5%"/>
+              <action name="Execute" command="${brightness}/bin/fydetab-brightness up"/>
             </keybind>
             <keybind key="XF86MonBrightnessDown">
-              <action name="Execute" command="brightnessctl s 5%-"/>
+              <action name="Execute" command="${brightness}/bin/fydetab-brightness down"/>
             </keybind>
           </keyboard>
           ${touchMapToOutput}
