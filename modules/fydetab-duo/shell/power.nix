@@ -83,8 +83,12 @@ in
     # button. logind would then suspend on it through HandlePowerKey, ignoring
     # keyboardSleepKeyAction. Remap it to KEY_SLEEP in the input layer so logind
     # actually honours our option and the compositor receives XF86Sleep.
+    # Match only the Consumer Control interface. The composite keyboard exposes
+    # four evdev nodes with the same vendor/product modalias, and only the
+    # Consumer Control node actually has scan code 0xc0030; matching all of
+    # them makes udev log "Failed to call EVIOCSKEYCODE" for the others.
     services.udev.extraHwdb = ''
-      evdev:input:b0003v05ACp8502*
+      evdev:name:Fydetab Duo USB Keyboard Consumer Control*
        KEYBOARD_KEY_c0030=sleep
     '';
 
