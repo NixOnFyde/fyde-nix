@@ -164,32 +164,28 @@ let
             break
             ;;
           $'\e')
-            # Read escape sequence byte by byte
+            # Read full escape sequence - try reading up to 4 bytes
             k=""
-            # Read first char after ESC (should be '[')
-            read -rsn1 -t 2 k < "$tty" || k=""
-            printf 'fydetab-menu: ESC1=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-            if [ "$k" = '[' ]; then
-              # Read the direction char
-              read -rsn1 -t 2 k < "$tty" || k=""
-              printf 'fydetab-menu: ARROW seq=[%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-              case "$k" in
-                A|OA) sel=$(((sel - 1 + n) % n)) ;;
-                B|OB) sel=$(((sel + 1) % n)) ;;
-              esac
-            else
-              # Not an arrow key, maybe another ESC sequence - read more
-              read -rsn1 -t 2 k < "$tty" || k=""
-              printf 'fydetab-menu: ESC2=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-              if [ "$k" = '[' ]; then
-                read -rsn1 -t 2 k < "$tty" || k=""
-                printf 'fydetab-menu: ARROW seq=[%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-                case "$k" in
-                  A|OA) sel=$(((sel - 1 + n) % n)) ;;
-                  B|OB) sel=$(((sel + 1) % n)) ;;
+            read -rsn4 -t 2 k < "$tty" || k=""
+            printf 'fydetab-menu: ESCSEQ=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
+            case "$k" in
+              '['|'['*) 
+                # Extract the last char which should be A/B
+                dir="${k: -1}"
+                case "$dir" in
+                  A) sel=$(((sel - 1 + n) % n)) ;;
+                  B) sel=$(((sel + 1) % n)) ;;
                 esac
-              fi
-            fi
+                ;;
+              *$'\e['*)
+                # Handle double ESC case: \e\e[A
+                dir="${k: -1}"
+                case "$dir" in
+                  A) sel=$(((sel - 1 + n) % n)) ;;
+                  B) sel=$(((sel + 1) % n)) ;;
+                esac
+                ;;
+            esac
             ;;
           ' ')
             # Space also pauses (already paused after first key)
