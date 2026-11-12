@@ -182,6 +182,15 @@ let
                 esac
                 ;;
             esac
+            # Fallback: try reading more if sequence was incomplete
+            if [ "$k" = $'\e' ] || [ "$k" = $'\e[' ]; then
+              read -rsn3 -t 1 k < "$tty" || k=""
+              printf 'fydetab-menu: ESCSEQ2=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
+              case "$k" in
+                *'['*A*) sel=$(((sel - 1 + n) % n)) ;;
+                *'['*B*) sel=$(((sel + 1) % n)) ;;
+              esac
+            fi
             ;;
           ' ')
             # Space also pauses (already paused after first key)
