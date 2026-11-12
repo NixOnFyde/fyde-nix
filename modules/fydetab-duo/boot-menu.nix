@@ -93,12 +93,7 @@ let
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
-      # Debug: log filter decision
       if [ ! -x "$g/init" ] || [ ! -e "$g/kernel" ] || [ ! -e "$g/initrd" ]; then
-        printf 'fydetab-menu: skip %s (init=%s kernel=%s initrd=%s)\\n' "$g" \
-          "$(test -x "$g/init" && echo y || echo n)" \
-          "$(test -e "$g/kernel" && echo y || echo n)" \
-          "$(test -e "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
         continue
       fi
 
@@ -119,11 +114,8 @@ let
     done
 
     n=''${#gens[@]}
-    # Debug: log final gens count
-    printf 'fydetab-menu: final gens=%d n=%d timeout=%d\\n' "${#gens[@]}" "''${#gens[@]}" "$timeout" > /dev/kmsg 2>/dev/null || true
     # Nothing to choose from (or the menu is disabled): boot straight away.
     if [ "''${#gens[@]}" -le 1 ] || [ "$timeout" -le 0 ]; then
-      printf 'fydetab-menu: exiting early (n=%d timeout=%d)\\n' "''${#gens[@]}" "$timeout" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
