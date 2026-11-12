@@ -114,8 +114,14 @@ let
     done
 
     n=''${#gens[@]}
+    # Debug: log final gens count
+    printf 'fydetab-menu: after filter gens=%d maxgens=%d\\n' "''${#gens[@]}" "$maxgens" > /dev/kmsg 2>/dev/null || true
+    for g in "''${gens[@]}"; do
+      printf 'fydetab-menu: gen=%s\\n' "$g" > /dev/kmsg 2>/dev/null || true
+    done
     # Nothing to choose from (or the menu is disabled): boot straight away.
     if [ "''${#gens[@]}" -le 1 ] || [ "$timeout" -le 0 ]; then
+      printf 'fydetab-menu: exiting early (n=%d timeout=%d)\\n' "''${#gens[@]}" "$timeout" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
