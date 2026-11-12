@@ -154,6 +154,7 @@
 
   # Boot
   boot.loader.fydetabduo.enable = true;
+  hardware.fydetabduo.bootMenu.enable = true;
 
   # Networking
   networking.hostName = "fydetabduo";

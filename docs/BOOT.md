@@ -9,6 +9,8 @@
   - [NixOS `boot.scr` generation](#nixos-bootscr-generation)
     - [Serial & display console notes](#serial--display-console-notes)
     - [Plymouth splash](#plymouth-splash)
+  - [Generation menu](#generation-menu)
+  - [Interrupting U-Boot and entering UMS](#interrupting-uboot-and-entering-ums)
   - [Recovery](#recovery)
   - [Updates & maintenance](#updates--maintenance)
 
@@ -57,6 +59,11 @@ The vendor U-Boot build (rockchip-linux 2017.09) has some strict requirements:
    [`../modules/fydetab-duo/boot-loader.nix`](../modules/fydetab-duo/boot-loader.nix)
    enforces the limit; see
    [`RECOVERY.md`](RECOVERY.md#3-the-16-argument-uboot-limit).
+7. **No interactive menu or keyboard input:** this build has no `bootmenu`,
+   no `sysboot`/extlinux support and no USB keyboard driver. The console input
+   is the serial UART only, so it cannot present a boot menu you could operate
+   from the tablet itself. Generation selection therefore happens later, in
+   the initrd (see [Generation menu](#generation-menu)).
 
 ## Partition layout
 
@@ -83,7 +90,7 @@ setenv fdtfile /dtbs/rockchip/rk3588s-fydetab_duo.dtb
 setenv linux_image /vmlinuz-fydetab
 setenv initrd /initramfs-fydetab.img
 part uuid ${devtype} ${devnum}:3 root_uuid
-setenv bootargs rootfstype=btrfs rootwait rw root=PARTUUID=${root_uuid} <config.boot.kernelParams>
+setenv bootargs rootfstype=btrfs rootwait rw root=PARTUUID=${root_uuid} init=@INIT@ <config.boot.kernelParams>
 load ${devtype} ${devnum}:${bootpart} ${kernel_addr_c} ${linux_image}
 load ${devtype} ${devnum}:${bootpart} ${ramdisk_addr_r} ${initrd}
 load ${devtype} ${devnum}:${bootpart} ${fdt_addr_r} ${fdtfile}
@@ -117,6 +124,57 @@ automatically by
 the NixOS snowflake and FydeTab wordmark, a smooth ring spinner, a boot
 progress bar, a password dialog, and boot messages rendered in DejaVu Sans
 Mono.
+
+## Generation menu
+
+The vendor U-Boot cannot show a menu (see quirk 7), so generation selection
+runs in the initrd instead. `hardware.fydetabduo.bootMenu` starts a picker
+from the systemd initrd after the real root is mounted and before
+`initrd-switch-root`:
+
+- U-Boot still loads the normal `boot.scr`; the kernel and initrd on the ESP
+  describe the current default generation, exactly as before.
+- The picker lists the newest `/nix/var/nix/profiles/system-*-link`
+  generations (up to `maxGenerations`, default 8) on the panel.
+- Choosing the default (or the timeout expiring, default 5 s) continues the
+  normal boot. Nothing about the default path changes.
+- Choosing another generation `kexec`s **that generation's own** kernel,
+  initrd and DTB from the store, with `init=` rewritten in the current kernel
+  command line. All generations share the root filesystem, so no ESP changes
+  per generation are needed.
+
+Controls: Up/Down (or `j`/`k`), number keys, Enter to boot the selection, `t`
+or `q` to boot the default immediately. The menu switches to `tty2` for the
+duration so Plymouth (on `tty1`) keeps running, then switches back.
+
+It requires the keyboard: U-Boot has no input driver, and the picker runs
+before userspace, so the touchscreen is not available. With the keyboard
+detached, the timeout simply boots the default. Set
+`hardware.fydetabduo.bootMenu.timeout = 0` to skip the picker entirely.
+
+`kexec_file_load` (CONFIG_KEXEC_FILE) is used, which this kernel supports. If
+loading the chosen generation fails, the picker prints the error, waits three
+seconds, and boots the default instead.
+
+## Interrupting U-Boot and entering UMS
+
+U-Boot prints `Autoboot in 1 seconds, press X to interrupt` and accepts input
+only on the serial console: UART2 (`ttyFIQ0`) at **1.5 MBaud**, 3.3 V. There
+is no USB keyboard support in this U-Boot, so the detachable keyboard and the
+on-screen touch panel cannot interrupt autoboot.
+
+After interrupting, U-Boot's console is at the `=>` prompt. Entering UMS
+exposes a storage device to the host over USB-C:
+
+```uboot
+ums 0 mmc 0
+```
+
+Use `mmc 0` for the internal eMMC and `mmc 1` for a microSD card (matching
+U-Boot's own `rkimg_bootdev` scan order: SD first, then eMMC). The host then
+sees the tablet's block device and can mount the root filesystem and ESP as
+described in [`RECOVERY.md`](RECOVERY.md#5-recovery-b-the-tablet-does-not-boot-uboot-ums).
+Reset the tablet to leave UMS mode.
 
 ## Recovery
 

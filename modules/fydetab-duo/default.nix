@@ -20,6 +20,7 @@
 #   nixosModules.fingerprint       -- Microarray AFS120 fingerprint driver
 #   nixosModules.update-notifications -- update hint + desktop notification
 #   nixosModules.boot-loader       -- U-Boot boot.scr
+#   nixosModules.boot-menu         -- initrd generation picker (kexec)
 #   nixosModules.desktop           -- labwc, regreet, kanshi, keybinds
 #   nixosModules.shell             -- full desktop shell umbrella
 #   nixosModules.shell-desktop     -- compositor & greeter only
@@ -53,6 +54,7 @@
 
     # Hardware sub-modules (compositor-agnostic)
     ./boot-loader.nix
+    ./boot-menu.nix
     ./suspend.nix
     ./bluetooth.nix
     ./display-fix.nix

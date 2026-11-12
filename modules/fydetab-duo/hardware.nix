@@ -26,6 +26,7 @@
 #   nixosModules.fingerprint       -- Microarray AFS120 fingerprint driver
 #   nixosModules.update-notifications -- update hint + desktop notification
 #   nixosModules.boot-loader       -- U-Boot boot.scr
+#   nixosModules.boot-menu         -- initrd generation picker (kexec)
 #
 # The host must apply the fyde-nix overlay to get the custom kernel and
 # firmware packages. This module applies it automatically using base.nix,
@@ -47,6 +48,7 @@
 
     # Hardware sub-modules (compositor-agnostic)
     ./boot-loader.nix
+    ./boot-menu.nix
     ./suspend.nix
     ./bluetooth.nix
     ./display-fix.nix

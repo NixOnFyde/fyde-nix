@@ -27,7 +27,7 @@ There is no menu and no second slot. Consequences:
   (`legacy_boot`). If it cannot load it, it may silently fall back to another
   medium rather than show an error.
 
-The ESP contains exactly:
+The boot-critical contents of the ESP are:
 
 ```text
 /boot.scr
@@ -36,6 +36,10 @@ The ESP contains exactly:
 /initramfs-fydetab.img
 /dtbs/rockchip/rk3588s-fydetab_duo.dtb
 ```
+
+Other files (for example manual copies of an older generation's assets) may
+exist alongside these; only the paths above are read by U-Boot and the install
+hook.
 
 `boot.cmd` is the source text; U-Boot executes `boot.scr`. Never edit
 `boot.scr` directly: any byte change invalidates its payload length, payload
@@ -114,6 +118,12 @@ be added on top.
 
 ## 4. Recovery A: the tablet still boots
 
+If `hardware.fydetabduo.bootMenu` is enabled, the initrd picker lists previous
+generations before the switch to the real root. Selecting one asks kexec to
+start that generation's own kernel, initrd and DTB, so no commands are needed.
+The steps below cover the case where the menu is disabled, its timeout was
+missed, or you are already in a running system.
+
 Prefer this path; it uses the normal install hook.
 
 1. Inspect history and the current default:
@@ -152,8 +162,9 @@ Prefer this path; it uses the normal install hook.
 
 ## 5. Recovery B: the tablet does not boot (U-Boot UMS)
 
-1. Enter U-Boot USB mass-storage mode (see [`BOOT.md`](BOOT.md)). On the
-   desktop, identify and mount the tablet root and ESP:
+1. Enter U-Boot USB mass-storage mode (see
+   [`BOOT.md`](BOOT.md#interrupting-uboot-and-entering-ums)). On the desktop,
+   identify and mount the tablet root and ESP:
 
    ```sh
    lsblk -o NAME,SIZE,LABEL,PARTUUID
