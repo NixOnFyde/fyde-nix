@@ -93,7 +93,12 @@ let
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
+      # Debug: log filter decision
       if [ ! -x "$g/init" ] || [ ! -e "$g/kernel" ] || [ ! -e "$g/initrd" ]; then
+        printf 'fydetab-menu: skip %s (init=%s kernel=%s initrd=%s)\\n' "$g" \
+          "$(test -x "$g/init" && echo y || echo n)" \
+          "$(test -e "$g/kernel" && echo y || echo n)" \
+          "$(test -e "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
         continue
       fi
 
