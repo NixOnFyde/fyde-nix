@@ -22,6 +22,15 @@ in
   config = lib.mkIf cfg.enable {
     powerManagement.cpuFreqGovernor = lib.mkDefault "schedutil";
 
+    # cpufreq_schedutil is built into this kernel (its Kconfig symbol is a
+    # bool, not a tristate), but the cpuFreqGovernor option still adds it to
+    # boot.kernelModules, so systemd-modules-load logged "Failed to find
+    # module 'cpufreq_schedutil'" on every boot. Alias the name to the
+    # built-in cpufreq core, which makes the modprobe a no-op. Plain
+    # definition (not mkDefault) so it merges with the bluetooth module's
+    # extraModprobeConfig.
+    boot.extraModprobeConfig = "alias cpufreq_schedutil cpufreq";
+
     services.fstrim.enable = lib.mkDefault true;
 
     zramSwap.enable = lib.mkDefault true;
