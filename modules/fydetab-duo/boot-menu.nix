@@ -87,20 +87,22 @@ let
       # The profile link points at /nix/store/<hash>-nixos-system-…; skip
       # generations whose kernel assets were garbage-collected.
       store=$(readlink "$link" 2>/dev/null || true)
-      printf 'fydetab-menu: link=%s store=%s\\n' "$link" "$store" > /dev/kmsg 2>/dev/null || true
+      printf 'fydetab-menu: FILTER link=%s store=%s\\n' "$link" "$store" > /dev/kmsg 2>/dev/null || true
       case "$store" in
         /*) ;;
         "") continue ;;
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
-      printf 'fydetab-menu: g=%s init=%s kernel=%s initrd=%s\\n' "$g" \
+      printf 'fydetab-menu: CHECK g=%s init=%s kernel=%s initrd=%s\\n' "$g" \
         "$(test -x "$g/init" && echo y || echo n)" \
         "$(test -L "$g/kernel" && echo y || echo n)" \
         "$(test -L "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
       if [ ! -x "$g/init" ] || [ ! -L "$g/kernel" ] || [ ! -L "$g/initrd" ]; then
+        printf 'fydetab-menu: SKIP\\n' > /dev/kmsg 2>/dev/null || true
         continue
       fi
+      printf 'fydetab-menu: ADD num=%s\\n' "$num" > /dev/kmsg 2>/dev/null || true
 
       # stat the profile link target to get generation time
       ts=$(stat -c %Y -L "$link" 2>/dev/null || echo 0)
