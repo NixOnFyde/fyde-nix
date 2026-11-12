@@ -119,8 +119,11 @@ let
     done
 
     n=''${#gens[@]}
+    # Debug: log final gens count
+    printf 'fydetab-menu: final gens=%d n=%d timeout=%d\\n' "${#gens[@]}" "$n" "$timeout" > /dev/kmsg 2>/dev/null || true
     # Nothing to choose from (or the menu is disabled): boot straight away.
     if [ "$n" -le 1 ] || [ "$timeout" -le 0 ]; then
+      printf 'fydetab-menu: exiting early (n=%d timeout=%d)\\n' "$n" "$timeout" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
