@@ -22,86 +22,92 @@ let
       libnotify
     ];
     text = ''
-      set -eu
+            set -eu
 
-      # No GitHub API calls here: `git ls-remote` is one unauthenticated
-      # request and is not subject to the API rate limit. `nix flake
-      # metadata` (used by fydetab-update itself) is, which is why this
-      # check deliberately avoids it.
-      export GIT_TERMINAL_PROMPT=0
-      REPO="https://github.com/NixOnFyde/fyde-nix"
-      FLAKE="github:NixOnFyde/fyde-nix"
-      NIXOS_DIR="''${FYDETAB_NIXOS_DIR:-/etc/nixos}"
-      CACHE_DIR=${cacheDirExpr}
-      STATUS="$CACHE_DIR/update-status"
-      NOTIFIED="$CACHE_DIR/last-notified"
+            # No GitHub API calls here: `git ls-remote` is one unauthenticated
+            # request and is not subject to the API rate limit. `nix flake
+            # metadata` (used by fydetab-update itself) is, which is why this
+            # check deliberately avoids it.
+            export GIT_TERMINAL_PROMPT=0
+            REPO="https://github.com/NixOnFyde/fyde-nix"
+            FLAKE="github:NixOnFyde/fyde-nix"
+            NIXOS_DIR="''${FYDETAB_NIXOS_DIR:-/etc/nixos}"
+            CACHE_DIR=${cacheDirExpr}
+            STATUS="$CACHE_DIR/update-status"
+            NOTIFIED="$CACHE_DIR/last-notified"
 
-      [ -r "$NIXOS_DIR/flake.nix" ] || exit 0
-      [ -r "$NIXOS_DIR/flake.lock" ] || exit 0
+            [ -r "$NIXOS_DIR/flake.nix" ] || exit 0
+            [ -r "$NIXOS_DIR/flake.lock" ] || exit 0
 
-      mkdir -p "$CACHE_DIR"
+            mkdir -p "$CACHE_DIR"
 
-      tag="$(timeout 30 git ls-remote --tags --refs "$REPO" 'refs/tags/v*' 2>/dev/null \
-        | sed -n 's|.*refs/tags/\(v[^ ^{}]*\)$|\1|p' \
-        | sort -V \
-        | tail -n 1)" || true
-      [ -n "''${tag:-}" ] || exit 0
+            tag="$(timeout 30 git ls-remote --tags --refs "$REPO" 'refs/tags/v*' 2>/dev/null \
+              | sed -n 's|.*refs/tags/\(v[^ ^{}]*\)$|\1|p' \
+              | sort -V \
+              | tail -n 1)" || true
+            [ -n "''${tag:-}" ] || exit 0
 
-      # Annotated tags need the peeled (^{}) ref for the commit id.
-      rev="$(timeout 30 git ls-remote "$REPO" "refs/tags/$tag^{}" 2>/dev/null | cut -f1)" || true
-      [ -n "''${rev:-}" ] || rev="$(timeout 30 git ls-remote "$REPO" "refs/tags/$tag" 2>/dev/null | cut -f1)" || true
-      [ -n "''${rev:-}" ] || exit 0
+            # Annotated tags need the peeled (^{}) ref for the commit id.
+            rev="$(timeout 30 git ls-remote "$REPO" "refs/tags/$tag^{}" 2>/dev/null | cut -f1)" || true
+            [ -n "''${rev:-}" ] || rev="$(timeout 30 git ls-remote "$REPO" "refs/tags/$tag" 2>/dev/null | cut -f1)" || true
+            [ -n "''${rev:-}" ] || exit 0
 
-      cur_rev="$(jq -r '.nodes[]
-        | select(.locked.owner? == "NixOnFyde" and .locked.repo? == "fyde-nix")
-        | .locked.rev // empty' "$NIXOS_DIR/flake.lock" 2>/dev/null | head -n 1)" || true
-      cur_tag="$(sed -n 's|.*NixOnFyde/fyde-nix/v\([0-9A-Za-z._-]*\).*|\1|p' \
-        "$NIXOS_DIR/flake.nix" 2>/dev/null | head -n 1)" || true
+            cur_rev="$(jq -r '.nodes[]
+              | select(.locked.owner? == "NixOnFyde" and .locked.repo? == "fyde-nix")
+              | .locked.rev // empty' "$NIXOS_DIR/flake.lock" 2>/dev/null | head -n 1)" || true
+            cur_tag="$(sed -n 's|.*NixOnFyde/fyde-nix/v\([0-9A-Za-z._-]*\).*|\1|p' \
+              "$NIXOS_DIR/flake.nix" 2>/dev/null | head -n 1)" || true
 
-      available=0
-      if [ -n "$cur_tag" ]; then
-        if [ "v$cur_tag" = "$tag" ]; then
-          # Same tag, different commit: the tag was rebuilt (hotfix).
-          [ -n "$cur_rev" ] && [ "$cur_rev" != "$rev" ] && available=1
-        else
-          # Only nag when the latest tag sorts above the pinned one.
-          newest="$(printf '%s\n%s\n' "v$cur_tag" "$tag" | sort -V | tail -n 1)"
-          [ "$newest" = "$tag" ] && available=1
-        fi
-      elif [ -n "$cur_rev" ] && [ "$cur_rev" != "$rev" ]; then
-        # Tracking a branch or plain `github:NixOnFyde/fyde-nix`.
-        available=1
-      fi
+            available=0
+            if [ -n "$cur_tag" ]; then
+              if [ "v$cur_tag" = "$tag" ]; then
+                # Same tag, different commit: the tag was rebuilt (hotfix).
+                [ -n "$cur_rev" ] && [ "$cur_rev" != "$rev" ] && available=1
+              else
+                # Only nag when the latest tag sorts above the pinned one.
+                newest="$(printf '%s\n%s\n' "v$cur_tag" "$tag" | sort -V | tail -n 1)"
+                [ "$newest" = "$tag" ] && available=1
+              fi
+            elif [ -n "$cur_rev" ]; then
+              # Tracking a branch or a plain `github:NixOnFyde/fyde-nix` input. The
+              # locked revision can be *ahead* of the latest tag (development
+              # branches are), and `git ls-remote` cannot tell which way round it
+              # is, so do not guess: nagging here would print a downgrade command
+              # that fydetab-update itself refuses to run. Users on a branch update
+              # with `nix flake update`; fydetab-update --check still reports
+              # whether their revision is behind a tag.
+              available=0
+            fi
 
-      tmp="$(mktemp "$STATUS.XXXXXX")"
-      {
-        printf 'latest_tag=%s\n' "$tag"
-        printf 'latest_rev=%s\n' "$rev"
-        printf 'current_tag=%s\n' "$cur_tag"
-        printf 'current_rev=%s\n' "$cur_rev"
-        printf 'available=%s\n' "$available"
-        printf 'checked=%s\n' "$(date +%s)"
-      } > "$tmp"
-      chmod 0644 "$tmp"
-      mv -fT "$tmp" "$STATUS"
+            tmp="$(mktemp "$STATUS.XXXXXX")"
+            {
+              printf 'latest_tag=%s\n' "$tag"
+              printf 'latest_rev=%s\n' "$rev"
+              printf 'current_tag=%s\n' "$cur_tag"
+              printf 'current_rev=%s\n' "$cur_rev"
+              printf 'available=%s\n' "$available"
+              printf 'checked=%s\n' "$(date +%s)"
+            } > "$tmp"
+            chmod 0644 "$tmp"
+            mv -fT "$tmp" "$STATUS"
 
-      # Desktop notification: once per release (not every six hours).
-      if [ "''${FYDETAB_NOTIFY:-1}" = 1 ] && [ "$available" = 1 ] \
-        && [ "$(cat "$NOTIFIED" 2>/dev/null || true)" != "$tag:$rev" ]; then
-        if [ "$tag" = "v$cur_tag" ]; then
-          summary="fyde-nix $tag hotfix available"
-          body="Same tag, new build. Update to $rev."
-        else
-          summary="fyde-nix $tag available"
-          body="You are on ''${cur_tag:+v$cur_tag}''${cur_tag:-''${cur_rev:-an unknown revision}}."
-        fi
-        body="$body
+            # Desktop notification: once per release (not every six hours).
+            if [ "''${FYDETAB_NOTIFY:-1}" = 1 ] && [ "$available" = 1 ] \
+              && [ "$(cat "$NOTIFIED" 2>/dev/null || true)" != "$tag:$rev" ]; then
+              if [ "$tag" = "v$cur_tag" ]; then
+                summary="fyde-nix $tag hotfix available"
+                body="Same tag, new build. Update to $rev."
+              else
+                summary="fyde-nix $tag available"
+                body="You are on ''${cur_tag:+v$cur_tag}''${cur_tag:-''${cur_rev:-an unknown revision}}."
+              fi
+              body="$body
 
-sudo nix run $FLAKE/$tag#fydetab-update"
-        if notify-send -a fyde-nix -i system-software-update "$summary" "$body" 2>/dev/null; then
-          printf '%s\n' "$tag:$rev" > "$NOTIFIED"
-        fi
-      fi
+      sudo nix run $FLAKE/$tag#fydetab-update"
+              if notify-send -a fyde-nix -i system-software-update "$summary" "$body" 2>/dev/null; then
+                printf '%s\n' "$tag:$rev" > "$NOTIFIED"
+              fi
+            fi
     '';
   };
 
