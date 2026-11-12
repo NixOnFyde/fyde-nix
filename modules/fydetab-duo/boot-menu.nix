@@ -106,6 +106,7 @@ let
 
       # stat the profile link target to get generation time
       ts=$(stat -c %Y -L "$link" 2>/dev/null || echo 0)
+      printf 'fydetab-menu: DATE num=%s ts=%s\\n' "$num" "$ts" > /dev/kmsg 2>/dev/null || true
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
       if [ "$num" = "$default_num" ]; then
@@ -156,13 +157,13 @@ let
             break
             ;;
           $'\e')
-            read -rsn1 -t 0.1 k < "$tty" || k=""
-            if [ "$k" = '[' ]; then
-              read -rsn1 -t 0.1 k < "$tty" || k=""
-            fi
+            # Read the rest of the escape sequence (might be ESC [ A or ESC [ B)
+            read -rsn2 -t 0.5 k < "$tty" || k=""
             case "$k" in
-              A) sel=$(((sel - 1 + n) % n)) ;;
-              B) sel=$(((sel + 1) % n)) ;;
+              '[A') sel=$(((sel - 1 + n) % n)) ;;
+              '[B') sel=$(((sel + 1) % n)) ;;
+              'OA') sel=$(((sel - 1 + n) % n)) ;;  # VT100 mode
+              'OB') sel=$(((sel + 1) % n)) ;;
             esac
             ;;
           [1-9])
