@@ -42,16 +42,26 @@ let
     }
     trap finish EXIT
 
+    # We run in the initrd: the real root (which holds /nix) is mounted at
+    # /sysroot. The profile links are absolute symlinks into /nix/store, which
+    # would resolve inside the initrd's own (unrelated) /nix, so read the link
+    # targets as strings and prepend /sysroot for file access. The paths
+    # handed to the kernel (init=) stay in host form.
+    root=/sysroot
+    profiles=$root/nix/var/nix/profiles
+
     shopt -s nullglob
-    all=(/nix/var/nix/profiles/system-*-link)
-    if [ "''${#all[@]}" -eq 0 ]; then
+    links=($profiles/system-*-link)
+    if [ "''${#links[@]}" -eq 0 ]; then
+      echo "fydetab-boot-menu: no generations under $profiles" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
-    default=$(readlink -f /nix/var/nix/profiles/system 2>/dev/null || true)
     default_num="?"
-    if [ -n "$default" ]; then
-      default_num=''${default##*/system-}
+    if [ -L "$profiles/system" ]; then
+      target=$(readlink "$profiles/system" 2>/dev/null || true)
+      default_num=''${target##*/}
+      default_num=''${default_num#system-}
       default_num=''${default_num%-link}
       case "$default_num" in
         "" | *[!0-9]*) default_num="?" ;;
@@ -63,18 +73,27 @@ let
     dates=()
     sel=0
 
-    for g in $(printf '%s\n' "''${all[@]}" | sort -Vr); do
-      # Skip generations whose kernel assets were garbage-collected.
+    for link in $(printf '%s\n' "''${links[@]}" | sort -Vr); do
+      num=''${link##*/system-}
+      num=''${num%-link}
+
+      # The profile link points at /nix/store/<hash>-nixos-system-…; skip
+      # generations whose kernel assets were garbage-collected.
+      store=$(readlink "$link" 2>/dev/null || true)
+      case "$store" in
+        /*) ;;
+        "") continue ;;
+        *) store=$(dirname "$link")/$store ;;
+      esac
+      g=$root$store
       if [ ! -x "$g/init" ] || [ ! -e "$g/kernel" ] || [ ! -e "$g/initrd" ]; then
         continue
       fi
 
-      num=''${g##*/system-}
-      num=''${num%-link}
       ts=$(stat -c %Y "$g" 2>/dev/null || echo 0)
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
-      if [ "$g" = "$default" ]; then
+      if [ "$num" = "$default_num" ]; then
         sel=''${#gens[@]}
       fi
 
@@ -106,7 +125,7 @@ let
           marker='  '
           [ "$i" -eq "$sel" ] && marker='> '
           note=""
-          [ "''${gens[$i]}" = "$default" ] && note='  (default)'
+          [ "''${nums[$i]}" = "$default_num" ] && note='  (default)'
           printf '%s[%d] gen %-3s  %s%s\n' "$marker" "$((i + 1))" "''${nums[$i]}" "''${dates[$i]}" "$note"
           i=$((i + 1))
         done
@@ -145,12 +164,15 @@ let
     done
 
     # Timeout (or explicit "default") boots the current default generation.
-    if [ "$left" -le 0 ] || [ "''${gens[$sel]}" = "$default" ]; then
+    if [ "$left" -le 0 ] || [ "''${nums[$sel]}" = "$default_num" ]; then
       exit 0
     fi
 
-    if [ "''${gens[$sel]}" != "$default" ]; then
+    if [ "''${nums[$sel]}" != "$default_num" ]; then
       g=''${gens[$sel]}
+      # kexec reads these files through /sysroot, but the new kernel needs
+      # the host path for init=.
+      host=''${g#"$root"}
       printf 'Starting generation %s...\n' "''${nums[$sel]}" > "$tty"
 
       # Reuse the current command line, only swapping the init= path. All
@@ -163,7 +185,7 @@ let
           *) new="$new $word" ;;
         esac
       done
-      new="''${new# } init=$g/init"
+      new="''${new# } init=$host/init"
 
       if kexec -s -l "$g/kernel" \
         --initrd="$g/initrd" \
