@@ -65,6 +65,14 @@ let
       name = "arm64-dts-fydetab-duo-enable-emmc-cqe";
       patch = ./0015-arm64-dts-fydetab-duo-enable-emmc-cqe.patch;
     }
+    {
+      name = "arm64-dts-fydetab-duo-disable-vpu121";
+      patch = ./0016-arm64-dts-fydetab-duo-disable-vpu121.patch;
+    }
+    {
+      name = "rknpu-avoid-iomem-reservation-conflict";
+      patch = ./0017-rknpu-avoid-iomem-reservation-conflict.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

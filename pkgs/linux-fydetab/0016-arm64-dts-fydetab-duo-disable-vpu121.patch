@@ -1,0 +1,27 @@
+From: fyde-nix
+Subject: [PATCH] arm64: dts: rockchip: keep the Hantro VPU disabled on FydeTab Duo
+
+rk3588s-mpp.dtsi disables the upstream Hantro node because the vendor MPP
+stack drives the same register window (vepu@fdb50000, a separate node with
+a different compatible). The board file re-enabled it, so hantro-vpu tried
+to request IRQ 119 while IRQ 120 was already in use, failing with "Could
+not request default IRQ" and leaving two drivers bound to one block.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+@@ -664,8 +664,14 @@
+ 	status = "okay";
+ };
+ 
++/*
++ * The vendor MPP stack drives vepu@fdb50000 (the other node in this register
++ * window), so keep the upstream Hantro node disabled as rk3588s-mpp.dtsi
++ * intends. Enabling it makes hantro-vpu fail to request its IRQ and leaves
++ * two drivers fighting over the same block.
++ */
+ &vpu121 {
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &vpu121_mmu {
