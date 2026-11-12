@@ -165,9 +165,10 @@ let
           $'\e')
             # Read escape sequence: ESC [ A/B may arrive in separate reads
             k=""
-            read -rsn1 -t 0.3 k < "$tty" || k=""
+            read -rsn1 -t 1 k < "$tty" || k=""
+            printf 'fydetab-menu: ARROW first=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             if [ "$k" = '[' ]; then
-              read -rsn1 -t 0.3 k < "$tty" || k=""
+              read -rsn1 -t 1 k < "$tty" || k=""
               printf 'fydetab-menu: ARROW seq=[%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
               case "$k" in
                 A|OA) sel=$(((sel - 1 + n) % n)) ;;
