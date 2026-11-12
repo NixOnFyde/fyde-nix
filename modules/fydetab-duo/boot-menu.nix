@@ -96,9 +96,9 @@ let
       g=$root$store
       printf 'fydetab-menu: g=%s init=%s kernel=%s initrd=%s\\n' "$g" \
         "$(test -x "$g/init" && echo y || echo n)" \
-        "$(test -e "$g/kernel" && echo y || echo n)" \
-        "$(test -e "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
-      if [ ! -x "$g/init" ] || [ ! -e "$g/kernel" ] || [ ! -e "$g/initrd" ]; then
+        "$(test -L "$g/kernel" && echo y || echo n)" \
+        "$(test -L "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
+      if [ ! -x "$g/init" ] || [ ! -L "$g/kernel" ] || [ ! -L "$g/initrd" ]; then
         continue
       fi
 
