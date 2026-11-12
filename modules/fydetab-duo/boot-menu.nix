@@ -54,7 +54,7 @@ let
     links=($profiles/system-*-link)
     # Debug: log what we see in the initrd
     printf 'fydetab-menu: profiles=%s links=%d\\n' "$profiles" "${#links[@]}" > /dev/kmsg 2>/dev/null || true
-    for l in "${links[@]}"; do
+    for l in "''${links[@]}"; do
       printf 'fydetab-menu: link=%s\\n' "$l" > /dev/kmsg 2>/dev/null || true
     done
     if [ "''${#links[@]}" -eq 0 ]; then
