@@ -135,7 +135,7 @@ let
         printf '\033[2J\033[H'
         printf 'FydeTab Duo boot menu\n\n'
         printf '  Up/Down or 1-%d to select, Enter to boot the highlighted one.\n' "$n"
-        printf '  Press t for the default. Booting generation %s in %2ds...\n\n' "$default_num" "$left"
+        printf '  Space pauses, t for default. Booting generation %s in %2ds...\n\n' "$default_num" "$left"
         i=0
         while [ "$i" -lt "$n" ]; do
           marker='  '
@@ -157,14 +157,15 @@ let
             break
             ;;
           $'\e')
-            # Debug key sequence
-            printf 'fydetab-menu: KEY esc\\n' > /dev/kmsg 2>/dev/null || true
-            read -rsn3 -t 0.5 k < "$tty" || k=""
-            printf 'fydetab-menu: KEY seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
+            read -rsn2 -t 0.5 k < "$tty" || k=""
             case "$k" in
-              $'\x1b[A'|'OA') sel=$(((sel - 1 + n) % n)) ;;
-              $'\x1b[B'|'OB') sel=$(((sel + 1) % n)) ;;
+              '[A'|'OA') sel=$(((sel - 1 + n) % n)) ;;
+              '[B'|'OB') sel=$(((sel + 1) % n)) ;;
             esac
+            ;;
+          ' ')
+            # Space pauses the timer until next keypress
+            read -rsn1 -t 60 _ < "$tty" || true
             ;;
           [1-9])
             idx=$((key - 1))
@@ -175,8 +176,10 @@ let
           q | Q | t | T) left=0 ;;
         esac
         [ "$left" -gt 0 ] && left=$timeout
+      else
+        # No key pressed this second: count down
+        left=$((left - 1))
       fi
-      left=$((left - 1))
     done
 
     # Timeout (or explicit "default") boots the current default generation.
