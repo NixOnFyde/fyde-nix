@@ -205,11 +205,13 @@ jobs:
               echo "<details>"
               echo "<summary>How to update an already-flashed system</summary>"
               echo
-              echo "If you already have \`fyde-nix\` installed, you do **not** need to reflash. Update as usual:"
+              echo "If you already have \`fyde-nix\` installed, you do **not** need to reflash. Run the updater from this release so fixes to \`fydetab-update\` itself are picked up too:"
               echo
               echo '```bash'
-              echo 'sudo fydetab-update'
+              echo "sudo nix run github:${GITHUB_REPOSITORY}/${CUR}#fydetab-update"
               echo '```'
+              echo
+              echo "If your installed updater is already current, \`sudo fydetab-update\` is equivalent."
               echo
               echo "Your own \`/etc/nixos/configuration.nix\` is not overwritten by updates. However, the image's default config changed in this release; please review the per-file diffs below and merge any new options you want into your own config."
               echo
