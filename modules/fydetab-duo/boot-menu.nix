@@ -54,8 +54,10 @@ let
     links=($profiles/system-*-link)
     # Debug: log what we see in the initrd
     printf 'fydetab-menu: profiles=%s links=%d\\n' "$profiles" "${#links[@]}" > /dev/kmsg 2>/dev/null || true
-    for l in "''${links[@]}"; do
-      printf 'fydetab-menu: link=%s\\n' "$l" > /dev/kmsg 2>/dev/null || true
+    i=0
+    while [ "$i" -lt "${#links[@]}" ]; do
+      printf 'fydetab-menu: link=%s\\n' "${links[$i]}" > /dev/kmsg 2>/dev/null || true
+      i=$((i + 1))
     done
     if [ "''${#links[@]}" -eq 0 ]; then
       printf 'fydetab-menu: no generations\\n' > /dev/kmsg 2>/dev/null || true
