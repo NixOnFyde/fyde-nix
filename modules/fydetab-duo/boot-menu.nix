@@ -102,8 +102,8 @@ let
         continue
       fi
 
-      # Follow symlinks for mtime (stat -L)
-      ts=$(stat -c %Y -L "$g" 2>/dev/null || echo 0)
+      # stat the profile link target to get generation time
+      ts=$(stat -c %Y -L "$link" 2>/dev/null || echo 0)
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
       if [ "$num" = "$default_num" ]; then
