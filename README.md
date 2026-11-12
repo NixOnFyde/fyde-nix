@@ -66,10 +66,11 @@ See [docs/DESKTOP.md](docs/DESKTOP.md) for the full DE guide.
 ## Documentation
 
 - [docs/BOOT.md](docs/BOOT.md)
-- [docs/SETUP.md](docs/SETUP.md)
 - [docs/DESKTOP.md](docs/DESKTOP.md)
-- [docs/STATUS.md](docs/STATUS.md)
 - [docs/PARITY.md](docs/PARITY.md)
+- [docs/RECOVERY.md](docs/RECOVERY.md)
+- [docs/SETUP.md](docs/SETUP.md)
+- [docs/STATUS.md](docs/STATUS.md)
 
 ## Repository layout
 
