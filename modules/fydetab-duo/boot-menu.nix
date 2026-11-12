@@ -102,7 +102,8 @@ let
         continue
       fi
 
-      ts=$(stat -c %Y "$g" 2>/dev/null || echo 0)
+      # Follow symlinks for mtime (stat -L)
+      ts=$(stat -c %Y -L "$g" 2>/dev/null || echo 0)
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
       if [ "$num" = "$default_num" ]; then
