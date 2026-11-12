@@ -107,6 +107,7 @@
         battery = ./modules/fydetab-duo/battery.nix;
         fingerprint = ./modules/fydetab-duo/fingerprint.nix;
         boot-loader = ./modules/fydetab-duo/boot-loader.nix;
+        update-notifications = ./modules/fydetab-duo/update-notifications.nix;
 
         # ── Desktop shell ────────────────────────────────────────────────
         # labwc compositor, greeter, kanshi, keybinds, regreet CSS.

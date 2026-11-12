@@ -34,6 +34,7 @@
 #   qol                   zram, fstrim, earlyoom, etc.
 #   battery               SC8886 charge limit (ceiling + recharge threshold)
 #   fingerprint           Microarray AFS120 fingerprint driver
+#   update-notifications  update hint in terminals + desktop notification
 #   boot-loader           U-Boot boot.scr generation
 #   desktop               labwc, regreet, kanshi, keybinds
 #   shell                 full desktop shell (umbrella)
@@ -98,6 +99,10 @@
 
       # Show a Plymouth boot splash.
       plymouth.enable = true;
+
+      # Warn in new terminals (and once per release on the desktop) when a
+      # newer release or rebuilt tag is available. Enabled by default.
+      updateNotifications.enable = true;
 
       # Even without this option enabled the modem is detected automatically as it
       # is a USB 2.0 device. However, this enables integration for the in-built
