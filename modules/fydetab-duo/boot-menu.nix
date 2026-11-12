@@ -153,6 +153,7 @@ let
     while [ "$left" -gt 0 ]; do
       draw
       if read -rsn1 -t 1 key < "$tty"; then
+        printf 'fydetab-menu: KEY=%s\\n' "$key" > /dev/kmsg 2>/dev/null || true
         # Any keypress pauses the countdown permanently for this boot
         if [ "$paused" -eq 0 ]; then
           paused=1
@@ -167,6 +168,7 @@ let
             k=""
             # Read first char after ESC (should be '[')
             read -rsn1 -t 2 k < "$tty" || k=""
+            printf 'fydetab-menu: ESC1=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             if [ "$k" = '[' ]; then
               # Read the direction char
               read -rsn1 -t 2 k < "$tty" || k=""
