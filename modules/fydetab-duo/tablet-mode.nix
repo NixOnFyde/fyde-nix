@@ -20,6 +20,9 @@ let
     write_state() {
       local value="$1"
       local tmp
+      # systemd-tmpfiles may not have created the directory yet on an early
+      # boot event, and udev RUN has no ordering against it.
+      ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$STATE_FILE")"
       tmp=$(${pkgs.coreutils}/bin/mktemp "''${STATE_FILE}.XXXXXX")
       printf '%s\n' "$value" > "$tmp"
       ${pkgs.coreutils}/bin/chmod 0644 "$tmp"
@@ -66,10 +69,17 @@ let
     }
 
     show_wvkbd() {
+      # Start hidden: `--auto` shows the OSK only while a text-input-v3 field
+      # is focused, and hides it again on deactivate. Spawning it visible (or
+      # sending SIGUSR2 here) would pop the keyboard up everywhere, including
+      # apps with no text input at all.
       if ! $PGREP -x wvkbd-mobintl >/dev/null 2>&1; then
         $WVKBD --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
       else
-        $KILLALL -USR2 wvkbd-mobintl 2>/dev/null || true
+        # Already running (e.g. the OSK was toggled back on after a manual
+        # hide): SIGUSR1 is wvkbd's "hide", so make sure it starts from a
+        # clean state and lets --auto decide when to appear.
+        $KILLALL -USR1 wvkbd-mobintl 2>/dev/null || true
       fi
     }
 
@@ -90,6 +100,14 @@ let
       if [ "$kb" = "detached" ] && [ "$last_kb" != "detached" ]; then
         ${pkgs.coreutils}/bin/sleep 1.5
         read_keyboard_state
+        # Reattached during the debounce: the state did not actually change,
+        # so refresh the flag and skip. Without this, a quick detach/attach
+        # could be mistaken for a manual wayle toggle and show the OSK with
+        # the keyboard attached.
+        if [ "$kb" = "$last_kb" ]; then
+          last_flag="$( [ -f "$MANUAL_OFF" ] && echo true || echo false )"
+          return
+        fi
       fi
 
       flag_exists="false"
@@ -124,11 +142,15 @@ let
     act
 
     # Watch root-owned keyboard state and this user's manual toggle separately.
+    # `timeout` makes inotifywait exit periodically so a missed event (udev
+    # racing tmpfiles, a dropped watch after a restart) self-heals: act() is
+    # idempotent, so the extra poll is cheap.
     while true; do
-      $INOTIFYWAIT -m -q -e modify,create,delete,moved_to,moved_from "${stateDir}" "$USER_STATE_DIR" |
+      ${pkgs.coreutils}/bin/timeout 10 $INOTIFYWAIT -m -q -e modify,create,delete,moved_to,moved_from "${stateDir}" "$USER_STATE_DIR" 2>/dev/null |
         while IFS= read -r _event; do
           act
         done || true
+      act
       ${pkgs.coreutils}/bin/sleep 1
     done
   '';
