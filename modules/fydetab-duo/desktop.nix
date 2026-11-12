@@ -438,14 +438,15 @@ in
         done
 
         if [ "$has_kb" = false ]; then
-          # Only spawn if NO keyboard connected
+          # Start hidden: `--auto` shows the OSK when the password field (a
+          # text-input-v3 client) gains focus, and hides it on deactivate.
           ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &
         fi
 
-        # Manual toggle: spawn the OSK if not running, otherwise toggle
-        # visibility. The greeter has no wayle/tablet-mode monitor, so this
-        # gesture is the only way to get the OSK here. Mirrors the
-        # tablet-mode gesture (killall -USR2 toggles if running, else spawn).
+        # Manual toggle: spawn the OSK if not running, otherwise show it.
+        # SIGUSR2 is wvkbd's "show" (SIGUSR1 is "hide"), so this is not a
+        # true toggle. The greeter has no wayle/tablet-mode monitor, and this
+        # deliberate gesture is the fallback if auto-show ever fails.
         if [ -n "$touch_dev" ]; then
           ${pkgs.lisgd}/bin/lisgd -d "$touch_dev" -o 3 -t 150 \
             -g "1,DU,B,*,R,${pkgs.toybox}/bin/killall -USR2 wvkbd-mobintl 2>/dev/null || ${pkgsUnstable.wvkbd}/bin/wvkbd-mobintl --hidden --auto -H 500 -L 400 -l full --landscape-layers landscape &" &
