@@ -52,10 +52,7 @@ let
 
     shopt -s nullglob
     links=($profiles/system-*-link)
-    # Debug: write to kmsg so we can see what's happening in the initrd
-    printf 'fydetab-boot-menu: root=%s profiles=%s links=%d\\n' "$root" "$profiles" "${#links[@]}" > /dev/kmsg 2>/dev/null || true
     if [ "''${#links[@]}" -eq 0 ]; then
-      printf 'fydetab-boot-menu: no generations under %s\\n' "$profiles" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
