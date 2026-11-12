@@ -169,9 +169,9 @@ let
             read -rsn4 -t 2 k < "$tty" || k=""
             printf 'fydetab-menu: ESCSEQ=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
-              '['|'['*) 
+              '['*|*'['*) 
                 # Extract the last char which should be A/B
-                dir="${k: -1}"
+                dir=$(printf '%s' "$k" | tail -c 1)
                 case "$dir" in
                   A) sel=$(((sel - 1 + n) % n)) ;;
                   B) sel=$(((sel + 1) % n)) ;;
@@ -179,7 +179,7 @@ let
                 ;;
               *$'\e['*)
                 # Handle double ESC case: \e\e[A
-                dir="${k: -1}"
+                dir=$(printf '%s' "$k" | tail -c 1)
                 case "$dir" in
                   A) sel=$(((sel - 1 + n) % n)) ;;
                   B) sel=$(((sel + 1) % n)) ;;
