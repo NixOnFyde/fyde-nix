@@ -163,13 +163,13 @@ let
             break
             ;;
           $'\e')
-            # Read full escape sequence: ESC [ A/B (3 bytes after ESC)
+            # ESC already consumed by main loop; read the remaining 2 bytes: [A or [B
             k=""
-            read -rsn3 -t 2 k < "$tty" || k=""
+            read -rsn2 -t 2 k < "$tty" || k=""
             printf 'fydetab-menu: ARROW seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
-              '[A'|'OA'|$'\033[A'|$'\033OA') sel=$(((sel - 1 + n) % n)) ;;
-              '[B'|'OB'|$'\033[B'|$'\033OB') sel=$(((sel + 1) % n)) ;;
+              '[A'|'OA') sel=$(((sel - 1 + n) % n)) ;;
+              '[B'|'OB') sel=$(((sel + 1) % n)) ;;
             esac
             ;;
           ' ')
