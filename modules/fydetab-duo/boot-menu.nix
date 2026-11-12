@@ -104,8 +104,8 @@ let
       fi
       printf 'fydetab-menu: ADD num=%s\\n' "$num" > /dev/kmsg 2>/dev/null || true
 
-      # stat the profile link target to get generation time
-      ts=$(stat -c %Y -L "$link" 2>/dev/null || echo 0)
+      # stat the profile link itself (not its target) for generation time
+      ts=$(stat -c %Y "$link" 2>/dev/null || echo 0)
       printf 'fydetab-menu: DATE num=%s ts=%s\\n' "$num" "$ts" > /dev/kmsg 2>/dev/null || true
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
@@ -157,13 +157,13 @@ let
             break
             ;;
           $'\e')
-            # Read the rest of the escape sequence (might be ESC [ A or ESC [ B)
-            read -rsn2 -t 0.5 k < "$tty" || k=""
+            # Debug key sequence
+            printf 'fydetab-menu: KEY esc\\n' > /dev/kmsg 2>/dev/null || true
+            read -rsn3 -t 0.5 k < "$tty" || k=""
+            printf 'fydetab-menu: KEY seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
-              '[A') sel=$(((sel - 1 + n) % n)) ;;
-              '[B') sel=$(((sel + 1) % n)) ;;
-              'OA') sel=$(((sel - 1 + n) % n)) ;;  # VT100 mode
-              'OB') sel=$(((sel + 1) % n)) ;;
+              '[A'|'OA') sel=$(((sel - 1 + n) % n)) ;;
+              '[B'|'OB') sel=$(((sel + 1) % n)) ;;
             esac
             ;;
           [1-9])
