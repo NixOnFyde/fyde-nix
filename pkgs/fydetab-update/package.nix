@@ -3,6 +3,7 @@
   stdenvNoCC,
   bash,
   coreutils,
+  curl,
   gawk,
   git,
   gnugrep,
@@ -17,6 +18,7 @@
 let
   binPath = lib.makeBinPath [
     coreutils
+    curl
     gawk
     git
     gnugrep

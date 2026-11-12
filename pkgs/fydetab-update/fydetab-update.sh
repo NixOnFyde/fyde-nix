@@ -22,6 +22,10 @@ Update the FydeTab Duo to the latest TAGGED release of fyde-nix:
 It never downgrades: if the device is already at or newer than the
 latest tag (e.g., you tested an untagged commit), nothing changes.
 
+When the newest tag ships a newer fydetab-update, this one re-executes
+that copy first, so plain 'sudo fydetab-update' always runs the latest
+updater logic.
+
 options:
   --check    show the latest tag vs what is currently pinned, without
              changing anything (does not need root)
@@ -100,6 +104,50 @@ latest_tag() {
     | tail -n 1
 }
 
+# Content hash of this script, with the build-time substitutions normalised
+# so it can be compared with the same file at a tag.
+self_hash() {
+  sed -e '1s|.*|#!/usr/bin/env bash|' \
+    -e 's|^PATH=.*|PATH=NORMALISED|' "$0" 2>/dev/null \
+    | sha256sum | cut -d' ' -f1
+}
+
+# Content hash of pkgs/fydetab-update/fydetab-update.sh at revision $1
+# ("" if it cannot be fetched).
+tag_script_hash() {
+  curl -fsSL --max-time 30 \
+    "https://raw.githubusercontent.com/NixOnFyde/fyde-nix/$1/pkgs/fydetab-update/fydetab-update.sh" \
+    2>/dev/null \
+    | sed -e '1s|.*|#!/usr/bin/env bash|' \
+      -e 's|^PATH=.*|PATH=NORMALISED|' \
+    | sha256sum | cut -d' ' -f1
+}
+
+# If the target tag ships a different version of this script, run that one
+# instead. This is what lets plain `sudo fydetab-update` pick up fixes to the
+# updater itself rather than finishing the update with a stale copy.
+bootstrap_to_tag() {
+  local tag="$1" rev="$2"
+  local depth="${FYDETAB_UPDATE_BOOTSTRAP_DEPTH:-0}"
+
+  [ -n "$rev" ] || return 0
+  [ "${FYDETAB_UPDATE_NO_BOOTSTRAP:-0}" = "1" ] && return 0
+  [ "${FYDETAB_UPDATE_BOOTSTRAPPED:-}" = "$rev" ] && return 0
+  [ "$depth" -lt 3 ] 2>/dev/null || return 0
+  [ -r "$0" ] || return 0
+
+  local remote_hash
+  remote_hash=$(tag_script_hash "$rev" || true)
+  if [ -z "$remote_hash" ] || [ "$remote_hash" = "$(self_hash)" ]; then
+    return 0
+  fi
+
+  echo "==> $tag ships an updated fydetab-update; re-executing it"
+  FYDETAB_UPDATE_BOOTSTRAPPED="$rev" \
+    FYDETAB_UPDATE_BOOTSTRAP_DEPTH="$((depth + 1))" \
+    exec nix run "$FLAKE_URL_BASE/$tag#fydetab-update" -- "$@"
+}
+
 # Revision of a tag, as resolved by nix (e.g., v1.2.3).
 # --refresh is important when a tag is moved (e.g., rebuilding the same rc).
 tag_rev() {
@@ -168,6 +216,11 @@ main() {
     echo "error: could not resolve release metadata for $tag; refusing to update" >&2
     exit 1
   fi
+
+  # Use the updater shipped by the tag we are moving to, so fixes to this
+  # script take effect immediately. Falls back to this copy if the tag cannot
+  # be fetched (e.g. offline).
+  bootstrap_to_tag "$tag" "$tag_rev" "$@"
 
   echo "==> latest tagged release: $tag (${tag_rev:-?})"
   echo "==> currently pinned     : ${cur_rev:-unknown} (lastModified ${cur_lm:-?})"
