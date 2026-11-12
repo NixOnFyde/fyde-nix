@@ -87,12 +87,17 @@ let
       # The profile link points at /nix/store/<hash>-nixos-system-…; skip
       # generations whose kernel assets were garbage-collected.
       store=$(readlink "$link" 2>/dev/null || true)
+      printf 'fydetab-menu: link=%s store=%s\\n' "$link" "$store" > /dev/kmsg 2>/dev/null || true
       case "$store" in
         /*) ;;
         "") continue ;;
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
+      printf 'fydetab-menu: g=%s init=%s kernel=%s initrd=%s\\n' "$g" \
+        "$(test -x "$g/init" && echo y || echo n)" \
+        "$(test -e "$g/kernel" && echo y || echo n)" \
+        "$(test -e "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
       if [ ! -x "$g/init" ] || [ ! -e "$g/kernel" ] || [ ! -e "$g/initrd" ]; then
         continue
       fi
@@ -114,11 +119,8 @@ let
     done
 
     n=''${#gens[@]}
-    # Debug: log final gens count
-    printf 'fydetab-menu: after filter gens=%d maxgens=%d first=%s\\n' "''${#gens[@]}" "$maxgens" "''${gens[0]}" > /dev/kmsg 2>/dev/null || true
     # Nothing to choose from (or the menu is disabled): boot straight away.
     if [ "''${#gens[@]}" -le 1 ] || [ "$timeout" -le 0 ]; then
-      printf 'fydetab-menu: exiting early (n=%d timeout=%d)\\n' "''${#gens[@]}" "$timeout" > /dev/kmsg 2>/dev/null || true
       exit 0
     fi
 
