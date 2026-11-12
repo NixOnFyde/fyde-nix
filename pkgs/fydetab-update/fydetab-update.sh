@@ -128,6 +128,7 @@ tag_script_hash() {
 # updater itself rather than finishing the update with a stale copy.
 bootstrap_to_tag() {
   local tag="$1" rev="$2"
+  shift 2
   local depth="${FYDETAB_UPDATE_BOOTSTRAP_DEPTH:-0}"
 
   [ -n "$rev" ] || return 0
