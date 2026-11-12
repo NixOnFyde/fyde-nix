@@ -149,23 +149,29 @@ let
       } > "$tty"
     }
 
+    paused=0
     while [ "$left" -gt 0 ]; do
       draw
       if read -rsn1 -t 1 key < "$tty"; then
+        # Any keypress pauses the countdown permanently for this boot
+        if [ "$paused" -eq 0 ]; then
+          paused=1
+          left=$timeout
+        fi
         case "$key" in
           "")
             break
             ;;
           $'\e')
             read -rsn2 -t 0.5 k < "$tty" || k=""
+            printf 'fydetab-menu: ARROW seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
               '[A'|'OA') sel=$(((sel - 1 + n) % n)) ;;
               '[B'|'OB') sel=$(((sel + 1) % n)) ;;
             esac
             ;;
           ' ')
-            # Space pauses the timer until next keypress
-            read -rsn1 -t 60 _ < "$tty" || true
+            # Space also pauses (already paused after first key)
             ;;
           [1-9])
             idx=$((key - 1))
@@ -177,8 +183,10 @@ let
         esac
         [ "$left" -gt 0 ] && left=$timeout
       else
-        # No key pressed this second: count down
-        left=$((left - 1))
+        # No key pressed this second: count down only if not paused
+        if [ "$paused" -eq 0 ]; then
+          left=$((left - 1))
+        fi
       fi
     done
 
