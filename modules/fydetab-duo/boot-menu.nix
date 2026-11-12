@@ -165,7 +165,7 @@ let
           $'\e')
             # Read full escape sequence: ESC [ A/B (3 bytes after ESC)
             k=""
-            read -rsn3 -t 1 k < "$tty" || k=""
+            read -rsn3 -t 2 k < "$tty" || k=""
             printf 'fydetab-menu: ARROW seq=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
             case "$k" in
               '[A'|'OA'|$'\x1b[A'|$'\x1bOA') sel=$(((sel - 1 + n) % n)) ;;
