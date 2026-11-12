@@ -164,25 +164,21 @@ let
             break
             ;;
           $'\e')
-            # Read full escape sequence - try reading up to 4 bytes
+            # Read all remaining escape sequence bytes
             k=""
-            read -rsn4 -t 2 k < "$tty" || k=""
+            read -rsn4 -t 1 k < "$tty" || k=""
             printf 'fydetab-menu: ESCSEQ=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
+            # Check if the sequence contains [A (up) or [B (down)
             case "$k" in
-              '['*|*'['*) 
-                # Extract the last char which should be A/B
-                dir=$(printf '%s' "$k" | tail -c 1)
-                case "$dir" in
-                  A) sel=$(((sel - 1 + n) % n)) ;;
-                  B) sel=$(((sel + 1) % n)) ;;
+              *A) 
+                # Check if it's up arrow: contains [A or ends with A after [
+                case "$k" in
+                  *'['*A*) sel=$(((sel - 1 + n) % n)) ;;
                 esac
                 ;;
-              *$'\e['*)
-                # Handle double ESC case: \e\e[A
-                dir=$(printf '%s' "$k" | tail -c 1)
-                case "$dir" in
-                  A) sel=$(((sel - 1 + n) % n)) ;;
-                  B) sel=$(((sel + 1) % n)) ;;
+              *B)
+                case "$k" in
+                  *'['*B*) sel=$(((sel + 1) % n)) ;;
                 esac
                 ;;
             esac
