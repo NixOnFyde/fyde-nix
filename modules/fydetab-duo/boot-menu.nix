@@ -29,6 +29,7 @@ let
     rotation=${toString cfg.rotation}
 
     tty=/dev/tty1
+    echo "fydetab-boot-menu: starting (tty $tty)" >&2
 
     # Plymouth owns the display through DRM, so it has to go away for the
     # duration of the menu; the menu itself takes DRM master and scans out its
@@ -269,7 +270,11 @@ in
       # and udev is still running (the keyboard's evdev nodes exist). Being
       # only wanted by initrd-switch-root.target starts us during initrd
       # teardown, after udevd has already been stopped.
-      wantedBy = [ "initrd.target" ];
+      # Wanted by the switch-root target (not initrd.target): isolating
+      # initrd-switch-root.target stops everything in initrd.target, which
+      # would kill the menu mid-countdown.  Being part of the switch-root
+      # transaction makes systemd wait for the picker to finish.
+      wantedBy = [ "initrd-switch-root.target" ];
       after = [ "sysroot.mount" ];
       before = [ "initrd-switch-root.service" ];
 
