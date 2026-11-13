@@ -164,32 +164,41 @@ let
             break
             ;;
           $'\e')
-            # Read all remaining escape sequence bytes
-            k=""
-            read -rsn4 -t 1 k < "$tty" || k=""
-            printf 'fydetab-menu: ESCSEQ=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-            # Check if the sequence contains [A (up) or [B (down)
-            case "$k" in
-              *A) 
-                # Check if it's up arrow: contains [A or ends with A after [
-                case "$k" in
-                  *'['*A*) sel=$(((sel - 1 + n) % n)) ;;
-                esac
-                ;;
-              *B)
-                case "$k" in
-                  *'['*B*) sel=$(((sel + 1) % n)) ;;
-                esac
-                ;;
-            esac
-            # Fallback: try reading more if sequence was incomplete
-            if [ "$k" = $'\e' ] || [ "$k" = $'\e[' ]; then
-              read -rsn3 -t 1 k < "$tty" || k=""
-              printf 'fydetab-menu: ESCSEQ2=%s\\n' "$k" > /dev/kmsg 2>/dev/null || true
-              case "$k" in
-                *'['*A*) sel=$(((sel - 1 + n) % n)) ;;
-                *'['*B*) sel=$(((sel + 1) % n)) ;;
+            # Read escape sequence byte by byte with generous timeout
+            seq=""
+            # Read first byte after ESC
+            read -rsn1 -t 2 c < "$tty" || c=""
+            seq="${seq}${c}"
+            printf 'fydetab-menu: ESC1=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
+            
+            if [ "$c" = '[' ]; then
+              # Standard ESC [ A/B
+              read -rsn1 -t 2 c < "$tty" || c=""
+              seq="${seq}${c}"
+              printf 'fydetab-menu: ESC2=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
+              case "$c" in
+                A) sel=$(((sel - 1 + n) % n)) ;;
+                B) sel=$(((sel + 1) % n)) ;;
               esac
+            elif [ "$c" = $'\e' ]; then
+              # Double ESC: ESC ESC [ A/B
+              read -rsn1 -t 2 c < "$tty" || c=""
+              seq="${seq}${c}"
+              printf 'fydetab-menu: ESC3=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
+              if [ "$c" = '[' ]; then
+                read -rsn1 -t 2 c < "$tty" || c=""
+                seq="${seq}${c}"
+                printf 'fydetab-menu: ESC4=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
+                case "$c" in
+                  A) sel=$(((sel - 1 + n) % n)) ;;
+                  B) sel=$(((sel + 1) % n)) ;;
+                esac
+              fi
+            else
+              # Unknown sequence, read one more just in case
+              read -rsn1 -t 2 c < "$tty" || c=""
+              seq="${seq}${c}"
+              printf 'fydetab-menu: ESCX=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
             fi
             ;;
           ' ')
