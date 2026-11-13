@@ -145,7 +145,9 @@ from the systemd initrd after the real root is mounted and before
   from the store, with `init=` rewritten in the current kernel command line.
   All generations share the root filesystem, so no ESP changes per generation
   are needed. Symlinks into `/nix/store` are resolved through `/sysroot`, so
-  the initrd's own store cannot shadow them.
+  the initrd's own store cannot shadow them. The rewritten command line also
+  carries `fydetab.bootmenu=skip`, so the kexec'd initrd boots the chosen
+  entry directly instead of showing the picker again.
 - The countdown pauses the first time any key is pressed and stays paused for
   the rest of that boot, so the menu never boots out from under you while you
   are reading it.

@@ -164,9 +164,9 @@ def main() -> int:
         print(f"missing font: {mono}", file=sys.stderr)
         return 1
 
-    build_font(mono, 32, args.out / "font-mono-32.bin")
-    build_font(mono, 40, args.out / "font-mono-40.bin")
-    build_font(mono, 52, args.out / "font-mono-52.bin")
+    build_font(mono, 27, args.out / "font-mono-27.bin")
+    build_font(mono, 33, args.out / "font-mono-33.bin")
+    build_font(mono, 44, args.out / "font-mono-44.bin")
     build_background(args.theme, args.out / "background.bin")
     build_brand(args.wordmark, args.theme, args.out / "brand.bin")
     return 0

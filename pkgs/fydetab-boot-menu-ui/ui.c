@@ -42,8 +42,8 @@
 #define RIGHT (UI_W - MARGIN)
 #define BRAND_Y 84
 #define LIST_TOP 300
-#define ROW_STEP 84
-#define ROW_BASELINE 60
+#define ROW_STEP 74
+#define ROW_BASELINE 53
 #define FOOTER_TOP (UI_H - 132)
 #define VISIBLE_ROWS ((FOOTER_TOP - LIST_TOP - ROW_BASELINE) / ROW_STEP + 1)
 #define X_MARKER MARGIN
@@ -1028,9 +1028,9 @@ int main(int argc, char **argv)
     }
 
     static Font small, mid, big;
-    if (font_load(&small, asset_path(opt.assets, "font-mono-32.bin")) < 0 ||
-        font_load(&mid, asset_path(opt.assets, "font-mono-40.bin")) < 0 ||
-        font_load(&big, asset_path(opt.assets, "font-mono-52.bin")) < 0) {
+    if (font_load(&small, asset_path(opt.assets, "font-mono-27.bin")) < 0 ||
+        font_load(&mid, asset_path(opt.assets, "font-mono-33.bin")) < 0 ||
+        font_load(&big, asset_path(opt.assets, "font-mono-44.bin")) < 0) {
         fprintf(stderr, "fydetab-menu: cannot load fonts from %s\n", opt.assets);
         return 1;
     }

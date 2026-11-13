@@ -31,6 +31,15 @@ let
     tty=/dev/tty1
     echo "fydetab-boot-menu: starting (tty $tty)" >&2
 
+    # This initrd may have been started by the picker via kexec; in that case
+    # show the chosen generation, not the menu again.
+    case " $(cat /proc/cmdline) " in
+      *" fydetab.bootmenu=skip "*)
+        echo "fydetab-boot-menu: started by kexec, skipping" >&2
+        exit 0
+        ;;
+    esac
+
     # Plymouth owns the display through DRM, so it has to go away for the
     # duration of the menu; the menu itself takes DRM master and scans out its
     # own buffer. Start Plymouth again for the normal boot path. (On the kexec
@@ -60,6 +69,21 @@ let
     # handed to the kernel (init=) stay in host form.
     root=/sysroot
     profiles=$root/nix/var/nix/profiles
+
+    # Resolve a symlink chain inside the host root.  Generation closures link
+    # to /nix/store/... with absolute paths, which would resolve against the
+    # initrd's own (unrelated) /nix, so prefix absolute targets with /sysroot.
+    host_path() {
+      local p=$1 t
+      while [ -L "$p" ]; do
+        t=$(readlink "$p" 2>/dev/null) || return 1
+        case "$t" in
+          /*) p=$root$t ;;
+          *) p=$(dirname "$p")/$t ;;
+        esac
+      done
+      printf '%s\n' "$p"
+    }
 
     shopt -s nullglob
     links=($profiles/system-*-link)
@@ -97,7 +121,7 @@ let
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
-      if [ ! -x "$g/init" ] || [ ! -L "$g/kernel" ] || [ ! -L "$g/initrd" ]; then
+      if [ ! -x "$(host_path "$g/init")" ] || [ ! -L "$g/kernel" ] || [ ! -L "$g/initrd" ]; then
         continue
       fi
 
@@ -123,28 +147,16 @@ let
       exit 0
     fi
 
-    # Resolve a symlink chain inside the host root.  Generation closures link
-    # to /nix/store/... with absolute paths, which would resolve against the
-    # initrd's own (unrelated) /nix, so prefix absolute targets with /sysroot.
-    host_path() {
-      local p=$1 t
-      while [ -L "$p" ]; do
-        t=$(readlink "$p" 2>/dev/null) || return 1
-        case "$t" in
-          /*) p=$root$t ;;
-          *) p=$(dirname "$p")/$t ;;
-        esac
-      done
-      printf '%s\n' "$p"
-    }
-
     has_spec=0
     for g in "''${gens[@]}"; do
-      if [ -d "$g/specialisation" ]; then
-        for s in "$g"/specialisation/*; do
-          [ -e "$s/init" ] && has_spec=1
-        done
-      fi
+      [ -d "$g/specialisation" ] || continue
+      for s in "$g"/specialisation/*; do
+        sp=$(host_path "$s") || continue
+        if [ -x "$sp/init" ]; then
+          has_spec=1
+          break
+        fi
+      done
     done
     # A single generation without specialisations has nothing to choose.
     if [ "$n" -le 1 ] && [ "$has_spec" -eq 0 ]; then
@@ -162,7 +174,8 @@ let
       g="''${gens[$i]}"
       if [ -d "$g/specialisation" ]; then
         for s in "$g"/specialisation/*; do
-          [ -e "$s/init" ] || continue
+          sp=$(host_path "$s") || continue
+          [ -x "$sp/init" ] || continue
           lines="$lines"'S|'"''${s##*/}"$'\n'
         done
       fi
@@ -205,7 +218,7 @@ let
     if [ -n "$spec" ]; then
       g=$(host_path "$g/specialisation/$spec") || exit 0
       label="$gen $spec"
-      [ -x "$g/init" ] || exit 0
+      [ -x "$(host_path "$g/init")" ] || exit 0
     fi
 
     # kexec reads these files through /sysroot, but the new kernel needs
@@ -223,7 +236,7 @@ let
         *) new="$new $word" ;;
       esac
     done
-    new="''${new# } init=$host/init"
+    new="''${new# } init=$host/init fydetab.bootmenu=skip"
 
     kernel=$(host_path "$g/kernel") || kernel=$g/kernel
     initrd=$(host_path "$g/initrd") || initrd=$g/initrd
