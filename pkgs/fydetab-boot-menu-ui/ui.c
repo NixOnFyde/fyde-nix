@@ -3,14 +3,17 @@
  *
  * The shell script owns everything that is Nix-specific (finding generations,
  * kexec).  This helper only draws a menu and reports which row was chosen.
- * It writes straight to /dev/fb0 and reads raw evdev events, so it does not
- * depend on the VT keyboard layer (which mangles escape sequences).
+ * It draws through a DRM dumb buffer (the vendor kernel's fbdev mmap is
+ * broken) and reads raw evdev events, so it does not depend on the VT
+ * keyboard layer (which mangles escape sequences).
  */
 #define _GNU_SOURCE
 
+#include <drm/drm.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_mode.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kd.h>
 #include <math.h>
@@ -23,6 +26,11 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+/* drm_mode.h does not carry the kernel-internal connection enum. */
+#ifndef DRM_MODE_CONNECTED
+#define DRM_MODE_CONNECTED 1
+#endif
 
 #define UI_W 2560
 #define UI_H 1600
@@ -445,58 +453,249 @@ static void draw_footer(void)
 /* --------------------------------------------------------------- screen */
 
 typedef struct {
+    int fd;
     uint32_t *mem;
     size_t len;
     int w, h, stride;
     int rotation;
+    uint32_t handle;
+    uint32_t fb_id;
+    int master;
 } Screen;
 
 static Screen screen;
 
-static int screen_open(Screen *s, int rotation)
+static void screen_close(Screen *s)
 {
-    int fd = open("/dev/fb0", O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        perror("fydetab-menu: open /dev/fb0");
+    if (s->mem) {
+        munmap(s->mem, s->len);
+        s->mem = NULL;
+    }
+    if (s->fd >= 0) {
+        if (s->fb_id) {
+            uint32_t id = s->fb_id;
+            ioctl(s->fd, DRM_IOCTL_MODE_RMFB, &id);
+        }
+        if (s->handle) {
+            struct drm_mode_destroy_dumb destroy = { .handle = s->handle };
+            ioctl(s->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy);
+        }
+        if (s->master)
+            ioctl(s->fd, DRM_IOCTL_DROP_MASTER, 0);
+        close(s->fd);
+    }
+    s->fd = -1;
+}
+
+/*
+ * The vendor kernel's fbdev mmap is broken (rockchip_gem_mmap_buf maps the
+ * object twice, so the second vm_insert_page fails with -EBUSY).  Go through
+ * DRM directly instead: a dumb buffer is mappable, and we take over the CRTC
+ * for as long as the menu is on screen.
+ */
+static int screen_open_node(Screen *s, const char *node, int rotation)
+{
+    memset(s, 0, sizeof *s);
+    s->fd = open(node, O_RDWR | O_CLOEXEC);
+    if (s->fd < 0) {
+        perror(node);
         return -1;
     }
 
-    struct fb_fix_screeninfo fix;
-    struct fb_var_screeninfo var;
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &fix) < 0 ||
-        ioctl(fd, FBIOGET_VSCREENINFO, &var) < 0) {
-        perror("fydetab-menu: FBIOGET_*");
-        close(fd);
+    int master_ok = 0;
+    for (int attempt = 0; attempt < 20; attempt++) {
+        if (ioctl(s->fd, DRM_IOCTL_SET_MASTER, 0) == 0) {
+            master_ok = 1;
+            break;
+        }
+        /* Plymouth may still be winding down and holding the master lock. */
+        usleep(100000);
+    }
+    if (!master_ok) {
+        perror("fydetab-menu: DRM_IOCTL_SET_MASTER");
+        screen_close(s);
         return -1;
     }
-    if (var.bits_per_pixel != 32) {
-        fprintf(stderr, "fydetab-menu: unsupported bpp %u\n", var.bits_per_pixel);
-        close(fd);
+    s->master = 1;
+
+    struct drm_mode_card_res res;
+    memset(&res, 0, sizeof res);
+    if (ioctl(s->fd, DRM_IOCTL_MODE_GETRESOURCES, &res) < 0) {
+        perror("fydetab-menu: MODE_GETRESOURCES");
+        screen_close(s);
         return -1;
     }
 
-    s->w = (int)var.xres;
-    s->h = (int)var.yres;
-    s->stride = (int)(fix.line_length / 4);
+    uint32_t *connectors = calloc(res.count_connectors, sizeof *connectors);
+    uint32_t *crtcs = calloc(res.count_crtcs, sizeof *crtcs);
+    uint32_t *encoders = calloc(res.count_encoders, sizeof *encoders);
+    if (!connectors || !crtcs || !encoders) {
+        fprintf(stderr, "fydetab-menu: out of memory reading DRM resources\n");
+        free(connectors);
+        free(crtcs);
+        free(encoders);
+        screen_close(s);
+        return -1;
+    }
+
+    res.connector_id_ptr = (uint64_t)(uintptr_t)connectors;
+    res.crtc_id_ptr = (uint64_t)(uintptr_t)crtcs;
+    res.encoder_id_ptr = (uint64_t)(uintptr_t)encoders;
+    if (ioctl(s->fd, DRM_IOCTL_MODE_GETRESOURCES, &res) < 0) {
+        perror("fydetab-menu: MODE_GETRESOURCES (ids)");
+        free(connectors);
+        free(crtcs);
+        free(encoders);
+        screen_close(s);
+        return -1;
+    }
+
+    uint32_t connector_id = 0, crtc_id = 0;
+    struct drm_mode_modeinfo mode;
+    memset(&mode, 0, sizeof mode);
+
+    for (uint32_t i = 0; i < res.count_connectors && !connector_id; i++) {
+        struct drm_mode_get_connector conn;
+        memset(&conn, 0, sizeof conn);
+        conn.connector_id = connectors[i];
+        if (ioctl(s->fd, DRM_IOCTL_MODE_GETCONNECTOR, &conn) < 0)
+            continue;
+        if (conn.connection != DRM_MODE_CONNECTED)
+            continue;
+
+        uint32_t crtc = 0;
+        if (conn.encoder_id) {
+            struct drm_mode_get_encoder enc;
+            memset(&enc, 0, sizeof enc);
+            enc.encoder_id = conn.encoder_id;
+            if (ioctl(s->fd, DRM_IOCTL_MODE_GETENCODER, &enc) == 0)
+                crtc = enc.crtc_id;
+        }
+        if (!crtc && res.count_crtcs)
+            crtc = crtcs[0];
+
+        /* Reuse the mode the console was already using; do not mode-set. */
+        struct drm_mode_crtc current;
+        memset(&current, 0, sizeof current);
+        current.crtc_id = crtc;
+        if (!crtc || ioctl(s->fd, DRM_IOCTL_MODE_GETCRTC, &current) < 0)
+            continue;
+        if (!current.mode_valid)
+            continue;
+
+        connector_id = conn.connector_id;
+        crtc_id = crtc;
+        mode = current.mode;
+    }
+
+    free(connectors);
+    free(crtcs);
+    free(encoders);
+
+    if (!connector_id) {
+        fprintf(stderr, "fydetab-menu: no connected display with an active mode\n");
+        screen_close(s);
+        return -1;
+    }
+
+    s->w = (int)mode.hdisplay;
+    s->h = (int)mode.vdisplay;
     s->rotation = rotation;
 
     if (s->w == UI_W && s->h == UI_H)
         s->rotation = 0;
     else if (!(s->w == UI_H && s->h == UI_W && (rotation == 90 || rotation == 270))) {
-        fprintf(stderr, "fydetab-menu: unexpected framebuffer %dx%d\n", s->w, s->h);
-        close(fd);
+        fprintf(stderr, "fydetab-menu: unexpected display mode %dx%d\n", s->w, s->h);
+        screen_close(s);
         return -1;
     }
 
-    s->mem = mmap(NULL, fix.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    s->len = fix.smem_len;
-    close(fd);
-    if (s->mem == MAP_FAILED) {
-        perror("fydetab-menu: mmap /dev/fb0");
-        s->mem = NULL;
+    struct drm_mode_create_dumb dumb;
+    memset(&dumb, 0, sizeof dumb);
+    dumb.width = (uint32_t)s->w;
+    dumb.height = (uint32_t)s->h;
+    dumb.bpp = 32;
+    if (ioctl(s->fd, DRM_IOCTL_MODE_CREATE_DUMB, &dumb) < 0) {
+        perror("fydetab-menu: MODE_CREATE_DUMB");
+        screen_close(s);
         return -1;
     }
+    s->handle = dumb.handle;
+    s->stride = (int)(dumb.pitch / 4);
+    s->len = dumb.size;
+
+    struct drm_mode_map_dumb map;
+    memset(&map, 0, sizeof map);
+    map.handle = dumb.handle;
+    if (ioctl(s->fd, DRM_IOCTL_MODE_MAP_DUMB, &map) < 0) {
+        perror("fydetab-menu: MODE_MAP_DUMB");
+        screen_close(s);
+        return -1;
+    }
+
+    s->mem = mmap(NULL, s->len, PROT_READ | PROT_WRITE, MAP_SHARED, s->fd,
+                  (off_t)map.offset);
+    if (s->mem == MAP_FAILED) {
+        perror("fydetab-menu: mmap dumb buffer");
+        s->mem = NULL;
+        screen_close(s);
+        return -1;
+    }
+
+    struct drm_mode_fb_cmd2 fb;
+    memset(&fb, 0, sizeof fb);
+    fb.width = (uint32_t)s->w;
+    fb.height = (uint32_t)s->h;
+    fb.pixel_format = DRM_FORMAT_XRGB8888;
+    fb.handles[0] = dumb.handle;
+    fb.pitches[0] = dumb.pitch;
+    if (ioctl(s->fd, DRM_IOCTL_MODE_ADDFB2, &fb) < 0) {
+        /* Some vendor kernels only implement the legacy entry point. */
+        struct drm_mode_fb_cmd legacy;
+        memset(&legacy, 0, sizeof legacy);
+        legacy.width = dumb.width;
+        legacy.height = dumb.height;
+        legacy.pitch = dumb.pitch;
+        legacy.bpp = 32;
+        legacy.depth = 24;
+        legacy.handle = dumb.handle;
+        if (ioctl(s->fd, DRM_IOCTL_MODE_ADDFB, &legacy) < 0) {
+            perror("fydetab-menu: MODE_ADDFB2 / MODE_ADDFB");
+            screen_close(s);
+            return -1;
+        }
+        fb.fb_id = legacy.fb_id;
+    }
+    s->fb_id = fb.fb_id;
+
+    struct drm_mode_crtc set;
+    memset(&set, 0, sizeof set);
+    set.crtc_id = crtc_id;
+    set.fb_id = fb.fb_id;
+    set.set_connectors_ptr = (uint64_t)(uintptr_t)&connector_id;
+    set.count_connectors = 1;
+    set.mode = mode;
+    set.mode_valid = 1;
+    if (ioctl(s->fd, DRM_IOCTL_MODE_SETCRTC, &set) < 0) {
+        perror("fydetab-menu: MODE_SETCRTC");
+        screen_close(s);
+        return -1;
+    }
+
+    fprintf(stderr, "fydetab-menu: %dx%d dumb buffer, connector %u, crtc %u\n",
+            s->w, s->h, connector_id, crtc_id);
     return 0;
+}
+
+static int screen_open(Screen *s, int rotation)
+{
+    static const char *nodes[] = { "/dev/dri/card0", "/dev/dri/card1" };
+    for (size_t i = 0; i < sizeof nodes / sizeof nodes[0]; i++) {
+        if (screen_open_node(s, nodes[i], rotation) == 0)
+            return 0;
+    }
+    fprintf(stderr, "fydetab-menu: no usable DRM device\n");
+    return -1;
 }
 
 static void push_rect(int x0, int y0, int w, int h)
@@ -775,7 +974,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    fprintf(stderr, "fydetab-menu: %d entries, fb %dx%d stride %d rot %d, %d input devices\n",
+    fprintf(stderr, "fydetab-menu: %d entries, display %dx%d stride %d rot %d, %d input devices\n",
             menu.n, screen.w, screen.h, screen.stride, screen.rotation, nfds);
 
     draw_rows();
@@ -889,7 +1088,7 @@ int main(int argc, char **argv)
     close(tty);
     for (int i = 0; i < nfds; i++)
         close(fds[i]);
-    munmap(screen.mem, screen.len);
+    screen_close(&screen);
 
     printf("%d\n", chosen);
     return 0;

@@ -30,10 +30,10 @@ let
 
     tty=/dev/tty1
 
-    # Plymouth scans out its own DRM buffer, so pixels written to /dev/fb0
-    # while it is running never reach the panel. Stop it for the duration of
-    # the menu and start it again for the normal boot path. (On the kexec path
-    # the next kernel starts its own splash.)
+    # Plymouth owns the display through DRM, so it has to go away for the
+    # duration of the menu; the menu itself takes DRM master and scans out its
+    # own buffer. Start Plymouth again for the normal boot path. (On the kexec
+    # path the next kernel starts its own splash.)
     plymouth_running=""
     if [ -e /run/plymouth/pid ]; then
       if plymouth --quit >/dev/null 2>&1; then
@@ -250,7 +250,7 @@ in
     ];
 
     # kexec's RPATH needs zlib/zstd, and bash/coreutils/kbd must exist inside
-    # the initrd. The menu helper draws on the framebuffer and reads evdev.
+    # the initrd. The menu helper draws through DRM and reads evdev.
     boot.initrd.systemd.storePaths = [
       menu
       pkgs.fydetab-boot-menu-ui

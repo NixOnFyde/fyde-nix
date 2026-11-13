@@ -148,12 +148,14 @@ from the systemd initrd after the real root is mounted and before
   are reading it.
 
 The picker is a small static helper,
-[`../pkgs/fydetab-boot-menu-ui`](../pkgs/fydetab-boot-menu-ui). It draws
-straight to `/dev/fb0` after putting its VT into `KD_GRAPHICS`, and reads raw
-`evdev` events instead of the VT keyboard layer. That is why arrow keys move
-exactly one row per press. The background is generated at build time from the
-Plymouth splash art (blurred and tinted), and the brand lockup uses the theme's
-own snowflake and wordmark assets.
+[`../pkgs/fydetab-boot-menu-ui`](../pkgs/fydetab-boot-menu-ui). It takes over
+the display through DRM: a dumb buffer on `/dev/dri/card0` is mapped, attached
+to the active CRTC and scanned out while the VT is in `KD_GRAPHICS`. (The
+vendor kernel's fbdev `mmap` is broken, so `/dev/fb0` cannot be used.) Input
+comes from raw `evdev` events instead of the VT keyboard layer, which is why
+arrow keys move exactly one row per press. The background is generated at
+build time from the Plymouth splash art (blurred and tinted), and the brand
+lockup uses the theme's own snowflake and wordmark assets.
 
 Controls: Up/Down (or `j`/`k`), `1`–`9` to jump directly, Enter to boot the
 selection, `t`, `q` or Esc to boot the default immediately. Volume Up/Down
@@ -163,10 +165,10 @@ menu's background is generated from the same splash art, so the transition
 stays visually consistent.
 
 The menu is drawn at 2560×1600 and rotated when written to the panel's
-portrait framebuffer. `hardware.fydetabduo.bootMenu.rotation` accepts `90` or
-`270` and defaults to `270`, matching the desktop transform. Use `90` if the
-menu appears upside down. No rotation is applied when the framebuffer is
-already landscape.
+portrait mode. `hardware.fydetabduo.bootMenu.rotation` accepts `90` or `270`
+and defaults to `270`, matching the desktop transform. Use `90` if the menu
+appears upside down. No rotation is applied when the display mode is already
+landscape.
 
 It requires the keyboard: U-Boot has no input driver, and the picker runs
 before userspace, so the touchscreen is not available. With the keyboard
@@ -176,7 +178,7 @@ opened at all, the picker exits immediately and the default boots. Set
 
 `kexec_file_load` (CONFIG_KEXEC_FILE) is used, which this kernel supports. If
 loading the chosen generation fails, the picker returns to the text console on
-`tty2` with an error, waits three seconds, and boots the default instead.
+`tty1` with an error, waits three seconds, and boots the default instead.
 
 ## Interrupting U-Boot and entering UMS
 
