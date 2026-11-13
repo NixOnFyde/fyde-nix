@@ -299,7 +299,7 @@ in
 
     timeout = lib.mkOption {
       type = lib.types.ints.between 0 60;
-      default = 5;
+      default = 10;
       description = ''
         Seconds to wait for a selection. 0 disables the menu without
         changing the boot path. The countdown pauses as soon as any key is
@@ -348,6 +348,10 @@ in
       pkgs.zlib
       pkgs.zstd
     ];
+
+    # The touchscreen is a module; load it in the initrd so the picker can be
+    # used by touch as well as by the keyboard dock.
+    boot.initrd.kernelModules = [ "himax_tp" ];
 
     boot.initrd.systemd.services.fydetab-boot-menu = {
       description = "FydeTab Duo generation picker";

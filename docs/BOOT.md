@@ -139,7 +139,7 @@ from the systemd initrd after the real root is mounted and before
   timestamp. Generations with NixOS specialisations show them as foldable
   children; each specialisation is a full system closure with its own kernel
   and initrd.
-- Choosing the default (or the timeout expiring, default 5 s) continues the
+- Choosing the default (or the timeout expiring, default 10 s) continues the
   normal boot. Nothing about the default path changes.
 - Choosing another entry `kexec`s **that entry's own** kernel, initrd and DTB
   from the store, with `init=` rewritten in the current kernel command line.
@@ -173,8 +173,9 @@ lockup uses the theme's own snowflake and wordmark assets.
 Controls: Up/Down (or `j`/`k`, volume keys, Page Up/Down, Home/End) move the
 selection and repeat while held; Left/Right fold a generation open or closed;
 `1`–`9` jump to a generation; Enter boots the selection; `t`, `q` or Esc boot
-the default immediately. The default generation's `(current)` root entry
-returns to the normal boot path instead of kexecing itself. Plymouth draws
+the default immediately. With the touchscreen, tap a row to select it; tap it
+again to boot it. The default generation's `(current)` root entry returns to
+the normal boot path instead of kexecing itself. Plymouth draws
 through DRM, not the framebuffer, so the picker stops it for the duration of
 the menu and starts it again afterwards; the menu's background is generated
 from the same splash art, so the transition stays visually consistent.

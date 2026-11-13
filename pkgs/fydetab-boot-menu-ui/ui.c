@@ -878,10 +878,30 @@ static void compose_footer(void)
 
 /* ----------------------------------------------------------------- input */
 
-static int open_inputs(int *fds, int max)
+#define MAX_INPUTS 16
+
+struct idev {
+    int fd;
+    int event;
+    int pointer;
+    int minx, maxx, miny, maxy;
+    int x, y;
+    int down;
+    int startx, starty;
+};
+
+static struct idev idevs[MAX_INPUTS];
+static int nidev;
+static int taken[32];
+
+/* (Re)scan the event nodes.  The USB keyboard and the touchscreen can appear
+ * after the menu starts, so this runs again on every one-second tick. */
+static void input_scan(void)
 {
-    int n = 0;
-    for (int i = 0; i < 32 && n < max; i++) {
+    for (int i = 0; i < 32; i++) {
+        if (taken[i] || nidev >= MAX_INPUTS)
+            continue;
+
         char path[64];
         snprintf(path, sizeof path, "/dev/input/event%d", i);
         int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
@@ -889,28 +909,101 @@ static int open_inputs(int *fds, int max)
             continue;
 
         uint8_t evbit[(EV_MAX / 8) + 1] = { 0 };
+        uint8_t keybit[(KEY_MAX / 8) + 1] = { 0 };
         if (ioctl(fd, EVIOCGBIT(0, sizeof evbit), evbit) < 0 ||
-            !(evbit[EV_KEY / 8] & (1u << (EV_KEY % 8)))) {
+            ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keybit), keybit) < 0) {
             close(fd);
             continue;
         }
 
-        uint8_t keybit[(KEY_MAX / 8) + 1] = { 0 };
-        if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keybit), keybit) < 0) {
-            close(fd);
-            continue;
-        }
+#define HAS_EV(t) (evbit[(t) / 8] & (1u << ((t) % 8)))
 #define HAS_KEY(k) (keybit[(k) / 8] & (1u << ((k) % 8)))
-        if (!(HAS_KEY(KEY_UP) || HAS_KEY(KEY_DOWN) || HAS_KEY(KEY_ENTER) ||
-              HAS_KEY(KEY_VOLUMEUP) || HAS_KEY(KEY_VOLUMEDOWN))) {
-            close(fd);
-            continue;
-        }
+        int keys = HAS_KEY(KEY_UP) || HAS_KEY(KEY_DOWN) ||
+                   HAS_KEY(KEY_ENTER) || HAS_KEY(KEY_VOLUMEUP) ||
+                   HAS_KEY(KEY_VOLUMEDOWN);
+        int pointer = 0;
+        struct input_absinfo ax = { 0 }, ay = { 0 };
+        if (HAS_EV(EV_ABS) && HAS_KEY(BTN_TOUCH) &&
+            ioctl(fd, EVIOCGABS(ABS_X), &ax) == 0 &&
+            ioctl(fd, EVIOCGABS(ABS_Y), &ay) == 0 &&
+            ax.maximum > ax.minimum && ay.maximum > ay.minimum)
+            pointer = 1;
+#undef HAS_EV
 #undef HAS_KEY
 
-        fds[n++] = fd;
+        if (!keys && !pointer) {
+            close(fd);
+            continue;
+        }
+
+        char name[80] = "";
+        ioctl(fd, EVIOCGNAME(sizeof name - 1), name);
+
+        struct idev *d = &idevs[nidev++];
+        memset(d, 0, sizeof *d);
+        d->fd = fd;
+        d->event = i;
+        d->pointer = pointer;
+        d->minx = ax.minimum;
+        d->maxx = ax.maximum;
+        d->miny = ay.minimum;
+        d->maxy = ay.maximum;
+        d->x = (ax.minimum + ax.maximum) / 2;
+        d->y = (ay.minimum + ay.maximum) / 2;
+        taken[i] = 1;
+        fprintf(stderr, "fydetab-menu: input event%d: %s (%s)\n", i, name,
+                pointer ? "touch" : "keys");
     }
-    return n;
+}
+
+static void input_drop(int idx)
+{
+    if (idx < 0 || idx >= nidev)
+        return;
+    fprintf(stderr, "fydetab-menu: input event%d gone, reopening\n",
+            idevs[idx].event);
+    close(idevs[idx].fd);
+    taken[idevs[idx].event] = 0;
+    idevs[idx] = idevs[--nidev];
+}
+
+/* Map a panel coordinate to a visible row, applying the same rotation the
+ * scanout uses.  Returns -1 when the tap is outside the list. */
+static int panel_to_row(int px, int py, int *cx_out, int *cy_out)
+{
+    int sx = px, sy = py;
+    int cx, cy;
+    if (screen.rotation == 90) {
+        cx = 2559 - sy;
+        cy = sx;
+    } else {
+        cx = sy;
+        cy = 1599 - sx;
+    }
+    if (cx_out)
+        *cx_out = cx;
+    if (cy_out)
+        *cy_out = cy;
+    if (cx < X_MARKER || cx > RIGHT || cy < LIST_TOP - 8)
+        return -1;
+    int row = opt.top + (cy - (LIST_TOP - 8)) / ROW_STEP;
+    if (row < 0 || row >= nrows || row >= opt.top + VISIBLE_ROWS)
+        return -1;
+    return row;
+}
+
+static void choose_entry(char *out, size_t n, int *boot_default)
+{
+    const Gen *g = &menu.gens[opt.sel_gen];
+    if (opt.sel_spec < 0) {
+        if (!g->is_default) {
+            snprintf(out, n, "%s", g->num);
+            *boot_default = 0;
+        }
+    } else {
+        snprintf(out, n, "%s/%s", g->num, g->spec[opt.sel_spec]);
+        *boot_default = 0;
+    }
 }
 
 /* ---------------------------------------------------------------- render */
@@ -1089,21 +1182,19 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int fds[16];
-    int nfds = 0;
-    for (int attempt = 0; attempt < 20 && nfds == 0; attempt++) {
-        nfds = open_inputs(fds, 16);
-        if (!nfds)
+    for (int attempt = 0; attempt < 20 && nidev == 0; attempt++) {
+        input_scan();
+        if (!nidev)
             usleep(100000);
     }
-    if (!nfds) {
+    if (!nidev) {
         fprintf(stderr, "fydetab-menu: no usable input device, booting default\n");
         ioctl(tty, KDSETMODE, KD_TEXT);
         return -1;
     }
 
     fprintf(stderr, "fydetab-menu: %d generations, %d rows, display %dx%d stride %d rot %d, %d input devices\n",
-            menu.n, nrows, screen.w, screen.h, screen.stride, screen.rotation, nfds);
+            menu.n, nrows, screen.w, screen.h, screen.stride, screen.rotation, nidev);
 
     draw_rows();
     draw_footer();
@@ -1113,14 +1204,16 @@ int main(int argc, char **argv)
     int boot_default = 1; /* unless a specific entry is picked */
 
     for (;;) {
-        struct pollfd pfds[16];
-        for (int i = 0; i < nfds; i++) {
-            pfds[i].fd = fds[i];
+        input_scan();
+
+        struct pollfd pfds[MAX_INPUTS];
+        for (int i = 0; i < nidev; i++) {
+            pfds[i].fd = idevs[i].fd;
             pfds[i].events = POLLIN;
             pfds[i].revents = 0;
         }
 
-        int ready = poll(pfds, (nfds_t)nfds, 1000);
+        int ready = poll(pfds, (nfds_t)nidev, 1000);
         if (ready < 0) {
             if (errno == EINTR)
                 continue;
@@ -1131,23 +1224,88 @@ int main(int argc, char **argv)
             if (!opt.paused) {
                 if (opt.left > 0)
                     opt.left--;
-                if (opt.left <= 0)
+                if (opt.left <= 0) {
+                    fprintf(stderr, "fydetab-menu: countdown finished\n");
                     break;
+                }
                 compose_footer();
             }
             continue;
         }
 
         int list_dirty = 0, footer_dirty = 0;
-        int done = 0;
-        for (int i = 0; i < nfds && !done; i++) {
+        int done = 0, drop = -1;
+        for (int i = 0; i < nidev && !done; i++) {
+            if (pfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                drop = i;
+                continue;
+            }
             if (!(pfds[i].revents & POLLIN))
                 continue;
+
+            struct idev *d = &idevs[i];
             struct input_event ev;
-            while (read(fds[i], &ev, sizeof ev) == (ssize_t)sizeof ev) {
-                /* value 2 is the kernel's held-key repeat. */
-                if (ev.type != EV_KEY || ev.value < 1)
+            while (read(d->fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                if (ev.type == EV_ABS) {
+                    if (ev.code == ABS_X || ev.code == ABS_MT_POSITION_X)
+                        d->x = ev.value;
+                    else if (ev.code == ABS_Y || ev.code == ABS_MT_POSITION_Y)
+                        d->y = ev.value;
                     continue;
+                }
+                if (ev.type != EV_KEY || ev.value < 0)
+                    continue;
+
+                if (d->pointer) {
+                    if (ev.code != BTN_TOUCH)
+                        continue;
+                    if (ev.value >= 1) {
+                        d->down = 1;
+                        d->startx = d->x;
+                        d->starty = d->y;
+                        if (!opt.paused) {
+                            opt.paused = 1;
+                            footer_dirty = 1;
+                        }
+                    } else if (d->down) {
+                        int dx, dy, px, py, cx, cy, row;
+                        d->down = 0;
+                        dx = d->x - d->startx;
+                        dy = d->y - d->starty;
+                        if (dx * dx + dy * dy > 60 * 60)
+                            continue;
+                        px = (d->x - d->minx) * 1600 /
+                             (d->maxx - d->minx + 1);
+                        py = (d->y - d->miny) * 2560 /
+                             (d->maxy - d->miny + 1);
+                        cx = px;
+                        cy = py;
+                        row = panel_to_row(px, py, &cx, &cy);
+                        fprintf(stderr,
+                                "fydetab-menu: tap %d,%d canvas %d,%d row %d\n",
+                                px, py, cx, cy, row);
+                        if (row < 0)
+                            continue;
+                        if (row == opt.cursor) {
+                            choose_entry(chosen, sizeof chosen, &boot_default);
+                            done = 1;
+                        } else {
+                            opt.cursor = row;
+                            act_on_cursor();
+                            list_dirty = 1;
+                        }
+                    }
+                    if (done)
+                        break;
+                    continue;
+                }
+
+                /* value 2 is the kernel's held-key repeat. */
+                if (ev.value < 1)
+                    continue;
+
+                fprintf(stderr, "fydetab-menu: key %u value %d\n",
+                        ev.code, ev.value);
 
                 if (!opt.paused) {
                     opt.paused = 1;
@@ -1225,17 +1383,9 @@ int main(int argc, char **argv)
                 }
                 case KEY_ENTER:
                 case KEY_KPENTER: {
-                    Gen *g = &menu.gens[opt.sel_gen];
-                    if (opt.sel_spec < 0) {
-                        if (!g->is_default) {
-                            snprintf(chosen, sizeof chosen, "%s", g->num);
-                            boot_default = 0;
-                        }
-                    } else {
-                        snprintf(chosen, sizeof chosen, "%s/%s",
-                                 g->num, g->spec[opt.sel_spec]);
-                        boot_default = 0;
-                    }
+                    choose_entry(chosen, sizeof chosen, &boot_default);
+                    fprintf(stderr, "fydetab-menu: boot %s\n",
+                            boot_default ? "default" : chosen);
                     done = 1;
                     break;
                 }
@@ -1274,6 +1424,8 @@ int main(int argc, char **argv)
         }
         if (done)
             break;
+        if (drop >= 0)
+            input_drop(drop);
         if (list_dirty)
             compose_rows();
         if (footer_dirty)
@@ -1282,8 +1434,8 @@ int main(int argc, char **argv)
 
     ioctl(tty, KDSETMODE, KD_TEXT);
     close(tty);
-    for (int i = 0; i < nfds; i++)
-        close(fds[i]);
+    for (int i = 0; i < nidev; i++)
+        close(idevs[i].fd);
     screen_close(&screen);
 
     printf("%s\n", boot_default ? "-1" : chosen);
