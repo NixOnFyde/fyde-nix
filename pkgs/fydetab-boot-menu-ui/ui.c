@@ -456,13 +456,16 @@ static Screen screen;
 static int screen_open(Screen *s, int rotation)
 {
     int fd = open("/dev/fb0", O_RDWR | O_CLOEXEC);
-    if (fd < 0)
+    if (fd < 0) {
+        perror("fydetab-menu: open /dev/fb0");
         return -1;
+    }
 
     struct fb_fix_screeninfo fix;
     struct fb_var_screeninfo var;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &fix) < 0 ||
         ioctl(fd, FBIOGET_VSCREENINFO, &var) < 0) {
+        perror("fydetab-menu: FBIOGET_*");
         close(fd);
         return -1;
     }
@@ -489,6 +492,7 @@ static int screen_open(Screen *s, int rotation)
     s->len = fix.smem_len;
     close(fd);
     if (s->mem == MAP_FAILED) {
+        perror("fydetab-menu: mmap /dev/fb0");
         s->mem = NULL;
         return -1;
     }
@@ -701,9 +705,12 @@ int main(int argc, char **argv)
     }
 
     static Font small, mid, big;
-    font_load(&small, asset_path(opt.assets, "font-mono-40.bin"));
-    font_load(&mid, asset_path(opt.assets, "font-mono-46.bin"));
-    font_load(&big, asset_path(opt.assets, "font-mono-56.bin"));
+    if (font_load(&small, asset_path(opt.assets, "font-mono-40.bin")) < 0 ||
+        font_load(&mid, asset_path(opt.assets, "font-mono-46.bin")) < 0 ||
+        font_load(&big, asset_path(opt.assets, "font-mono-56.bin")) < 0) {
+        fprintf(stderr, "fydetab-menu: cannot load fonts from %s\n", opt.assets);
+        return 1;
+    }
     font_small = &small;
     font_mid = &mid;
     font_big = &big;
@@ -740,10 +747,12 @@ int main(int argc, char **argv)
     }
 
     int tty = open(opt.tty, O_RDWR | O_CLOEXEC);
-    if (tty < 0)
-        tty = open("/dev/tty1", O_RDWR | O_CLOEXEC);
     if (tty < 0) {
-        fprintf(stderr, "fydetab-menu: no tty\n");
+        perror("fydetab-menu: open tty");
+        tty = open("/dev/tty1", O_RDWR | O_CLOEXEC);
+    }
+    if (tty < 0) {
+        perror("fydetab-menu: open /dev/tty1");
         return 1;
     }
     ioctl(tty, KDSETMODE, KD_GRAPHICS);
@@ -765,6 +774,9 @@ int main(int argc, char **argv)
         ioctl(tty, KDSETMODE, KD_TEXT);
         return -1;
     }
+
+    fprintf(stderr, "fydetab-menu: %d entries, fb %dx%d stride %d rot %d, %d input devices\n",
+            menu.n, screen.w, screen.h, screen.stride, screen.rotation, nfds);
 
     draw_rows();
     draw_footer();

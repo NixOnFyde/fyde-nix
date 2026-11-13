@@ -150,9 +150,12 @@ let
         --rotation "$rotation" \
         --default "$defslot" \
         --tty "$tty"
-    ) || choice=-1
-
-    echo "fydetab-boot-menu: returned $choice (default slot $defslot)" >&2
+    )
+    rc=$?
+    echo "fydetab-boot-menu: ui exit $rc, choice '$choice'" >&2
+    if [ "$rc" -ne 0 ]; then
+      choice=-1
+    fi
 
     case "$choice" in
       "" | *[!0-9-]*) exit 0 ;;
@@ -262,7 +265,11 @@ in
 
     boot.initrd.systemd.services.fydetab-boot-menu = {
       description = "FydeTab Duo generation picker";
-      wantedBy = [ "initrd-switch-root.target" ];
+      # Pulled in by the initrd's default target: by then /sysroot is mounted
+      # and udev is still running (the keyboard's evdev nodes exist). Being
+      # only wanted by initrd-switch-root.target starts us during initrd
+      # teardown, after udevd has already been stopped.
+      wantedBy = [ "initrd.target" ];
       after = [ "sysroot.mount" ];
       before = [ "initrd-switch-root.service" ];
 
