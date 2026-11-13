@@ -165,16 +165,16 @@ let
             ;;
           $'\e')
             # Read escape sequence byte by byte with generous timeout
-            seq=""
+            escseq=""
             # Read first byte after ESC
             read -rsn1 -t 2 c < "$tty" || c=""
-            seq="${seq}${c}"
+            escseq="${escseq}${c}"
             printf 'fydetab-menu: ESC1=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
             
             if [ "$c" = '[' ]; then
               # Standard ESC [ A/B
               read -rsn1 -t 2 c < "$tty" || c=""
-              seq="${seq}${c}"
+              escseq="${escseq}${c}"
               printf 'fydetab-menu: ESC2=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
               case "$c" in
                 A) sel=$(((sel - 1 + n) % n)) ;;
@@ -183,11 +183,11 @@ let
             elif [ "$c" = $'\e' ]; then
               # Double ESC: ESC ESC [ A/B
               read -rsn1 -t 2 c < "$tty" || c=""
-              seq="${seq}${c}"
+              escseq="${escseq}${c}"
               printf 'fydetab-menu: ESC3=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
               if [ "$c" = '[' ]; then
                 read -rsn1 -t 2 c < "$tty" || c=""
-                seq="${seq}${c}"
+                escseq="${escseq}${c}"
                 printf 'fydetab-menu: ESC4=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
                 case "$c" in
                   A) sel=$(((sel - 1 + n) % n)) ;;
@@ -197,7 +197,7 @@ let
             else
               # Unknown sequence, read one more just in case
               read -rsn1 -t 2 c < "$tty" || c=""
-              seq="${seq}${c}"
+              escseq="${escseq}${c}"
               printf 'fydetab-menu: ESCX=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
             fi
             ;;
