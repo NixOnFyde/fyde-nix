@@ -24,10 +24,11 @@ let
 
     timeout=${toString cfg.timeout}
     maxgens=${toString cfg.maxGenerations}
+    rotation=${toString cfg.rotation}
 
     # Plymouth owns the DRM device on tty1. Switch to an unused VT so the
-    # plain framebuffer console is visible and the keyboard is routed to it.
-    # Plymouth keeps running and resumes when we switch back.
+    # framebuffer is ours and the keyboard is routed to it. Plymouth keeps
+    # running and resumes when we switch back.
     tty=/dev/tty1
     switched=""
     if [ -e /run/plymouth/pid ] && chvt 2 2>/dev/null; then
@@ -52,15 +53,8 @@ let
 
     shopt -s nullglob
     links=($profiles/system-*-link)
-    # Debug: log what we see in the initrd
-    printf 'fydetab-menu: profiles=%s links=%d\\n' "$profiles" "''${#links[@]}" > /dev/kmsg 2>/dev/null || true
-    i=0
-    while [ "$i" -lt "''${#links[@]}" ]; do
-      printf 'fydetab-menu: link=%s\\n' "''${links[$i]}" > /dev/kmsg 2>/dev/null || true
-      i=$((i + 1))
-    done
     if [ "''${#links[@]}" -eq 0 ]; then
-      printf 'fydetab-menu: no generations\\n' > /dev/kmsg 2>/dev/null || true
+      echo "fydetab-boot-menu: no generations found" >&2
       exit 0
     fi
 
@@ -87,26 +81,18 @@ let
       # The profile link points at /nix/store/<hash>-nixos-system-…; skip
       # generations whose kernel assets were garbage-collected.
       store=$(readlink "$link" 2>/dev/null || true)
-      printf 'fydetab-menu: FILTER link=%s store=%s\\n' "$link" "$store" > /dev/kmsg 2>/dev/null || true
       case "$store" in
         /*) ;;
         "") continue ;;
         *) store=$(dirname "$link")/$store ;;
       esac
       g=$root$store
-      printf 'fydetab-menu: CHECK g=%s init=%s kernel=%s initrd=%s\\n' "$g" \
-        "$(test -x "$g/init" && echo y || echo n)" \
-        "$(test -L "$g/kernel" && echo y || echo n)" \
-        "$(test -L "$g/initrd" && echo y || echo n)" > /dev/kmsg 2>/dev/null || true
       if [ ! -x "$g/init" ] || [ ! -L "$g/kernel" ] || [ ! -L "$g/initrd" ]; then
-        printf 'fydetab-menu: SKIP\\n' > /dev/kmsg 2>/dev/null || true
         continue
       fi
-      printf 'fydetab-menu: ADD num=%s\\n' "$num" > /dev/kmsg 2>/dev/null || true
 
       # stat the profile link itself (not its target) for generation time
       ts=$(stat -c %Y "$link" 2>/dev/null || echo 0)
-      printf 'fydetab-menu: DATE num=%s ts=%s\\n' "$num" "$ts" > /dev/kmsg 2>/dev/null || true
       when=$(date -d "@$ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "?")
 
       if [ "$num" = "$default_num" ]; then
@@ -124,132 +110,74 @@ let
 
     n=''${#gens[@]}
     # Nothing to choose from (or the menu is disabled): boot straight away.
-    if [ "''${#gens[@]}" -le 1 ] || [ "$timeout" -le 0 ]; then
+    if [ "$n" -le 1 ] || [ "$timeout" -le 0 ]; then
       exit 0
     fi
 
-    left=$timeout
-
-    draw() {
-      {
-        printf '\033[2J\033[H'
-        printf 'FydeTab Duo boot menu\n\n'
-        printf '  Up/Down or 1-%d to select, Enter to boot the highlighted one.\n' "$n"
-        printf '  Space pauses, t for default. Booting generation %s in %2ds...\n\n' "$default_num" "$left"
-        i=0
-        while [ "$i" -lt "$n" ]; do
-          marker='  '
-          [ "$i" -eq "$sel" ] && marker='> '
-          note=""
-          [ "''${nums[$i]}" = "$default_num" ] && note='  (default)'
-          printf '%s[%d] gen %-3s  %s%s\n' "$marker" "$((i + 1))" "''${nums[$i]}" "''${dates[$i]}" "$note"
-          i=$((i + 1))
-        done
-        printf '\n'
-      } > "$tty"
-    }
-
-    paused=0
-    while [ "$left" -gt 0 ]; do
-      draw
-      if read -rsn1 -t 1 key < "$tty"; then
-        printf 'fydetab-menu: KEY=%s\\n' "$key" > /dev/kmsg 2>/dev/null || true
-        # Any keypress pauses the countdown permanently for this boot
-        if [ "$paused" -eq 0 ]; then
-          paused=1
-          left=$timeout
-        fi
-        case "$key" in
-          "")
-            break
-            ;;
-          $'\e')
-            # Read escape sequence byte by byte with generous timeout
-            # Read first byte after ESC
-            read -rsn1 -t 2 c < "$tty" || c=""
-            printf 'fydetab-menu: ESC1=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
-            
-            if [ "$c" = '[' ]; then
-              # Standard ESC [ A/B
-              read -rsn1 -t 2 c < "$tty" || c=""
-              printf 'fydetab-menu: ESC2=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
-              case "$c" in
-                A) sel=$(((sel - 1 + n) % n)) ;;
-                B) sel=$(((sel + 1) % n)) ;;
-              esac
-            elif [ "$c" = $'\e' ]; then
-              # Double ESC: ESC ESC [ A/B
-              read -rsn1 -t 2 c < "$tty" || c=""
-              printf 'fydetab-menu: ESC3=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
-              if [ "$c" = '[' ]; then
-                read -rsn1 -t 2 c < "$tty" || c=""
-                printf 'fydetab-menu: ESC4=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
-                case "$c" in
-                  A) sel=$(((sel - 1 + n) % n)) ;;
-                  B) sel=$(((sel + 1) % n)) ;;
-                esac
-              fi
-            else
-              # Unknown sequence, read one more just in case
-              read -rsn1 -t 2 c < "$tty" || c=""
-              printf 'fydetab-menu: ESCX=%s\\n' "$c" > /dev/kmsg 2>/dev/null || true
-            fi
-            ;;
-          ' ')
-            # Space also pauses (already paused after first key)
-            ;;
-          [1-9])
-            idx=$((key - 1))
-            [ "$idx" -lt "$n" ] && sel=$idx
-            ;;
-          j | J) sel=$(((sel + 1) % n)) ;;
-          k | K) sel=$(((sel - 1 + n) % n)) ;;
-          q | Q | t | T) left=0 ;;
-        esac
-        [ "$left" -gt 0 ] && left=$timeout
-      else
-        # No key pressed this second: count down only if not paused
-        if [ "$paused" -eq 0 ]; then
-          left=$((left - 1))
-        fi
+    # Slot index of the default entry, so the menu can return "boot normally".
+    defslot=-1
+    i=0
+    while [ "$i" -lt "$n" ]; do
+      if [ "''${nums[$i]}" = "$default_num" ]; then
+        defslot=$i
       fi
+      i=$((i + 1))
     done
 
-    # Timeout (or explicit "default") boots the current default generation.
-    if [ "$left" -le 0 ] || [ "''${nums[$sel]}" = "$default_num" ]; then
+    # Hand the list to the framebuffer menu. It owns the VT while it runs and
+    # returns the chosen slot, or -1 to boot the default generation.
+    lines=""
+    i=0
+    while [ "$i" -lt "$n" ]; do
+      flag=0
+      [ "''${nums[$i]}" = "$default_num" ] && flag=1
+      lines="$lines''${nums[$i]}|''${dates[$i]}|$flag"$'\n'
+      i=$((i + 1))
+    done
+
+    choice=$(
+      printf '%s' "$lines" | ${pkgs.fydetab-boot-menu-ui}/bin/fydetab-boot-menu-ui \
+        --timeout "$timeout" \
+        --rotation "$rotation" \
+        --default "$defslot" \
+        --tty "$tty"
+    ) || choice=-1
+
+    case "$choice" in
+      "" | *[!0-9-]*) exit 0 ;;
+    esac
+    if [ "$choice" -lt 0 ] 2>/dev/null || [ "$choice" -ge "$n" ]; then
       exit 0
     fi
 
-    if [ "''${nums[$sel]}" != "$default_num" ]; then
-      g=''${gens[$sel]}
-      # kexec reads these files through /sysroot, but the new kernel needs
-      # the host path for init=.
-      host=''${g#"$root"}
-      printf 'Starting generation %s...\n' "''${nums[$sel]}" > "$tty"
+    g=''${gens[$choice]}
+    # kexec reads these files through /sysroot, but the new kernel needs
+    # the host path for init=.
+    host=''${g#"$root"}
+    printf 'Starting generation %s...\n' "''${nums[$choice]}" > "$tty"
 
-      # Reuse the current command line, only swapping the init= path. All
-      # generations share the same root filesystem and kernel parameters.
-      cmdline=$(cat /proc/cmdline)
-      new=""
-      for word in $cmdline; do
-        case "$word" in
-          init=*) ;;
-          *) new="$new $word" ;;
-        esac
-      done
-      new="''${new# } init=$host/init"
+    # Reuse the current command line, only swapping the init= path. All
+    # generations share the same root filesystem and kernel parameters.
+    cmdline=$(cat /proc/cmdline)
+    new=""
+    for word in $cmdline; do
+      case "$word" in
+        init=*) ;;
+        *) new="$new $word" ;;
+      esac
+    done
+    new="''${new# } init=$host/init"
 
-      if kexec -s -l "$g/kernel" \
-        --initrd="$g/initrd" \
-        --dtb="$g/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
-        --command-line="$new" >/dev/null 2>&1; then
-        kexec -e || true
-      fi
-
-      printf 'Could not start generation %s; continuing with the default.\n' \
-        "''${nums[$sel]}" > "$tty"
-      sleep 3
+    if kexec -s -l "$g/kernel" \
+      --initrd="$g/initrd" \
+      --dtb="$g/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
+      --command-line="$new" >/dev/null 2>&1; then
+      kexec -e || true
     fi
+
+    printf 'Could not start generation %s; continuing with the default.\n' \
+      "''${nums[$choice]}" > "$tty"
+    sleep 3
   '';
 
 in
@@ -274,7 +202,8 @@ in
       default = 5;
       description = ''
         Seconds to wait for a selection. 0 disables the menu without
-        changing the boot path.
+        changing the boot path. The countdown pauses as soon as any key is
+        pressed.
       '';
     };
 
@@ -282,6 +211,19 @@ in
       type = lib.types.ints.between 2 9;
       default = 8;
       description = "How many generations to list (newest first), at most 9 so number keys can select them.";
+    };
+
+    rotation = lib.mkOption {
+      type = lib.types.enum [
+        90
+        270
+      ];
+      default = 270;
+      description = ''
+        Rotation applied to the menu when the framebuffer is portrait
+        (1600x2560). 270 matches the display transform used by the desktop;
+        use 90 if the menu appears upside down.
+      '';
     };
   };
 
@@ -293,10 +235,11 @@ in
       }
     ];
 
-    # The menu is a shell script; kexec's RPATH needs zlib/zstd, and bash,
-    # coreutils and kbd must exist inside the initrd as well.
+    # kexec's RPATH needs zlib/zstd, and bash/coreutils/kbd must exist inside
+    # the initrd. The menu helper draws on the framebuffer and reads evdev.
     boot.initrd.systemd.storePaths = [
       menu
+      pkgs.fydetab-boot-menu-ui
       pkgs.bash
       pkgs.coreutils
       pkgs.kbd
@@ -318,12 +261,12 @@ in
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        # tty1 is the panel console (`console=tty1` is the last console=).
-        StandardInput = "tty";
-        StandardOutput = "tty";
-        StandardError = "tty";
-        TTYPath = "/dev/tty1";
-        TTYReset = "yes";
+        StandardInput = "null";
+        StandardOutput = "journal";
+        StandardError = "journal";
+        # The helper opens this VT itself and switches it to KD_GRAPHICS.
+        TTYPath = "/dev/tty2";
+        TTYReset = "no";
         TTYVHangup = "no";
         ExecStart = menu;
       };

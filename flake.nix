@@ -61,6 +61,7 @@
           fydetab-snapshot = pkgs.fydetab-snapshot;
           fydetab-update = pkgs.fydetab-update;
           fydetab-update-bootchain = pkgs.fydetab-update-bootchain;
+          fydetab-boot-menu-ui = pkgs.fydetab-boot-menu-ui;
         }
         // (
           let
