@@ -4,7 +4,8 @@
  * The shell script owns everything that is Nix-specific (finding generations,
  * kexec).  This helper only draws a menu and reports which row was chosen.
  * It draws through a DRM dumb buffer (the vendor kernel's fbdev mmap is
- * broken) and reads both raw evdev events and the console VT.
+ * broken) and reads raw evdev events, falling back to the console VT when no
+ * key device shows up.
  */
 #define _GNU_SOURCE
 
@@ -958,6 +959,18 @@ static void input_scan(void)
     }
 }
 
+/* The VT and evdev deliver the same physical keypress, so only one of them
+ * may be used for keys.  evdev has the exact keycodes and the kernel's
+ * held-key repeats, so it wins whenever a key device exists; the console VT is
+ * only a fallback for a boot where no key device showed up. */
+static int have_key_device(void)
+{
+    for (int i = 0; i < nidev; i++)
+        if (!idevs[i].pointer)
+            return 1;
+    return 0;
+}
+
 static void input_drop(int idx)
 {
     if (idx < 0 || idx >= nidev)
@@ -1477,6 +1490,8 @@ int main(int argc, char **argv)
 
     fprintf(stderr, "fydetab-menu: %d generations, %d rows, display %dx%d stride %d rot %d, %d input devices\n",
             menu.n, nrows, screen.w, screen.h, screen.stride, screen.rotation, nidev);
+    fprintf(stderr, "fydetab-menu: keys from %s\n",
+            have_key_device() ? "evdev" : (ttyfd >= 0 ? "the console VT" : "nowhere"));
 
     draw_rows();
     draw_footer();
@@ -1488,12 +1503,12 @@ int main(int argc, char **argv)
     for (;;) {
         input_scan();
 
-        /* Index 0 is the console VT (the path the old shell menu used); the
-         * evdev devices follow. */
+        /* Index 0 is the console VT; it is polled only when there is no evdev
+         * key device, otherwise every keypress would be handled twice. */
         struct pollfd pfds[MAX_INPUTS + 1];
         int npoll = 0;
         int tty_index = -1;
-        if (ttyfd >= 0) {
+        if (ttyfd >= 0 && !have_key_device()) {
             tty_index = npoll;
             pfds[npoll].fd = ttyfd;
             pfds[npoll].events = POLLIN;
