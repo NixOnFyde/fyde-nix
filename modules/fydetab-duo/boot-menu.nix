@@ -17,6 +17,8 @@ let
         pkgs.coreutils
         pkgs.kbd
         pkgs.kexec-tools
+        pkgs.plymouth
+        pkgs.systemd
       ]
     }"
 
@@ -26,22 +28,29 @@ let
     maxgens=${toString cfg.maxGenerations}
     rotation=${toString cfg.rotation}
 
-    # Plymouth owns the DRM device on tty1. Switch to an unused VT so the
-    # framebuffer is ours and the keyboard is routed to it. Plymouth keeps
-    # running and resumes when we switch back.
     tty=/dev/tty1
-    switched=""
-    if [ -e /run/plymouth/pid ] && chvt 2 2>/dev/null; then
-      tty=/dev/tty2
-      switched=1
+
+    # Plymouth scans out its own DRM buffer, so pixels written to /dev/fb0
+    # while it is running never reach the panel. Stop it for the duration of
+    # the menu and start it again for the normal boot path. (On the kexec path
+    # the next kernel starts its own splash.)
+    plymouth_running=""
+    if [ -e /run/plymouth/pid ]; then
+      if plymouth --quit >/dev/null 2>&1; then
+        plymouth_running=1
+        # Give the daemon a moment to drop DRM master so fbcon takes over.
+        sleep 0.3
+      else
+        echo "fydetab-boot-menu: could not stop Plymouth; the menu may be hidden" >&2
+      fi
     fi
 
-    finish() {
-      if [ -n "$switched" ]; then
-        chvt 1 2>/dev/null || true
+    resume_plymouth() {
+      if [ -n "$plymouth_running" ]; then
+        systemctl restart plymouth-start.service >/dev/null 2>&1 || true
       fi
     }
-    trap finish EXIT
+    trap resume_plymouth EXIT
 
     # We run in the initrd: the real root (which holds /nix) is mounted at
     # /sysroot. The profile links are absolute symlinks into /nix/store, which
@@ -142,6 +151,8 @@ let
         --default "$defslot" \
         --tty "$tty"
     ) || choice=-1
+
+    echo "fydetab-boot-menu: returned $choice (default slot $defslot)" >&2
 
     case "$choice" in
       "" | *[!0-9-]*) exit 0 ;;
@@ -244,6 +255,7 @@ in
       pkgs.coreutils
       pkgs.kbd
       pkgs.kexec-tools
+      pkgs.plymouth
       pkgs.zlib
       pkgs.zstd
     ];
@@ -265,7 +277,7 @@ in
         StandardOutput = "journal";
         StandardError = "journal";
         # The helper opens this VT itself and switches it to KD_GRAPHICS.
-        TTYPath = "/dev/tty2";
+        TTYPath = "/dev/tty1";
         TTYReset = "no";
         TTYVHangup = "no";
         ExecStart = menu;

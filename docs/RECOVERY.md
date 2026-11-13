@@ -119,10 +119,12 @@ be added on top.
 ## 4. Recovery A: the tablet still boots
 
 If `hardware.fydetabduo.bootMenu` is enabled, the initrd picker lists previous
-generations before the switch to the real root. Selecting one asks kexec to
-start that generation's own kernel, initrd and DTB, so no commands are needed.
-The steps below cover the case where the menu is disabled, its timeout was
-missed, or you are already in a running system.
+generations before the switch to the real root. The countdown stops on the
+first key press; use Up/Down (or `1`–`9`) to highlight a generation and Enter
+to start it. Selecting one asks kexec to start that generation's own kernel,
+initrd and DTB, so no commands are needed. The steps below cover the case where
+the menu is disabled, its timeout was missed, or you are already in a running
+system.
 
 Prefer this path; it uses the normal install hook.
 
