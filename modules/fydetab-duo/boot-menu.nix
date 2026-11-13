@@ -119,29 +119,53 @@ let
     done
 
     n=''${#gens[@]}
-    # Nothing to choose from (or the menu is disabled): boot straight away.
-    if [ "$n" -le 1 ] || [ "$timeout" -le 0 ]; then
+    if [ "$timeout" -le 0 ] || [ "$n" -eq 0 ]; then
       exit 0
     fi
 
-    # Slot index of the default entry, so the menu can return "boot normally".
-    defslot=-1
-    i=0
-    while [ "$i" -lt "$n" ]; do
-      if [ "''${nums[$i]}" = "$default_num" ]; then
-        defslot=$i
-      fi
-      i=$((i + 1))
-    done
+    # Resolve a symlink chain inside the host root.  Generation closures link
+    # to /nix/store/... with absolute paths, which would resolve against the
+    # initrd's own (unrelated) /nix, so prefix absolute targets with /sysroot.
+    host_path() {
+      local p=$1 t
+      while [ -L "$p" ]; do
+        t=$(readlink "$p" 2>/dev/null) || return 1
+        case "$t" in
+          /*) p=$root$t ;;
+          *) p=$(dirname "$p")/$t ;;
+        esac
+      done
+      printf '%s\n' "$p"
+    }
 
-    # Hand the list to the framebuffer menu. It owns the VT while it runs and
-    # returns the chosen slot, or -1 to boot the default generation.
+    has_spec=0
+    for g in "''${gens[@]}"; do
+      if [ -d "$g/specialisation" ]; then
+        for s in "$g"/specialisation/*; do
+          [ -e "$s/init" ] && has_spec=1
+        done
+      fi
+    done
+    # A single generation without specialisations has nothing to choose.
+    if [ "$n" -le 1 ] && [ "$has_spec" -eq 0 ]; then
+      exit 0
+    fi
+
+    # Hand the generations (and their specialisations) to the menu.  It owns
+    # the VT while it runs and prints "-1" or "<generation>[/<name>]".
     lines=""
     i=0
     while [ "$i" -lt "$n" ]; do
       flag=0
       [ "''${nums[$i]}" = "$default_num" ] && flag=1
-      lines="$lines''${nums[$i]}|''${dates[$i]}|$flag"$'\n'
+      lines="$lines"'G|'"''${nums[$i]}"'|'"''${dates[$i]}"'|'"$flag"$'\n'
+      g="''${gens[$i]}"
+      if [ -d "$g/specialisation" ]; then
+        for s in "$g"/specialisation/*; do
+          [ -e "$s/init" ] || continue
+          lines="$lines"'S|'"''${s##*/}"$'\n'
+        done
+      fi
       i=$((i + 1))
     done
 
@@ -149,7 +173,6 @@ let
       printf '%s' "$lines" | ${pkgs.fydetab-boot-menu-ui}/bin/fydetab-boot-menu-ui \
         --timeout "$timeout" \
         --rotation "$rotation" \
-        --default "$defslot" \
         --tty "$tty"
     )
     rc=$?
@@ -159,17 +182,36 @@ let
     fi
 
     case "$choice" in
-      "" | *[!0-9-]*) exit 0 ;;
+      "" | -*) exit 0 ;;
+      *[!0-9/-]*) exit 0 ;;
     esac
-    if [ "$choice" -lt 0 ] 2>/dev/null || [ "$choice" -ge "$n" ]; then
-      exit 0
+
+    gen=''${choice%%/*}
+    spec=""
+    case "$choice" in
+      */*) spec=''${choice#*/} ;;
+    esac
+
+    gi=-1
+    i=0
+    while [ "$i" -lt "$n" ]; do
+      [ "''${nums[$i]}" = "$gen" ] && gi=$i
+      i=$((i + 1))
+    done
+    [ "$gi" -lt 0 ] && exit 0
+
+    g="''${gens[$gi]}"
+    label=$gen
+    if [ -n "$spec" ]; then
+      g=$(host_path "$g/specialisation/$spec") || exit 0
+      label="$gen $spec"
+      [ -x "$g/init" ] || exit 0
     fi
 
-    g=''${gens[$choice]}
     # kexec reads these files through /sysroot, but the new kernel needs
     # the host path for init=.
     host=''${g#"$root"}
-    printf 'Starting generation %s...\n' "''${nums[$choice]}" > "$tty"
+    printf 'Starting generation %s...\n' "$label" > "$tty"
 
     # Reuse the current command line, only swapping the init= path. All
     # generations share the same root filesystem and kernel parameters.
@@ -183,15 +225,23 @@ let
     done
     new="''${new# } init=$host/init"
 
-    if kexec -s -l "$g/kernel" \
-      --initrd="$g/initrd" \
-      --dtb="$g/dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
-      --command-line="$new" >/dev/null 2>&1; then
-      kexec -e || true
+    kernel=$(host_path "$g/kernel") || kernel=$g/kernel
+    initrd=$(host_path "$g/initrd") || initrd=$g/initrd
+    dtbs=$(host_path "$g/dtbs") || dtbs=$g/dtbs
+
+    err=$(kexec -s -l "$kernel" \
+      --initrd="$initrd" \
+      --dtb="$dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
+      --command-line="$new" 2>&1)
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      kexec -e || echo "fydetab-boot-menu: kexec -e failed" >&2
+    else
+      echo "fydetab-boot-menu: kexec load failed ($rc): $err" >&2
     fi
 
     printf 'Could not start generation %s; continuing with the default.\n' \
-      "''${nums[$choice]}" > "$tty"
+      "$label" > "$tty"
     sleep 3
   '';
 
@@ -202,8 +252,9 @@ in
       (lib.mkEnableOption ''
         a generation picker in the initrd. U-Boot still boots the normal
         kernel; before the switch to the real root a menu lists the installed
-        NixOS generations, and picking one kexecs that generation's own kernel,
-        initrd and DTB. The default entry boots exactly like before
+        NixOS generations and their specialisations, and picking one kexecs
+        that entry's own kernel, initrd and DTB. The default entry boots
+        exactly like before
       '')
       // {
         # Recovery matters more than five seconds of boot time; set

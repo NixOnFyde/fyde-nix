@@ -34,14 +34,24 @@
 
 #define UI_W 2560
 #define UI_H 1600
-#define MAX_ENTRIES 9
+#define MAX_GENS 16
+#define MAX_SPECS 8
+#define MAX_ROWS (MAX_GENS * (MAX_SPECS + 1))
 
-#define MARGIN 176
+#define MARGIN 160
 #define RIGHT (UI_W - MARGIN)
-#define BRAND_Y 112
-#define ROWS_TOP 400
-#define ROW_STEP 132
-#define ROW_BASELINE 78
+#define BRAND_Y 84
+#define LIST_TOP 300
+#define ROW_STEP 84
+#define ROW_BASELINE 60
+#define FOOTER_TOP (UI_H - 132)
+#define VISIBLE_ROWS ((FOOTER_TOP - LIST_TOP - ROW_BASELINE) / ROW_STEP + 1)
+#define X_MARKER MARGIN
+#define X_FOLD (MARGIN + 40)
+#define X_TREE (MARGIN + 116)
+#define X_TEXT (MARGIN + 136)
+#define X_CHILD (MARGIN + 168)
+#define X_DATE (MARGIN + 560)
 
 /* FydeTab's wordmark pink and a restrained monochrome palette. */
 #define C_PINK 0x00E40046u
@@ -76,11 +86,25 @@ typedef struct {
 } Font;
 
 typedef struct {
+    char num[16];
+    char date[32];
+    int is_default;
+    int nspec;
+    char spec[MAX_SPECS][40];
+} Gen;
+
+typedef struct {
     int n;
-    char num[MAX_ENTRIES][16];
-    char date[MAX_ENTRIES][40];
-    int is_default[MAX_ENTRIES];
+    Gen gens[MAX_GENS];
 } Menu;
+
+/* A visible line: a generation itself (spec = -1) or one of its
+ * specialisations.  Selection is kept as an item so folding does not move
+ * the highlight to a different entry. */
+typedef struct {
+    int gen;
+    int spec;
+} Row;
 
 typedef struct {
     int timeout;
@@ -88,10 +112,13 @@ typedef struct {
     const char *tty;
     const char *assets;
     const char *render;
-    int selected;
-    int default_slot;
+    int expand_all;
     int paused;
     int left;
+    int cursor;
+    int top;
+    int sel_gen;
+    int sel_spec;
 } Options;
 
 static uint32_t *canvas;
@@ -393,41 +420,132 @@ static const Font *font_small;
 static const Font *font_mid;
 static const Font *font_big;
 
+static int expanded[MAX_GENS];
+static Row rows[MAX_ROWS];
+static int nrows;
+
+static void fill_rect(int x, int y, int w, int h, uint32_t color)
+{
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > UI_W) w = UI_W - x;
+    if (y + h > UI_H) h = UI_H - y;
+    if (w <= 0 || h <= 0)
+        return;
+    for (int yy = y; yy < y + h; yy++)
+        for (int xx = x; xx < x + w; xx++)
+            canvas[yy * UI_W + xx] = color;
+}
+
+static int build_rows(void)
+{
+    int n = 0;
+    for (int i = 0; i < menu.n; i++) {
+        rows[n].gen = i;
+        rows[n].spec = -1;
+        n++;
+        if (!expanded[i])
+            continue;
+        for (int j = 0; j < menu.gens[i].nspec; j++) {
+            rows[n].gen = i;
+            rows[n].spec = j;
+            n++;
+        }
+    }
+    return n;
+}
+
+static int cursor_for(int gen, int spec)
+{
+    for (int i = 0; i < nrows; i++)
+        if (rows[i].gen == gen && rows[i].spec == spec)
+            return i;
+    return 0;
+}
+
+static void select_item(int gen, int spec)
+{
+    opt.sel_gen = gen;
+    opt.sel_spec = spec;
+    opt.cursor = cursor_for(gen, spec);
+}
+
+static void act_on_cursor(void)
+{
+    if (opt.cursor < 0)
+        opt.cursor = 0;
+    if (opt.cursor >= nrows)
+        opt.cursor = nrows - 1;
+    opt.sel_gen = rows[opt.cursor].gen;
+    opt.sel_spec = rows[opt.cursor].spec;
+}
+
 static void draw_rows(void)
 {
-    for (int i = 0; i < menu.n; i++) {
-        int y = ROWS_TOP + i * ROW_STEP;
+    if (opt.cursor < 0)
+        opt.cursor = 0;
+    if (opt.cursor >= nrows)
+        opt.cursor = nrows - 1;
+    if (opt.cursor < opt.top)
+        opt.top = opt.cursor;
+    if (opt.cursor >= opt.top + VISIBLE_ROWS)
+        opt.top = opt.cursor - VISIBLE_ROWS + 1;
+    if (opt.top > nrows - VISIBLE_ROWS)
+        opt.top = nrows - VISIBLE_ROWS;
+    if (opt.top < 0)
+        opt.top = 0;
+
+    for (int r = opt.top; r < nrows && r < opt.top + VISIBLE_ROWS; r++) {
+        int y = LIST_TOP + (r - opt.top) * ROW_STEP;
         int baseline = y + ROW_BASELINE;
-        int sel = (i == opt.selected);
+        int cy = y + ROW_BASELINE - 14;
+        const Gen *g = &menu.gens[rows[r].gen];
+        int sel = (r == opt.cursor);
 
         if (sel)
-            draw_text(font_big, MARGIN, baseline, ">", C_PINK, 255, 0);
+            draw_text(font_big, X_MARKER, baseline, ">", C_PINK, 255, 0);
 
-        draw_text(font_big, MARGIN + 64, baseline, menu.num[i],
-                  sel ? C_WHITE : C_BODY, 255, 0);
-        draw_text(font_mid, MARGIN + 420, baseline, menu.date[i],
-                  sel ? C_BODY : C_MUTED, 255, 0);
-
-        if (menu.is_default[i]) {
-            const char *label = "(current)";
-            int tw = text_width(font_small, label, 0);
-            draw_text(font_small, RIGHT - tw, baseline, label,
-                      sel ? C_PINK : 0x00B8456Du, 255, 0);
+        if (rows[r].spec < 0) {
+            if (g->nspec)
+                draw_text(font_small, X_FOLD, baseline,
+                          expanded[rows[r].gen] ? "[-]" : "[+]",
+                          sel ? C_BODY : C_DIM, 255, 0);
+            draw_text(font_big, X_TEXT, baseline, g->num,
+                      sel ? C_WHITE : C_BODY, 255, 0);
+            draw_text(font_small, X_DATE, baseline, g->date,
+                      sel ? C_BODY : C_MUTED, 255, 0);
+            if (g->is_default) {
+                const char *label = "(current)";
+                int tw = text_width(font_small, label, 0);
+                draw_text(font_small, RIGHT - tw, baseline, label,
+                          sel ? C_PINK : 0x00B8456Du, 255, 0);
+            }
+        } else {
+            int first = (r == 0) || rows[r - 1].spec < 0;
+            int last = (r + 1 >= nrows) || rows[r + 1].spec < 0;
+            int vy0 = first ? cy - ROW_STEP / 2 : y;
+            int vy1 = last ? cy : y + ROW_STEP;
+            fill_rect(X_TREE, vy0, 2, vy1 - vy0, C_DIM);
+            fill_rect(X_TREE, cy - 1, X_CHILD - X_TREE - 24, 2, C_DIM);
+            draw_text(font_mid, X_CHILD, baseline, g->spec[rows[r].spec],
+                      sel ? C_WHITE : C_BODY, 255, 0);
         }
     }
 }
 
 static void draw_footer(void)
 {
-    int baseline = UI_H - 96;
+    int baseline = UI_H - 54;
 
     struct { const char *text; uint32_t color; } parts[] = {
         { "Up / Down", C_MUTED },
         { "  select      ", C_DIM },
-        { "1-9", C_MUTED },
-        { "  jump      ", C_DIM },
+        { "Left / Right", C_MUTED },
+        { "  fold      ", C_DIM },
         { "Enter", C_MUTED },
         { "  boot      ", C_DIM },
+        { "1-9", C_MUTED },
+        { "  jump      ", C_DIM },
         { "T", C_MUTED },
         { "  default", C_DIM },
     };
@@ -740,30 +858,22 @@ static void compose_static(void)
 
 static void compose_rows(void)
 {
-    int x0 = MARGIN - 8;
-    int y0 = ROWS_TOP - 24;
-    int w = RIGHT - MARGIN + 16;
-    int h = menu.n * ROW_STEP + 48;
+    int y0 = LIST_TOP - 16;
 
-    for (int y = y0; y < y0 + h; y++) {
-        if (y < 0 || y >= UI_H)
-            continue;
-        memcpy(&canvas[y * UI_W + x0], &bg_canvas[y * UI_W + x0],
-               (size_t)w * sizeof(uint32_t));
-    }
+    for (int y = y0; y < FOOTER_TOP; y++)
+        memcpy(&canvas[y * UI_W], &bg_canvas[y * UI_W],
+               (size_t)UI_W * sizeof(uint32_t));
     draw_rows();
-    push_rect(x0, y0, w, h);
+    push_rect(0, y0, UI_W, FOOTER_TOP - y0);
 }
 
 static void compose_footer(void)
 {
-    int y0 = UI_H - 160;
-    int h = 160;
-    for (int y = y0; y < UI_H; y++)
+    for (int y = FOOTER_TOP; y < UI_H; y++)
         memcpy(&canvas[y * UI_W], &bg_canvas[y * UI_W],
                (size_t)UI_W * sizeof(uint32_t));
     draw_footer();
-    push_rect(0, y0, UI_W, h);
+    push_rect(0, FOOTER_TOP, UI_W, UI_H - FOOTER_TOP);
 }
 
 /* ----------------------------------------------------------------- input */
@@ -828,8 +938,25 @@ static int write_ppm(const char *path)
 static void read_entries(void)
 {
     char line[256];
-    while (menu.n < MAX_ENTRIES && fgets(line, sizeof line, stdin)) {
-        char *bar1 = strchr(line, '|');
+    int cur = -1;
+
+    while (menu.n < MAX_GENS && fgets(line, sizeof line, stdin)) {
+        size_t len = strlen(line);
+        while (len && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+            line[--len] = '\0';
+
+        /* S|name is a specialisation of the generation above it. */
+        if (line[0] == 'S' && line[1] == '|') {
+            if (cur >= 0 && menu.gens[cur].nspec < MAX_SPECS) {
+                Gen *g = &menu.gens[cur];
+                snprintf(g->spec[g->nspec], sizeof g->spec[0], "%.39s", line + 2);
+                g->nspec++;
+            }
+            continue;
+        }
+
+        char *field = (line[0] == 'G' && line[1] == '|') ? line + 2 : line;
+        char *bar1 = strchr(field, '|');
         if (!bar1)
             continue;
         char *bar2 = strchr(bar1 + 1, '|');
@@ -838,17 +965,12 @@ static void read_entries(void)
         *bar1 = '\0';
         *bar2 = '\0';
 
-        char *num = line;
-        char *date = bar1 + 1;
-        char *flag = bar2 + 1;
-        size_t len = strlen(date);
-        while (len && (date[len - 1] == '\n' || date[len - 1] == '\r'))
-            date[--len] = '\0';
-
-        snprintf(menu.num[menu.n], sizeof menu.num[0], "%.15s", num);
-        snprintf(menu.date[menu.n], sizeof menu.date[0], "%.39s", date);
-        menu.is_default[menu.n] = (*flag == '1');
-        menu.n++;
+        cur = menu.n++;
+        Gen *g = &menu.gens[cur];
+        snprintf(g->num, sizeof g->num, "%.15s", field);
+        snprintf(g->date, sizeof g->date, "%.31s", bar1 + 1);
+        g->is_default = (bar2[1] == '1');
+        g->nspec = 0;
     }
 }
 
@@ -866,8 +988,10 @@ int main(int argc, char **argv)
     opt.timeout = 5;
     opt.rotation = 270;
     opt.tty = "/dev/tty2";
-    opt.selected = 0;
-    opt.default_slot = -1;
+    opt.cursor = 0;
+    opt.top = 0;
+    opt.sel_gen = 0;
+    opt.sel_spec = -1;
     opt.paused = 0;
     opt.left = -1;
 
@@ -877,9 +1001,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--rotation"))
             opt.rotation = parse_option("--rotation", argc, argv, &i);
         else if (!strcmp(argv[i], "--selected"))
-            opt.selected = parse_option("--selected", argc, argv, &i);
-        else if (!strcmp(argv[i], "--default"))
-            opt.default_slot = parse_option("--default", argc, argv, &i);
+            opt.cursor = parse_option("--selected", argc, argv, &i);
+        else if (!strcmp(argv[i], "--expand-all"))
+            opt.expand_all = 1;
         else if (!strcmp(argv[i], "--left"))
             opt.left = parse_option("--left", argc, argv, &i);
         else if (!strcmp(argv[i], "--paused"))
@@ -904,9 +1028,9 @@ int main(int argc, char **argv)
     }
 
     static Font small, mid, big;
-    if (font_load(&small, asset_path(opt.assets, "font-mono-40.bin")) < 0 ||
-        font_load(&mid, asset_path(opt.assets, "font-mono-46.bin")) < 0 ||
-        font_load(&big, asset_path(opt.assets, "font-mono-56.bin")) < 0) {
+    if (font_load(&small, asset_path(opt.assets, "font-mono-32.bin")) < 0 ||
+        font_load(&mid, asset_path(opt.assets, "font-mono-40.bin")) < 0 ||
+        font_load(&big, asset_path(opt.assets, "font-mono-52.bin")) < 0) {
         fprintf(stderr, "fydetab-menu: cannot load fonts from %s\n", opt.assets);
         return 1;
     }
@@ -926,8 +1050,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "fydetab-menu: empty menu\n");
         return 1;
     }
-    if (opt.selected < 0 || opt.selected >= menu.n)
-        opt.selected = 0;
+    for (int i = 0; i < menu.n; i++)
+        expanded[i] = opt.expand_all ? 1 : menu.gens[i].is_default;
+    nrows = build_rows();
+    if (opt.cursor < 0 || opt.cursor >= nrows)
+        opt.cursor = 0;
+    act_on_cursor();
     if (opt.left < 0)
         opt.left = opt.timeout;
 
@@ -974,14 +1102,16 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    fprintf(stderr, "fydetab-menu: %d entries, display %dx%d stride %d rot %d, %d input devices\n",
-            menu.n, screen.w, screen.h, screen.stride, screen.rotation, nfds);
+    fprintf(stderr, "fydetab-menu: %d generations, %d rows, display %dx%d stride %d rot %d, %d input devices\n",
+            menu.n, nrows, screen.w, screen.h, screen.stride, screen.rotation, nfds);
 
     draw_rows();
     draw_footer();
     push_rect(0, 0, UI_W, UI_H);
 
-    int chosen = -1;
+    char chosen[64] = "";
+    int boot_default = 1; /* unless a specific entry is picked */
+
     for (;;) {
         struct pollfd pfds[16];
         for (int i = 0; i < nfds; i++) {
@@ -1008,14 +1138,15 @@ int main(int argc, char **argv)
             continue;
         }
 
-        int rows_dirty = 0, footer_dirty = 0;
+        int list_dirty = 0, footer_dirty = 0;
         int done = 0;
         for (int i = 0; i < nfds && !done; i++) {
             if (!(pfds[i].revents & POLLIN))
                 continue;
             struct input_event ev;
             while (read(fds[i], &ev, sizeof ev) == (ssize_t)sizeof ev) {
-                if (ev.type != EV_KEY || ev.value != 1)
+                /* value 2 is the kernel's held-key repeat. */
+                if (ev.type != EV_KEY || ev.value < 1)
                     continue;
 
                 if (!opt.paused) {
@@ -1027,29 +1158,94 @@ int main(int argc, char **argv)
                 case KEY_UP:
                 case KEY_K:
                 case KEY_VOLUMEUP:
-                case KEY_PAGEUP:
-                    opt.selected = (opt.selected + menu.n - 1) % menu.n;
-                    rows_dirty = 1;
+                    if (opt.cursor > 0)
+                        opt.cursor--;
+                    act_on_cursor();
+                    list_dirty = 1;
                     break;
                 case KEY_DOWN:
                 case KEY_J:
                 case KEY_VOLUMEDOWN:
-                case KEY_PAGEDOWN:
-                    opt.selected = (opt.selected + 1) % menu.n;
-                    rows_dirty = 1;
+                    if (opt.cursor < nrows - 1)
+                        opt.cursor++;
+                    act_on_cursor();
+                    list_dirty = 1;
                     break;
+                case KEY_PAGEUP: {
+                    opt.cursor -= VISIBLE_ROWS;
+                    if (opt.cursor < 0)
+                        opt.cursor = 0;
+                    act_on_cursor();
+                    list_dirty = 1;
+                    break;
+                }
+                case KEY_PAGEDOWN: {
+                    opt.cursor += VISIBLE_ROWS;
+                    if (opt.cursor > nrows - 1)
+                        opt.cursor = nrows - 1;
+                    act_on_cursor();
+                    list_dirty = 1;
+                    break;
+                }
+                case KEY_HOME:
+                    opt.cursor = 0;
+                    act_on_cursor();
+                    list_dirty = 1;
+                    break;
+                case KEY_END:
+                    opt.cursor = nrows - 1;
+                    act_on_cursor();
+                    list_dirty = 1;
+                    break;
+                case KEY_LEFT: {
+                    int gi = rows[opt.cursor].gen;
+                    if (opt.sel_spec >= 0 || expanded[gi]) {
+                        expanded[gi] = 0;
+                        nrows = build_rows();
+                        select_item(gi, -1);
+                        act_on_cursor();
+                        list_dirty = 1;
+                    }
+                    break;
+                }
+                case KEY_RIGHT: {
+                    int gi = rows[opt.cursor].gen;
+                    if (opt.sel_spec < 0 && menu.gens[gi].nspec) {
+                        if (!expanded[gi]) {
+                            expanded[gi] = 1;
+                            nrows = build_rows();
+                            select_item(gi, -1);
+                        } else {
+                            select_item(gi, 0);
+                        }
+                        act_on_cursor();
+                        list_dirty = 1;
+                    }
+                    break;
+                }
                 case KEY_ENTER:
-                case KEY_KPENTER:
-                    chosen = (opt.selected == opt.default_slot) ? -1 : opt.selected;
+                case KEY_KPENTER: {
+                    Gen *g = &menu.gens[opt.sel_gen];
+                    if (opt.sel_spec < 0) {
+                        if (!g->is_default) {
+                            snprintf(chosen, sizeof chosen, "%s", g->num);
+                            boot_default = 0;
+                        }
+                    } else {
+                        snprintf(chosen, sizeof chosen, "%s/%s",
+                                 g->num, g->spec[opt.sel_spec]);
+                        boot_default = 0;
+                    }
                     done = 1;
                     break;
+                }
                 case KEY_1: case KEY_2: case KEY_3:
                 case KEY_4: case KEY_5: case KEY_6:
                 case KEY_7: case KEY_8: case KEY_9: {
                     int idx = (int)(ev.code - KEY_1);
                     if (idx < menu.n) {
-                        opt.selected = idx;
-                        rows_dirty = 1;
+                        select_item(idx, -1);
+                        list_dirty = 1;
                     }
                     break;
                 }
@@ -1058,15 +1254,15 @@ int main(int argc, char **argv)
                 case KEY_KP7: case KEY_KP8: case KEY_KP9: {
                     int idx = (int)(ev.code - KEY_KP1);
                     if (idx < menu.n) {
-                        opt.selected = idx;
-                        rows_dirty = 1;
+                        select_item(idx, -1);
+                        list_dirty = 1;
                     }
                     break;
                 }
                 case KEY_T:
                 case KEY_Q:
                 case KEY_ESC:
-                    chosen = -1;
+                    boot_default = 1;
                     done = 1;
                     break;
                 default:
@@ -1078,7 +1274,7 @@ int main(int argc, char **argv)
         }
         if (done)
             break;
-        if (rows_dirty)
+        if (list_dirty)
             compose_rows();
         if (footer_dirty)
             compose_footer();
@@ -1090,6 +1286,6 @@ int main(int argc, char **argv)
         close(fds[i]);
     screen_close(&screen);
 
-    printf("%d\n", chosen);
+    printf("%s\n", boot_default ? "-1" : chosen);
     return 0;
 }

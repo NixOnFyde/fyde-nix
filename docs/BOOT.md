@@ -136,13 +136,16 @@ from the systemd initrd after the real root is mounted and before
   describe the current default generation, exactly as before.
 - The picker lists the newest `/nix/var/nix/profiles/system-*-link`
   generations (up to `maxGenerations`, default 8) by generation number and
-  timestamp.
+  timestamp. Generations with NixOS specialisations show them as foldable
+  children; each specialisation is a full system closure with its own kernel
+  and initrd.
 - Choosing the default (or the timeout expiring, default 5 s) continues the
   normal boot. Nothing about the default path changes.
-- Choosing another generation `kexec`s **that generation's own** kernel,
-  initrd and DTB from the store, with `init=` rewritten in the current kernel
-  command line. All generations share the root filesystem, so no ESP changes
-  per generation are needed.
+- Choosing another entry `kexec`s **that entry's own** kernel, initrd and DTB
+  from the store, with `init=` rewritten in the current kernel command line.
+  All generations share the root filesystem, so no ESP changes per generation
+  are needed. Symlinks into `/nix/store` are resolved through `/sysroot`, so
+  the initrd's own store cannot shadow them.
 - The countdown pauses the first time any key is pressed and stays paused for
   the rest of that boot, so the menu never boots out from under you while you
   are reading it.
@@ -157,12 +160,14 @@ arrow keys move exactly one row per press. The background is generated at
 build time from the Plymouth splash art (blurred and tinted), and the brand
 lockup uses the theme's own snowflake and wordmark assets.
 
-Controls: Up/Down (or `j`/`k`), `1`–`9` to jump directly, Enter to boot the
-selection, `t`, `q` or Esc to boot the default immediately. Volume Up/Down
-also work. Plymouth draws through DRM, not the framebuffer, so the picker
-stops it for the duration of the menu and starts it again afterwards; the
-menu's background is generated from the same splash art, so the transition
-stays visually consistent.
+Controls: Up/Down (or `j`/`k`, volume keys, Page Up/Down, Home/End) move the
+selection and repeat while held; Left/Right fold a generation open or closed;
+`1`–`9` jump to a generation; Enter boots the selection; `t`, `q` or Esc boot
+the default immediately. The default generation's `(current)` root entry
+returns to the normal boot path instead of kexecing itself. Plymouth draws
+through DRM, not the framebuffer, so the picker stops it for the duration of
+the menu and starts it again afterwards; the menu's background is generated
+from the same splash art, so the transition stays visually consistent.
 
 The menu is drawn at 2560×1600 and rotated when written to the panel's
 portrait mode. `hardware.fydetabduo.bootMenu.rotation` accepts `90` or `270`

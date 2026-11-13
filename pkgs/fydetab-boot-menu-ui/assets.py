@@ -128,7 +128,7 @@ def build_brand(wordmark: Path, theme: Path, out: Path) -> None:
     snow = Image.open(theme / "nix-snowflake.png").convert("RGBA")
     word = Image.open(wordmark).convert("RGBA")
 
-    height = 96
+    height = 80
     snow_h = height
     word_h = height
     word_w = int(round(word.width * word_h / word.height))
@@ -164,9 +164,9 @@ def main() -> int:
         print(f"missing font: {mono}", file=sys.stderr)
         return 1
 
+    build_font(mono, 32, args.out / "font-mono-32.bin")
     build_font(mono, 40, args.out / "font-mono-40.bin")
-    build_font(mono, 46, args.out / "font-mono-46.bin")
-    build_font(mono, 56, args.out / "font-mono-56.bin")
+    build_font(mono, 52, args.out / "font-mono-52.bin")
     build_background(args.theme, args.out / "background.bin")
     build_brand(args.wordmark, args.theme, args.out / "brand.bin")
     return 0
