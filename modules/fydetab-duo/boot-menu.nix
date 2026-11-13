@@ -248,6 +248,27 @@ let
       --command-line="$new" 2>&1)
     rc=$?
     if [ "$rc" -eq 0 ]; then
+      # rfkill_wlan_shutdown() powers the Wi-Fi card off during kexec's
+      # device_shutdown.  The next kernel probes rk-pcie before wlan-platdata
+      # can power the card back on, so the PCIe link never trains and the
+      # tablet comes up without Wi-Fi.  Unbinding the platform driver keeps the
+      # card powered: its remove path only frees the GPIOs (the pad keeps its
+      # output level) and never calls rfkill_wlan_shutdown().
+      if [ -d /sys/bus/platform/drivers/wlan-platdata ]; then
+        for dev in /sys/bus/platform/drivers/wlan-platdata/*; do
+          [ "''${dev##*/}" = module ] && continue
+          [ -e "$dev/driver" ] || continue
+          if printf '%s' "''${dev##*/}" \
+              > /sys/bus/platform/drivers/wlan-platdata/unbind 2>/dev/null; then
+            echo "fydetab-boot-menu: unbound wlan-platdata ''${dev##*/}" >&2
+          else
+            echo "fydetab-boot-menu: cannot unbind wlan-platdata ''${dev##*/}" >&2
+          fi
+        done
+      else
+        echo "fydetab-boot-menu: wlan-platdata driver not present" >&2
+      fi
+
       kexec -e || echo "fydetab-boot-menu: kexec -e failed" >&2
     else
       echo "fydetab-boot-menu: kexec load failed ($rc): $err" >&2

@@ -150,6 +150,12 @@ from the systemd initrd after the real root is mounted and before
   entry directly instead of showing the picker again. The line also masks
   `fydetab-boot-menu.service` with `systemd.mask=`, so older generations whose
   initrd still has an older picker boot straight through as well.
+- Before `kexec -e`, the picker unbinds the `wlan-platdata` platform driver.
+  Its `shutdown` callback normally cuts power to the Wi-Fi card as part of
+  kexec's device shutdown; the next kernel then trains the PCIe link before
+  anything powers the card back on, leaving the tablet with no Wi-Fi adapter.
+  The driver's `remove` path only frees the GPIOs and leaves the pad at its
+  current (powered) level, so the card survives the handover.
 - The countdown pauses the first time any key is pressed and stays paused for
   the rest of that boot, so the menu never boots out from under you while you
   are reading it.
