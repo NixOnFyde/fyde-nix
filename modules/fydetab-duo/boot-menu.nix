@@ -236,7 +236,7 @@ let
         *) new="$new $word" ;;
       esac
     done
-    new="''${new# } init=$host/init fydetab.bootmenu=skip"
+    new="''${new# } init=$host/init fydetab.bootmenu=skip systemd.mask=fydetab-boot-menu.service"
 
     kernel=$(host_path "$g/kernel") || kernel=$g/kernel
     initrd=$(host_path "$g/initrd") || initrd=$g/initrd

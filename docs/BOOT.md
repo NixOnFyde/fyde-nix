@@ -147,7 +147,9 @@ from the systemd initrd after the real root is mounted and before
   are needed. Symlinks into `/nix/store` are resolved through `/sysroot`, so
   the initrd's own store cannot shadow them. The rewritten command line also
   carries `fydetab.bootmenu=skip`, so the kexec'd initrd boots the chosen
-  entry directly instead of showing the picker again.
+  entry directly instead of showing the picker again. The line also masks
+  `fydetab-boot-menu.service` with `systemd.mask=`, so older generations whose
+  initrd still has an older picker boot straight through as well.
 - The countdown pauses the first time any key is pressed and stays paused for
   the rest of that boot, so the menu never boots out from under you while you
   are reading it.
