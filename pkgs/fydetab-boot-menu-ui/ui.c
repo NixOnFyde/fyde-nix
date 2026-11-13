@@ -560,7 +560,13 @@ static void draw_footer(void)
     char buffer[64];
     uint32_t color;
     if (opt.paused) {
-        status = "Paused";
+        const Gen *g = &menu.gens[opt.sel_gen];
+        if (opt.sel_spec >= 0)
+            snprintf(buffer, sizeof buffer, "Enter boots %s/%s", g->num,
+                     g->spec[opt.sel_spec]);
+        else
+            snprintf(buffer, sizeof buffer, "Enter boots %s", g->num);
+        status = buffer;
         color = C_PINK;
     } else {
         snprintf(buffer, sizeof buffer, "Booting in %ds", opt.left);
@@ -1201,8 +1207,9 @@ static void handle_key(unsigned code)
         case KEY_ENTER:
         case KEY_KPENTER: {
             choose_entry(g_chosen, sizeof g_chosen, &g_boot_default);
-            fprintf(stderr, "fydetab-menu: boot %s\n",
-                    g_boot_default ? "default" : g_chosen);
+            fprintf(stderr, "fydetab-menu: boot %s (%s)\n",
+                    g_boot_default ? "default" : g_chosen,
+                    menu.gens[opt.sel_gen].num);
             g_done = 1;
             break;
         }
