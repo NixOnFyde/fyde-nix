@@ -4,8 +4,7 @@
  * The shell script owns everything that is Nix-specific (finding generations,
  * kexec).  This helper only draws a menu and reports which row was chosen.
  * It draws through a DRM dumb buffer (the vendor kernel's fbdev mmap is
- * broken) and reads raw evdev events, so it does not depend on the VT
- * keyboard layer (which mangles escape sequences).
+ * broken) and reads both raw evdev events and the console VT.
  */
 #define _GNU_SOURCE
 
@@ -18,10 +17,12 @@
 #include <linux/kd.h>
 #include <math.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -119,6 +120,7 @@ typedef struct {
     int top;
     int sel_gen;
     int sel_spec;
+    int input_test;
 } Options;
 
 static uint32_t *canvas;
@@ -992,18 +994,234 @@ static int panel_to_row(int px, int py, int *cx_out, int *cy_out)
     return row;
 }
 
-static void choose_entry(char *out, size_t n, int *boot_default)
+static void choose_entry(char *out, size_t n, int *g_boot_default)
 {
     const Gen *g = &menu.gens[opt.sel_gen];
     if (opt.sel_spec < 0) {
         if (!g->is_default) {
             snprintf(out, n, "%s", g->num);
-            *boot_default = 0;
+            *g_boot_default = 0;
         }
     } else {
         snprintf(out, n, "%s/%s", g->num, g->spec[opt.sel_spec]);
-        *boot_default = 0;
+        *g_boot_default = 0;
     }
+}
+
+static char g_chosen[64];
+static int g_boot_default = 1;
+static int g_list_dirty, g_footer_dirty, g_done;
+
+/* The initrd's evdev nodes have proved unreliable at menu time, but the
+ * console always delivers keys, so the VT is polled alongside evdev. */
+static int ttyfd = -1;
+static int vt_esc; /* 0: none, 1: ESC, 2: inside a CSI/SS3 sequence */
+static int vt_num;
+
+static int vt_feed(unsigned char c)
+{
+    if (vt_esc == 2) {
+        if (c >= '0' && c <= '9') {
+            vt_num = vt_num * 10 + (c - '0');
+            return 0;
+        }
+        if (c == '~') {
+            int n = vt_num;
+            vt_esc = vt_num = 0;
+            switch (n) {
+            case 1:
+            case 7:
+                return KEY_HOME;
+            case 4:
+            case 8:
+                return KEY_END;
+            case 5:
+                return KEY_PAGEUP;
+            case 6:
+                return KEY_PAGEDOWN;
+            case 3:
+                return KEY_DELETE;
+            default:
+                return 0;
+            }
+        }
+        vt_esc = vt_num = 0;
+        switch (c) {
+        case 'A':
+            return KEY_UP;
+        case 'B':
+            return KEY_DOWN;
+        case 'C':
+            return KEY_RIGHT;
+        case 'D':
+            return KEY_LEFT;
+        case 'H':
+            return KEY_HOME;
+        case 'F':
+            return KEY_END;
+        case 'Z':
+            return KEY_TAB;
+        default:
+            return 0;
+        }
+    }
+    if (c == 27) {
+        if (vt_esc == 1) {
+            vt_esc = 0;
+            return KEY_ESC;
+        }
+        vt_esc = 1;
+        return 0;
+    }
+    if (vt_esc == 1) {
+        vt_esc = 0;
+        if (c == '[' || c == 'O') {
+            vt_esc = 2;
+            vt_num = 0;
+            return 0;
+        }
+        return KEY_ESC;
+    }
+    switch (c) {
+    case '\r':
+    case '\n':
+        return KEY_ENTER;
+    case '\t':
+        return KEY_TAB;
+    case 0x7f:
+    case 0x08:
+        return KEY_BACKSPACE;
+    case ' ':
+        return KEY_SPACE;
+    case 'j':
+        return KEY_J;
+    case 'k':
+        return KEY_K;
+    case 'q':
+        return KEY_Q;
+    case 't':
+        return KEY_T;
+    default:
+        if (c >= '1' && c <= '9')
+            return KEY_1 + (c - '1');
+        return 0;
+    }
+}
+
+/* Apply one key press (evdev code or a synthetic code from the VT). */
+static void handle_key(unsigned code)
+{
+    if (!opt.paused) {
+        opt.paused = 1;
+        g_footer_dirty = 1;
+    }
+
+    switch (code) {
+        case KEY_UP:
+        case KEY_K:
+        case KEY_VOLUMEUP:
+            if (opt.cursor > 0)
+                opt.cursor--;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        case KEY_DOWN:
+        case KEY_J:
+        case KEY_VOLUMEDOWN:
+            if (opt.cursor < nrows - 1)
+                opt.cursor++;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        case KEY_PAGEUP: {
+            opt.cursor -= VISIBLE_ROWS;
+            if (opt.cursor < 0)
+                opt.cursor = 0;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        }
+        case KEY_PAGEDOWN: {
+            opt.cursor += VISIBLE_ROWS;
+            if (opt.cursor > nrows - 1)
+                opt.cursor = nrows - 1;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        }
+        case KEY_HOME:
+            opt.cursor = 0;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        case KEY_END:
+            opt.cursor = nrows - 1;
+            act_on_cursor();
+            g_list_dirty = 1;
+            break;
+        case KEY_LEFT: {
+            int gi = rows[opt.cursor].gen;
+            if (opt.sel_spec >= 0 || expanded[gi]) {
+                expanded[gi] = 0;
+                nrows = build_rows();
+                select_item(gi, -1);
+                act_on_cursor();
+                g_list_dirty = 1;
+            }
+            break;
+        }
+        case KEY_RIGHT: {
+            int gi = rows[opt.cursor].gen;
+            if (opt.sel_spec < 0 && menu.gens[gi].nspec) {
+                if (!expanded[gi]) {
+                    expanded[gi] = 1;
+                    nrows = build_rows();
+                    select_item(gi, -1);
+                } else {
+                    select_item(gi, 0);
+                }
+                act_on_cursor();
+                g_list_dirty = 1;
+            }
+            break;
+        }
+        case KEY_ENTER:
+        case KEY_KPENTER: {
+            choose_entry(g_chosen, sizeof g_chosen, &g_boot_default);
+            fprintf(stderr, "fydetab-menu: boot %s\n",
+                    g_boot_default ? "default" : g_chosen);
+            g_done = 1;
+            break;
+        }
+        case KEY_1: case KEY_2: case KEY_3:
+        case KEY_4: case KEY_5: case KEY_6:
+        case KEY_7: case KEY_8: case KEY_9: {
+            int idx = (int)(code - KEY_1);
+            if (idx < menu.n) {
+                select_item(idx, -1);
+                g_list_dirty = 1;
+            }
+            break;
+        }
+        case KEY_KP1: case KEY_KP2: case KEY_KP3:
+        case KEY_KP4: case KEY_KP5: case KEY_KP6:
+        case KEY_KP7: case KEY_KP8: case KEY_KP9: {
+            int idx = (int)(code - KEY_KP1);
+            if (idx < menu.n) {
+                select_item(idx, -1);
+                g_list_dirty = 1;
+            }
+            break;
+        }
+        case KEY_T:
+        case KEY_Q:
+        case KEY_ESC:
+            g_boot_default = 1;
+            g_done = 1;
+            break;
+        default:
+            break;
+        }
 }
 
 /* ---------------------------------------------------------------- render */
@@ -1076,6 +1294,45 @@ static int parse_option(const char *name, int argc, char **argv, int *i)
     return atoi(argv[++(*i)]);
 }
 
+/* --input-test: exercise the same input path without touching DRM or the
+ * console, so the initrd binary can be tested on a running system. */
+static void input_test(int seconds)
+{
+    for (int attempt = 0; attempt < 20 && nidev == 0; attempt++) {
+        input_scan();
+        if (!nidev)
+            usleep(100000);
+    }
+    fprintf(stderr, "fydetab-menu: input test: %d devices, %d seconds\n",
+            nidev, seconds);
+
+    for (int tick = 0; tick < seconds * 5; tick++) {
+        struct pollfd pfds[MAX_INPUTS];
+        for (int i = 0; i < nidev; i++) {
+            pfds[i].fd = idevs[i].fd;
+            pfds[i].events = POLLIN;
+            pfds[i].revents = 0;
+        }
+
+        int ready = poll(pfds, (nfds_t)nidev, 200);
+        if (ready <= 0) {
+            input_scan();
+            continue;
+        }
+
+        for (int i = 0; i < nidev; i++) {
+            if (!(pfds[i].revents & POLLIN))
+                continue;
+            struct input_event ev;
+            while (read(idevs[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev)
+                fprintf(stderr,
+                        "fydetab-menu: ev%d type %u code %u value %d\n",
+                        idevs[i].event, ev.type, ev.code, ev.value);
+        }
+    }
+    fprintf(stderr, "fydetab-menu: input test done\n");
+}
+
 int main(int argc, char **argv)
 {
     opt.timeout = 5;
@@ -1107,10 +1364,17 @@ int main(int argc, char **argv)
             opt.assets = argv[++i];
         else if (!strcmp(argv[i], "--render") && i + 1 < argc)
             opt.render = argv[++i];
+        else if (!strcmp(argv[i], "--input-test"))
+            opt.input_test = parse_option("--input-test", argc, argv, &i);
         else {
             fprintf(stderr, "fydetab-menu: unknown option %s\n", argv[i]);
             return 2;
         }
+    }
+
+    if (opt.input_test > 0) {
+        input_test(opt.input_test);
+        return 0;
     }
 
     if (!opt.assets)
@@ -1166,15 +1430,33 @@ int main(int argc, char **argv)
         return write_ppm(opt.render) == 0 ? 0 : 1;
     }
 
-    int tty = open(opt.tty, O_RDWR | O_CLOEXEC);
+    /* Reading a VT from a background process group raises SIGTTIN, and the
+     * console must be in cbreak mode for single-key reads. */
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+
+    int tty = open(opt.tty, O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
     if (tty < 0) {
         perror("fydetab-menu: open tty");
-        tty = open("/dev/tty1", O_RDWR | O_CLOEXEC);
+        tty = open("/dev/tty1", O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
     }
     if (tty < 0) {
         perror("fydetab-menu: open /dev/tty1");
         return 1;
     }
+
+    struct termios tty_saved;
+    int tty_raw = 0;
+    if (tcgetattr(tty, &tty_saved) == 0) {
+        struct termios raw = tty_saved;
+        raw.c_lflag &= ~(tcflag_t)(ICANON | ECHO | ISIG);
+        raw.c_iflag &= ~(tcflag_t)(IXON | ICRNL);
+        raw.c_cc[VMIN] = 0;
+        raw.c_cc[VTIME] = 0;
+        tty_raw = tcsetattr(tty, TCSANOW, &raw) == 0;
+    }
+    ttyfd = tty;
+
     ioctl(tty, KDSETMODE, KD_GRAPHICS);
 
     if (screen_open(&screen, opt.rotation) < 0) {
@@ -1187,7 +1469,7 @@ int main(int argc, char **argv)
         if (!nidev)
             usleep(100000);
     }
-    if (!nidev) {
+    if (!nidev && ttyfd < 0) {
         fprintf(stderr, "fydetab-menu: no usable input device, booting default\n");
         ioctl(tty, KDSETMODE, KD_TEXT);
         return -1;
@@ -1200,20 +1482,32 @@ int main(int argc, char **argv)
     draw_footer();
     push_rect(0, 0, UI_W, UI_H);
 
-    char chosen[64] = "";
-    int boot_default = 1; /* unless a specific entry is picked */
+    g_chosen[0] = '\0';
+    g_boot_default = 1;
 
     for (;;) {
         input_scan();
 
-        struct pollfd pfds[MAX_INPUTS];
+        /* Index 0 is the console VT (the path the old shell menu used); the
+         * evdev devices follow. */
+        struct pollfd pfds[MAX_INPUTS + 1];
+        int npoll = 0;
+        int tty_index = -1;
+        if (ttyfd >= 0) {
+            tty_index = npoll;
+            pfds[npoll].fd = ttyfd;
+            pfds[npoll].events = POLLIN;
+            pfds[npoll].revents = 0;
+            npoll++;
+        }
         for (int i = 0; i < nidev; i++) {
-            pfds[i].fd = idevs[i].fd;
-            pfds[i].events = POLLIN;
-            pfds[i].revents = 0;
+            pfds[npoll].fd = idevs[i].fd;
+            pfds[npoll].events = POLLIN;
+            pfds[npoll].revents = 0;
+            npoll++;
         }
 
-        int ready = poll(pfds, (nfds_t)nidev, 1000);
+        int ready = poll(pfds, (nfds_t)npoll, 1000);
         if (ready < 0) {
             if (errno == EINTR)
                 continue;
@@ -1224,6 +1518,7 @@ int main(int argc, char **argv)
             if (!opt.paused) {
                 if (opt.left > 0)
                     opt.left--;
+                fprintf(stderr, "fydetab-menu: tick %d\n", opt.left);
                 if (opt.left <= 0) {
                     fprintf(stderr, "fydetab-menu: countdown finished\n");
                     break;
@@ -1233,17 +1528,48 @@ int main(int argc, char **argv)
             continue;
         }
 
-        int list_dirty = 0, footer_dirty = 0;
-        int done = 0, drop = -1;
-        for (int i = 0; i < nidev && !done; i++) {
+        g_list_dirty = g_footer_dirty = 0;
+        g_done = 0;
+        int drop = -1;
+        int base = tty_index >= 0 ? 1 : 0;
+        for (int i = 0; i < npoll && !g_done; i++) {
+            if (i == tty_index) {
+                if (pfds[i].revents & POLLIN) {
+                    unsigned char buf[64];
+                    ssize_t n = read(ttyfd, buf, sizeof buf);
+                    while (n > 0 && !g_done) {
+                        for (ssize_t k = 0; k < n && !g_done; k++) {
+                            int code = vt_feed(buf[k]);
+                            if (!code)
+                                continue;
+                            fprintf(stderr, "fydetab-menu: vt key %d\n", code);
+                            handle_key((unsigned)code);
+                        }
+                        if (g_done)
+                            break;
+                        n = read(ttyfd, buf, sizeof buf);
+                    }
+                    if (n < 0 && errno != EAGAIN && errno != EINTR) {
+                        fprintf(stderr, "fydetab-menu: vt read: %s\n",
+                                strerror(errno));
+                        ttyfd = -1;
+                    }
+                }
+                if (pfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                    fprintf(stderr, "fydetab-menu: vt gone\n");
+                    ttyfd = -1;
+                }
+                continue;
+            }
+            int e = i - base;
             if (pfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-                drop = i;
+                drop = e;
                 continue;
             }
             if (!(pfds[i].revents & POLLIN))
                 continue;
 
-            struct idev *d = &idevs[i];
+            struct idev *d = &idevs[e];
             struct input_event ev;
             while (read(d->fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
                 if (ev.type == EV_ABS) {
@@ -1265,7 +1591,7 @@ int main(int argc, char **argv)
                         d->starty = d->y;
                         if (!opt.paused) {
                             opt.paused = 1;
-                            footer_dirty = 1;
+                            g_footer_dirty = 1;
                         }
                     } else if (d->down) {
                         int dx, dy, px, py, cx, cy, row;
@@ -1287,15 +1613,15 @@ int main(int argc, char **argv)
                         if (row < 0)
                             continue;
                         if (row == opt.cursor) {
-                            choose_entry(chosen, sizeof chosen, &boot_default);
-                            done = 1;
+                            choose_entry(g_chosen, sizeof g_chosen, &g_boot_default);
+                            g_done = 1;
                         } else {
                             opt.cursor = row;
                             act_on_cursor();
-                            list_dirty = 1;
+                            g_list_dirty = 1;
                         }
                     }
-                    if (done)
+                    if (g_done)
                         break;
                     continue;
                 }
@@ -1307,137 +1633,29 @@ int main(int argc, char **argv)
                 fprintf(stderr, "fydetab-menu: key %u value %d\n",
                         ev.code, ev.value);
 
-                if (!opt.paused) {
-                    opt.paused = 1;
-                    footer_dirty = 1;
-                }
-
-                switch (ev.code) {
-                case KEY_UP:
-                case KEY_K:
-                case KEY_VOLUMEUP:
-                    if (opt.cursor > 0)
-                        opt.cursor--;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                case KEY_DOWN:
-                case KEY_J:
-                case KEY_VOLUMEDOWN:
-                    if (opt.cursor < nrows - 1)
-                        opt.cursor++;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                case KEY_PAGEUP: {
-                    opt.cursor -= VISIBLE_ROWS;
-                    if (opt.cursor < 0)
-                        opt.cursor = 0;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                }
-                case KEY_PAGEDOWN: {
-                    opt.cursor += VISIBLE_ROWS;
-                    if (opt.cursor > nrows - 1)
-                        opt.cursor = nrows - 1;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                }
-                case KEY_HOME:
-                    opt.cursor = 0;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                case KEY_END:
-                    opt.cursor = nrows - 1;
-                    act_on_cursor();
-                    list_dirty = 1;
-                    break;
-                case KEY_LEFT: {
-                    int gi = rows[opt.cursor].gen;
-                    if (opt.sel_spec >= 0 || expanded[gi]) {
-                        expanded[gi] = 0;
-                        nrows = build_rows();
-                        select_item(gi, -1);
-                        act_on_cursor();
-                        list_dirty = 1;
-                    }
-                    break;
-                }
-                case KEY_RIGHT: {
-                    int gi = rows[opt.cursor].gen;
-                    if (opt.sel_spec < 0 && menu.gens[gi].nspec) {
-                        if (!expanded[gi]) {
-                            expanded[gi] = 1;
-                            nrows = build_rows();
-                            select_item(gi, -1);
-                        } else {
-                            select_item(gi, 0);
-                        }
-                        act_on_cursor();
-                        list_dirty = 1;
-                    }
-                    break;
-                }
-                case KEY_ENTER:
-                case KEY_KPENTER: {
-                    choose_entry(chosen, sizeof chosen, &boot_default);
-                    fprintf(stderr, "fydetab-menu: boot %s\n",
-                            boot_default ? "default" : chosen);
-                    done = 1;
-                    break;
-                }
-                case KEY_1: case KEY_2: case KEY_3:
-                case KEY_4: case KEY_5: case KEY_6:
-                case KEY_7: case KEY_8: case KEY_9: {
-                    int idx = (int)(ev.code - KEY_1);
-                    if (idx < menu.n) {
-                        select_item(idx, -1);
-                        list_dirty = 1;
-                    }
-                    break;
-                }
-                case KEY_KP1: case KEY_KP2: case KEY_KP3:
-                case KEY_KP4: case KEY_KP5: case KEY_KP6:
-                case KEY_KP7: case KEY_KP8: case KEY_KP9: {
-                    int idx = (int)(ev.code - KEY_KP1);
-                    if (idx < menu.n) {
-                        select_item(idx, -1);
-                        list_dirty = 1;
-                    }
-                    break;
-                }
-                case KEY_T:
-                case KEY_Q:
-                case KEY_ESC:
-                    boot_default = 1;
-                    done = 1;
-                    break;
-                default:
-                    break;
-                }
-                if (done)
+                handle_key(ev.code);
+                if (g_done)
                     break;
             }
         }
-        if (done)
+        if (g_done)
             break;
         if (drop >= 0)
             input_drop(drop);
-        if (list_dirty)
+        if (g_list_dirty)
             compose_rows();
-        if (footer_dirty)
+        if (g_footer_dirty)
             compose_footer();
     }
 
     ioctl(tty, KDSETMODE, KD_TEXT);
+    if (tty_raw)
+        tcsetattr(tty, TCSANOW, &tty_saved);
     close(tty);
     for (int i = 0; i < nidev; i++)
         close(idevs[i].fd);
     screen_close(&screen);
 
-    printf("%s\n", boot_default ? "-1" : chosen);
+    printf("%s\n", g_boot_default ? "-1" : g_chosen);
     return 0;
 }

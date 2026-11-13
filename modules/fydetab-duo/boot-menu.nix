@@ -28,6 +28,17 @@ let
     maxgens=${toString cfg.maxGenerations}
     rotation=${toString cfg.rotation}
 
+    # `fydetab.bootmenu.timeout=N` on the kernel command line overrides the
+    # configured window; useful for debugging without rebuilding.
+    for arg in $(cat /proc/cmdline); do
+      case "$arg" in
+        fydetab.bootmenu.timeout=*) timeout=''${arg#*=} ;;
+      esac
+    done
+    case "$timeout" in
+      *[!0-9]*|"") timeout=${toString cfg.timeout} ;;
+    esac
+
     tty=/dev/tty1
     echo "fydetab-boot-menu: starting (tty $tty)" >&2
 
@@ -355,17 +366,13 @@ in
 
     boot.initrd.systemd.services.fydetab-boot-menu = {
       description = "FydeTab Duo generation picker";
-      # Pulled in by the initrd's default target: by then /sysroot is mounted
-      # and udev is still running (the keyboard's evdev nodes exist). Being
-      # only wanted by initrd-switch-root.target starts us during initrd
-      # teardown, after udevd has already been stopped.
-      # Wanted by the switch-root target (not initrd.target): isolating
-      # initrd-switch-root.target stops everything in initrd.target, which
-      # would kill the menu mid-countdown.  Being part of the switch-root
-      # transaction makes systemd wait for the picker to finish.
-      wantedBy = [ "initrd-switch-root.target" ];
+      # Run during initrd.target, before initrd-cleanup starts the switch-root
+      # transaction: udev is still running, so the keyboard and touchscreen
+      # nodes are live, and ordering the picker before initrd-cleanup.service
+      # keeps the isolate from tearing the menu down mid-countdown.
+      wantedBy = [ "initrd.target" ];
       after = [ "sysroot.mount" ];
-      before = [ "initrd-switch-root.service" ];
+      before = [ "initrd-cleanup.service" "initrd-switch-root.service" ];
 
       # Default dependencies would order this after basic.target, which is
       # far too late: the whole point is to run before switch-root.
