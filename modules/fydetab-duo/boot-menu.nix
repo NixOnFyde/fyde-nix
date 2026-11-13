@@ -299,7 +299,7 @@ in
 
     timeout = lib.mkOption {
       type = lib.types.ints.between 0 60;
-      default = 10;
+      default = 5;
       description = ''
         Seconds to wait for a selection. 0 disables the menu without
         changing the boot path. The countdown pauses as soon as any key is

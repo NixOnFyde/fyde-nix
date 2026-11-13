@@ -139,7 +139,7 @@ from the systemd initrd after the real root is mounted and before
   timestamp. Generations with NixOS specialisations show them as foldable
   children; each specialisation is a full system closure with its own kernel
   and initrd.
-- Choosing the default (or the timeout expiring, default 10 s) continues the
+- Choosing the default (or the timeout expiring, default 5 s) continues the
   normal boot. Nothing about the default path changes.
 - Choosing another entry `kexec`s **that entry's own** kernel, initrd and DTB
   from the store, with `init=` rewritten in the current kernel command line.
