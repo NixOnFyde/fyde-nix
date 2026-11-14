@@ -21,5 +21,3 @@ index 8b2f57c9e2a1..9d21cbf70000 100644
  	LOG("Exit %s\n", __func__);
  
  	return 0;
--- 
-2.43.0
