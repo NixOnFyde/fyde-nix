@@ -197,6 +197,10 @@ opened at all, the picker exits immediately and the default boots. Set
 `kexec_file_load` (CONFIG_KEXEC_FILE) is used, which this kernel supports. If
 loading the chosen generation fails, the picker returns to the text console on
 `tty1` with an error, waits three seconds, and boots the default instead.
+For handoff diagnosis, each picker run appends its selection and kexec stage
+results to `/var/log/fydetab-boot-menu-kexec.log` on the root filesystem and
+syncs each entry before continuing. This trace survives a kexec reset even if
+the initrd journal does not.
 
 ## Interrupting U-Boot and entering UMS
 

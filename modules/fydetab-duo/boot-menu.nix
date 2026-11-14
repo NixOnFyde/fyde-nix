@@ -42,14 +42,31 @@ let
     tty=/dev/tty1
     echo "fydetab-boot-menu: starting (tty $tty)" >&2
 
+    # Initrd journal messages can be lost when kexec transfers control or
+    # resets the tablet. Keep a small trace on the mounted host filesystem so
+    # the next boot can show which stage the handoff reached.
+    handoff_log=/sysroot/var/log/fydetab-boot-menu-kexec.log
+    handoff_trace() {
+      if ! printf '%s boot=%s %s\n' \
+        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+        "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)" \
+        "$*" >> "$handoff_log" 2>/dev/null; then
+        echo "fydetab-boot-menu: could not write persistent handoff trace" >&2
+        return 0
+      fi
+      sync -f "$handoff_log" 2>/dev/null || sync
+    }
+
     # This initrd may have been started by the picker via kexec; in that case
     # show the chosen generation, not the menu again.
     case " $(cat /proc/cmdline) " in
       *" fydetab.bootmenu=skip "*)
         echo "fydetab-boot-menu: started by kexec, skipping" >&2
+        handoff_trace "boot-menu skip-marker=present"
         exit 0
         ;;
     esac
+    handoff_trace "boot-menu skip-marker=absent; opening picker"
 
     # Plymouth owns the display through DRM, so it has to go away for the
     # duration of the menu; the menu itself takes DRM master and scans out its
@@ -201,6 +218,7 @@ let
     )
     rc=$?
     echo "fydetab-boot-menu: ui exit $rc, choice '$choice'" >&2
+    handoff_trace "picker-result ui-exit=$rc choice='$choice'"
     if [ "$rc" -ne 0 ]; then
       choice=-1
     fi
@@ -253,12 +271,16 @@ let
     initrd=$(host_path "$g/initrd") || initrd=$g/initrd
     dtbs=$(host_path "$g/dtbs") || dtbs=$g/dtbs
 
+    handoff_trace "selected generation=$label kernel='$kernel' initrd='$initrd' dtb='$dtbs/rockchip/rk3588s-fydetab_duo.dtb'"
+
+    handoff_trace "kexec-load starting generation=$label"
     err=$(kexec -s -l "$kernel" \
       --initrd="$initrd" \
       --dtb="$dtbs/rockchip/rk3588s-fydetab_duo.dtb" \
       --command-line="$new" 2>&1)
     rc=$?
     if [ "$rc" -eq 0 ]; then
+      handoff_trace "kexec-load succeeded generation=$label"
       # rfkill_wlan_shutdown() powers the Wi-Fi card off during kexec's
       # device_shutdown.  The next kernel probes rk-pcie before wlan-platdata
       # can power the card back on, so the PCIe link never trains and the
@@ -272,17 +294,30 @@ let
           if printf '%s' "''${dev##*/}" \
               > /sys/bus/platform/drivers/wlan-platdata/unbind 2>/dev/null; then
             echo "fydetab-boot-menu: unbound wlan-platdata ''${dev##*/}" >&2
+            handoff_trace "wlan-platdata unbound device=''${dev##*/}"
           else
             echo "fydetab-boot-menu: cannot unbind wlan-platdata ''${dev##*/}" >&2
+            handoff_trace "wlan-platdata unbind-failed device=''${dev##*/}"
           fi
         done
       else
         echo "fydetab-boot-menu: wlan-platdata driver not present" >&2
+        handoff_trace "wlan-platdata driver-not-present"
       fi
 
-      kexec -e || echo "fydetab-boot-menu: kexec -e failed" >&2
+      handoff_trace "kexec-exec entering generation=$label"
+      err=$(kexec -e 2>&1)
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        echo "fydetab-boot-menu: kexec -e returned successfully" >&2
+        handoff_trace "kexec-exec returned-successfully generation=$label output='$err'"
+      else
+        echo "fydetab-boot-menu: kexec -e failed ($rc): $err" >&2
+        handoff_trace "kexec-exec failed rc=$rc generation=$label output='$err'"
+      fi
     else
       echo "fydetab-boot-menu: kexec load failed ($rc): $err" >&2
+      handoff_trace "kexec-load failed rc=$rc generation=$label output='$err'"
     fi
 
     printf 'Could not start generation %s; continuing with the default.\n' \
