@@ -287,10 +287,17 @@ let
       # tablet comes up without Wi-Fi.  Unbinding the platform driver keeps the
       # card powered: its remove path only frees the GPIOs (the pad keeps its
       # output level) and never calls rfkill_wlan_shutdown().
+      handoff_trace "wlan-platdata unbind phase starting"
       if [ -d /sys/bus/platform/drivers/wlan-platdata ]; then
+        wlan_devices=0
         for dev in /sys/bus/platform/drivers/wlan-platdata/*; do
           [ "''${dev##*/}" = module ] && continue
-          [ -e "$dev/driver" ] || continue
+          [ -e "$dev/driver" ] || {
+            handoff_trace "wlan-platdata device not bound path=''${dev##*/}"
+            continue
+          }
+          wlan_devices=$((wlan_devices + 1))
+          handoff_trace "wlan-platdata unbind starting device=''${dev##*/}"
           if printf '%s' "''${dev##*/}" \
               > /sys/bus/platform/drivers/wlan-platdata/unbind 2>/dev/null; then
             echo "fydetab-boot-menu: unbound wlan-platdata ''${dev##*/}" >&2
@@ -300,6 +307,7 @@ let
             handoff_trace "wlan-platdata unbind-failed device=''${dev##*/}"
           fi
         done
+        [ "$wlan_devices" -gt 0 ] || handoff_trace "wlan-platdata no bound devices"
       else
         echo "fydetab-boot-menu: wlan-platdata driver not present" >&2
         handoff_trace "wlan-platdata driver-not-present"
