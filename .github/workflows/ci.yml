@@ -13,6 +13,8 @@ jobs:
   build:
     name: Build & cache
     runs-on: ubuntu-24.04-arm
+    env:
+      HAS_CACHIX_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -39,8 +41,9 @@ jobs:
       # that we go past their 5GB free limit (definitely didn't accidentally
       # do this during testing).
       - name: Build & push system closure
-        if: env.CACHIX_AUTH_TOKEN != ''
+        if: env.HAS_CACHIX_TOKEN == 'true'
         env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
           NIXPKGS_ALLOW_UNFREE: "1"
         run: |
           SYSTEM=$(nix build --impure \
