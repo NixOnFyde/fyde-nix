@@ -129,6 +129,10 @@ linuxKernel.buildLinux rec {
 
     DRM_PANTHOR = module;
 
+    # RK3588's GPU thermal zone has a cooling map for the Panthor devfreq
+    # device; enable the generic cooling driver so that map can take effect.
+    DEVFREQ_THERMAL = yes;
+
     FW_LOADER_COMPRESS = yes;
     FW_LOADER_COMPRESS_ZSTD = yes;
 
