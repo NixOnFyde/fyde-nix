@@ -257,9 +257,17 @@ in
           }
 
           is_on_ac() {
-            local s
-            s=$(cat "$BAT_STATUS" 2>/dev/null)
-            [ "$s" = "Charging" ] || [ "$s" = "Full" ]
+            # Battery status can say "Not charging" while an external
+            # supply is online (for example, when charge limiting is active).
+            # Detect the power source directly so forcePerformanceOnAC keeps
+            # working in that state too.
+            local supply online
+            for supply in /sys/class/power_supply/*; do
+              [ -r "$supply/online" ] || continue
+              online=$(cat "$supply/online" 2>/dev/null) || continue
+              [ "$online" = "1" ] && return 0
+            done
+            return 1
           }
 
           target_profile() {
