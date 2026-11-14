@@ -313,7 +313,11 @@ let
     # Use the newest installed kernel so older-generation choices also have
     # the early GIC LPI reservation support. The selected generation still
     # supplies its own initrd and init= closure.
-    kernel=$(host_path "$profiles/system/kernel") || {
+    current_system=$(host_path "$profiles/system") || {
+      handoff_trace "kexec aborted: current system profile is unavailable"
+      exit 0
+    }
+    kernel=$(host_path "$current_system/kernel") || {
       handoff_trace "kexec aborted: current kernel is unavailable"
       exit 0
     }
