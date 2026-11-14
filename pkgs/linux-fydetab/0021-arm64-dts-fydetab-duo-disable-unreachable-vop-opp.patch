@@ -1,0 +1,28 @@
+From: FydeTab Duo NixOS
+Subject: [PATCH] arm64: dts: rockchip: drop unreachable FydeTab VOP OPP
+
+The FydeTab Duo's vdd_log_s0 regulator is constrained to 750 mV, while the
+shared RK3588 VOP 850 MHz OPP requires 800 mV. The OPP core rejects that
+point at probe time. Mark it unavailable on this board instead of advertising
+a frequency its regulator cannot supply.
+
+---
+ arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+--- a/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3588s-fydetab_duo.dts
+@@ -675,6 +675,12 @@
+   vop-supply = <&vdd_log_s0>;
+ };
+ 
++&vop_opp_table {
++  opp-8500000000 {
++    status = "disabled";
++  };
++};
++
+ &vop_mmu {
+   status = "okay";
+ };

@@ -85,6 +85,14 @@ let
       name = "rockchip-mpp-fix-iep2-roi-allocation-check";
       patch = ./0020-rockchip-mpp-fix-iep2-roi-allocation-check.patch;
     }
+    {
+      name = "arm64-dts-fydetab-duo-disable-unreachable-vop-opp";
+      patch = ./0021-arm64-dts-fydetab-duo-disable-unreachable-vop-opp.patch;
+    }
+    {
+      name = "rockchip-mpp-skip-absent-optional-rkvdec-niu-resets";
+      patch = ./0022-rockchip-mpp-skip-absent-optional-rkvdec-niu-resets.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
