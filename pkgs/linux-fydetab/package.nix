@@ -81,6 +81,10 @@ let
       name = "arm64-reserve-inherited-gic-lpi-tables";
       patch = ./0019-arm64-reserve-inherited-gic-lpi-tables.patch;
     }
+    {
+      name = "rockchip-mpp-fix-iep2-roi-allocation-check";
+      patch = ./0020-rockchip-mpp-fix-iep2-roi-allocation-check.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

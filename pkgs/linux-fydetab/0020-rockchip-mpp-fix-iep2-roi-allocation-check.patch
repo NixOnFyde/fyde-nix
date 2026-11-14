@@ -1,0 +1,26 @@
+From: FydeTab Duo NixOS
+Subject: [PATCH] video: rockchip: mpp: fix IEP2 ROI allocation check
+
+The allocation failure check is inverted: a successful allocation currently
+prints an error, while a failed allocation is silently accepted. Check for a
+NULL address and fail probe when the required ROI buffer is unavailable.
+
+---
+ drivers/video/rockchip/mpp/mpp_iep2.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/video/rockchip/mpp/mpp_iep2.c b/drivers/video/rockchip/mpp/mpp_iep2.c
+--- a/drivers/video/rockchip/mpp/mpp_iep2.c
++++ b/drivers/video/rockchip/mpp/mpp_iep2.c
+@@ -893,9 +893,9 @@ static int iep2_init(struct mpp_dev *mpp)
+ 	iep->roi.vaddr = dma_alloc_coherent(mpp->dev, iep->roi.size,
+ 					    &iep->roi.iova,
+ 					    GFP_KERNEL);
+-	if (iep->roi.vaddr) {
++	if (!iep->roi.vaddr) {
+ 		dev_err(mpp->dev, "allocate roi buffer failed\n");
+-		//return -ENOMEM;
++		return -ENOMEM;
+ 	}
+ 
+ 	return 0;
