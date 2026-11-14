@@ -356,9 +356,10 @@ let
     target_dtb="$dtb_work/target.dtb"
 
     handoff_trace "selected generation=$label kernel='$kernel' initrd='$initrd' dtb='$target_dtb'"
+    handoff_trace "loading with legacy kexec syscall so the reserved DTB is passed through"
 
     handoff_trace "kexec-load starting generation=$label"
-    err=$(kexec -s -l "$kernel" \
+    err=$(kexec -l "$kernel" \
       --initrd="$initrd" \
       --dtb="$target_dtb" \
       --command-line="$new" 2>&1)
