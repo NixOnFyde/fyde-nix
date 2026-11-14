@@ -19,6 +19,16 @@ in
   options.hardware.fydetabduo = {
     enable = lib.mkEnableOption "FydeTab Duo (RK3588S tablet) support";
 
+    debug.thermalBootTrace.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Enable early-boot thermal tracepoints for diagnosing CPU and GPU
+        cooling-state changes. Read the trace from
+        /sys/kernel/tracing/trace soon after boot; the ring buffer is finite.
+      '';
+    };
+
     installer-tools.enable = lib.mkEnableOption ''
       interactive installation tools (fydetab-install-to-emmc and
       fydetab-update-bootchain). Off by default so personal flakes do not
@@ -74,6 +84,11 @@ in
       # of the finite argv slots in the generated `setenv bootargs` line
       # (U-Boot's CONFIG_SYS_MAXARGS is 16). See docs/RECOVERY.md.
       "console=tty1"
+    ]
+    ++ lib.optionals cfg.debug.thermalBootTrace.enable [
+      # Capture sensor readings, trip crossings, cooling-state changes, and
+      # the CPU/GPU frequency limits selected by thermal cooling.
+      "trace_event=thermal:thermal_temperature,thermal:thermal_zone_trip,thermal:cdev_update,thermal:thermal_power_cpu_limit,thermal:thermal_power_devfreq_limit"
     ];
     # consoleLogLevel=3 already suppresses quiet's level-4-and-below output,
     # while avoiding another U-Boot bootargs token.
