@@ -482,9 +482,12 @@ in
       pkgs.fydetab-boot-menu-ui
       pkgs.bash
       pkgs.coreutils
+      pkgs.dtc
+      pkgs.gawk
       pkgs.kbd
       pkgs.kexec-tools
       pkgs.plymouth
+      pkgs.util-linux
       pkgs.zlib
       pkgs.zstd
     ];
