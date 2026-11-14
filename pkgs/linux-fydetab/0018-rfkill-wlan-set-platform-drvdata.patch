@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] rfkill: set WLAN platform driver data
+
+rfkill_wlan_remove() retrieves its state with platform_get_drvdata(), but the
+probe path never stores the allocated state on the platform device. Unbinding
+wlan-platdata therefore passes NULL to wake_lock_destroy() and crashes during
+device removal. Store the state when probe succeeds.
+
+---
+ net/rfkill/rfkill-wlan.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/net/rfkill/rfkill-wlan.c b/net/rfkill/rfkill-wlan.c
+index 8b2f57c9e2a1..9d21cbf70000 100644
+--- a/net/rfkill/rfkill-wlan.c
++++ b/net/rfkill/rfkill-wlan.c
+@@ -810,5 +810,6 @@ static int rfkill_wlan_probe(struct platform_device *pdev) {
+ 	fb_register_client(&rfkill_wlan_fb_notifier);
+ 
++	platform_set_drvdata(pdev, rfkill);
+ 	LOG("Exit %s\n", __func__);
+ 
+ 	return 0;
+-- 
+2.43.0

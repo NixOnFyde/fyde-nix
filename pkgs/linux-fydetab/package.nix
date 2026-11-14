@@ -73,6 +73,10 @@ let
       name = "rknpu-avoid-iomem-reservation-conflict";
       patch = ./0017-rknpu-avoid-iomem-reservation-conflict.patch;
     }
+    {
+      name = "rfkill-wlan-set-platform-drvdata";
+      patch = ./0018-rfkill-wlan-set-platform-drvdata.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
