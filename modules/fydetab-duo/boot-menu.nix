@@ -15,7 +15,6 @@ let
     export PATH="${
       lib.makeBinPath [
         pkgs.coreutils
-        pkgs.dtc
         pkgs.gawk
         pkgs.kbd
         pkgs.kexec-tools
@@ -60,76 +59,39 @@ let
       sync -f "$handoff_log" 2>/dev/null || sync
     }
 
-    # The GIC ITS property and per-CPU pending tables survive kexec, but a
-    # DT boot does not automatically reserve those pages for the next kernel.
-    # The incoming kernel then tries to disable inherited LPIs and can leave
-    # the ITS unusable. Add the live table ranges to the target DTB's reserve
-    # map before kexec loads it. On this RK3588S kernel each table is 64 KiB.
-    prepare_kexec_dtb() {
-      local source_dtb=$1 reservations workdir
-
-      reservations=$(dmesg --color=never 2>/dev/null | awk '
+    # The file-based kexec syscall ignores --dtb, so pass the live table
+    # addresses to the target kernel's early memblock reservation handler.
+    gic_lpi_reservations() {
+      dmesg --color=never 2>/dev/null | awk '
+        function add(addr) {
+          if (addr !~ /^0x[[:xdigit:]]+$/ ||
+              tolower(substr(addr, length(addr) - 3)) != "0000" ||
+              seen[addr]++)
+            bad = 1
+          printf "%s%s", separator, addr
+          separator = ","
+        }
         /GICv3: using LPI property table @0x/ {
           if (match($0, /@0x[[:xdigit:]]+/)) {
             addr = substr($0, RSTART + 1, RLENGTH - 1)
-            if (addr !~ /0000$/ || seen[addr]++)
-              bad = 1
-            printf "/memreserve/ %s 0x10000;\n", addr
+            add(addr)
             property_count++
           }
         }
         /GICv3: CPU[0-9]+: using (allocated|reserved) LPI pending table @0x/ {
           if (match($0, /@0x[[:xdigit:]]+/)) {
             addr = substr($0, RSTART + 1, RLENGTH - 1)
-            if (addr !~ /0000$/ || seen[addr]++)
-              bad = 1
-            printf "/memreserve/ %s 0x10000;\n", addr
+            add(addr)
             pending_count++
           }
         }
         END {
-          if (property_count != 1 || pending_count != 8 || bad)
+          if (property_count != 1 || pending_count != 8 || bad) {
+            print "fydetab-boot-menu: could not identify all live GIC LPI tables" > "/dev/stderr"
             exit 1
+          }
         }
-      ') || {
-        echo "fydetab-boot-menu: could not identify all live GIC LPI tables; refusing unsafe kexec" >&2
-        return 1
-      }
-
-      workdir=$(mktemp -d /run/fydetab-boot-menu-dtb.XXXXXX) || return 1
-      if ! dtc -q -I dtb -O dts -o "$workdir/source.dts" "$source_dtb"; then
-        echo "fydetab-boot-menu: could not decode target DTB" >&2
-        rm -rf "$workdir"
-        return 1
-      fi
-
-      if ! awk -v reservations="$reservations" '
-        function emit_reservations(   count, entries, i) {
-          count = split(reservations, entries, "\n")
-          for (i = 1; i <= count; i++)
-            if (entries[i] != "")
-              print entries[i]
-        }
-        !inserted && /^[[:space:]]*\/[[:space:]]*\{/ {
-          emit_reservations()
-          inserted = 1
-        }
-        { print }
-        END { if (!inserted) exit 1 }
-      ' "$workdir/source.dts" > "$workdir/target.dts"; then
-        echo "fydetab-boot-menu: could not add GIC LPI reservations to target DTB" >&2
-        rm -rf "$workdir"
-        return 1
-      fi
-
-      if ! dtc -q -I dts -O dtb -o "$workdir/target.dtb" "$workdir/target.dts"; then
-        echo "fydetab-boot-menu: could not encode target DTB with GIC LPI reservations" >&2
-        rm -rf "$workdir"
-        return 1
-      fi
-
-      handoff_trace "target-dtb reserved GIC LPI property and 8 pending tables"
-      printf '%s\n' "$workdir"
+      '
     }
 
     # This initrd may have been started by the picker via kexec; in that case
@@ -340,28 +302,29 @@ let
         *) new="$new $word" ;;
       esac
     done
-    new="''${new# } init=$host/init fydetab.bootmenu=skip systemd.mask=fydetab-boot-menu.service"
-
-    kernel=$(host_path "$g/kernel") || kernel=$g/kernel
-    initrd=$(host_path "$g/initrd") || initrd=$g/initrd
-    dtbs=$(host_path "$g/dtbs") || dtbs=$g/dtbs
-    target_dtb="$dtbs/rockchip/rk3588s-fydetab_duo.dtb"
-
-    dtb_work=$(prepare_kexec_dtb "$target_dtb") || {
-      handoff_trace "kexec aborted: GIC LPI DTB preparation failed"
+    gic_lpi_reservations=$(gic_lpi_reservations) || {
+      handoff_trace "kexec aborted: could not identify all live GIC LPI tables"
       printf 'Could not prepare the target kernel handoff; continuing with the default.\n' > "$tty"
       sleep 3
       exit 0
     }
-    target_dtb="$dtb_work/target.dtb"
+    new="''${new# } init=$host/init fydetab.bootmenu=skip fydetab.gic_lpi_reserve=$gic_lpi_reservations systemd.mask=fydetab-boot-menu.service"
 
-    handoff_trace "selected generation=$label kernel='$kernel' initrd='$initrd' dtb='$target_dtb'"
-    handoff_trace "loading with legacy kexec syscall so the reserved DTB is passed through"
+    # Use the newest installed kernel so older-generation choices also have
+    # the early GIC LPI reservation support. The selected generation still
+    # supplies its own initrd and init= closure.
+    kernel=$(host_path "$profiles/system/kernel") || {
+      handoff_trace "kexec aborted: current kernel is unavailable"
+      exit 0
+    }
+    initrd=$(host_path "$g/initrd") || initrd=$g/initrd
+
+    handoff_trace "selected generation=$label kernel='$kernel' initrd='$initrd'"
+    handoff_trace "passing inherited GIC LPI reservations via early command line"
 
     handoff_trace "kexec-load starting generation=$label"
-    err=$(kexec -c -l "$kernel" \
+    err=$(kexec -l "$kernel" \
       --initrd="$initrd" \
-      --dtb="$target_dtb" \
       --command-line="$new" 2>&1)
     rc=$?
     if [ "$rc" -eq 0 ]; then
@@ -483,7 +446,6 @@ in
       pkgs.fydetab-boot-menu-ui
       pkgs.bash
       pkgs.coreutils
-      pkgs.dtc
       pkgs.gawk
       pkgs.kbd
       pkgs.kexec-tools

@@ -1,0 +1,53 @@
+--- a/arch/arm64/kernel/setup.c
++++ b/arch/arm64/kernel/setup.c
+@@ -279,6 +279,50 @@
+ 	return __cpu_logical_map[cpu];
+ }
+ 
++#define FYDETAB_GIC_LPI_TABLES 9
++
++static int __init fydetab_reserve_gic_lpi_tables(char *arg)
++{
++	phys_addr_t addrs[FYDETAB_GIC_LPI_TABLES];
++	char *entry;
++	unsigned int count = 0, i;
++
++	while ((entry = strsep(&arg, ",")) != NULL) {
++		char *endp;
++		phys_addr_t addr = memparse(entry, &endp);
++
++		if (count == ARRAY_SIZE(addrs) || endp == entry || *endp ||
++		    !IS_ALIGNED(addr, SZ_64K) ||
++		    !memblock_is_region_memory(addr, SZ_64K))
++			goto invalid;
++
++		for (i = 0; i < count; i++)
++			if (addrs[i] == addr)
++				goto invalid;
++		addrs[count++] = addr;
++	}
++
++	if (count != ARRAY_SIZE(addrs))
++		goto invalid;
++
++	for (i = 0; i < count; i++) {
++		if (memblock_reserve(addrs[i], SZ_64K)) {
++			pr_warn("FydeTab: failed to reserve inherited GIC LPI table at %pa\n",
++				&addrs[i]);
++			return -ENOMEM;
++		}
++		pr_info("FydeTab: reserved inherited GIC LPI table at %pa\n",
++			&addrs[i]);
++	}
++
++	return 0;
++
++invalid:
++	pr_warn("FydeTab: ignoring invalid fydetab.gic_lpi_reserve parameter\n");
++	return -EINVAL;
++}
++early_param("fydetab.gic_lpi_reserve", fydetab_reserve_gic_lpi_tables);
++
+ void __init __no_sanitize_address setup_arch(char **cmdline_p)
+ {
+ 	setup_initial_init_mm(_stext, _etext, _edata, _end);

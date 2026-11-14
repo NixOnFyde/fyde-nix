@@ -77,6 +77,10 @@ let
       name = "rfkill-wlan-set-platform-drvdata";
       patch = ./0018-rfkill-wlan-set-platform-drvdata.patch;
     }
+    {
+      name = "arm64-reserve-inherited-gic-lpi-tables";
+      patch = ./0019-arm64-reserve-inherited-gic-lpi-tables.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
