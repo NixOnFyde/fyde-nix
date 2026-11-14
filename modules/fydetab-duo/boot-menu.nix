@@ -359,7 +359,7 @@ let
     handoff_trace "loading with legacy kexec syscall so the reserved DTB is passed through"
 
     handoff_trace "kexec-load starting generation=$label"
-    err=$(kexec -l "$kernel" \
+    err=$(kexec -c -l "$kernel" \
       --initrd="$initrd" \
       --dtb="$target_dtb" \
       --command-line="$new" 2>&1)
