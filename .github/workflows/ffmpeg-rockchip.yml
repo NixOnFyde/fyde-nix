@@ -11,6 +11,7 @@ on:
       - "pkgs/ffmpeg-rockchip/**"
       - "pkgs/mpv-rockchip/**"
       - "pkgs/rockchip-mpp/**"
+      - "pkgs/rockchip-vaapi/**"
       - "modules/fydetab-duo/multimedia.nix"
 
 permissions:
@@ -48,6 +49,7 @@ jobs:
           OUTPUTS=$(nix build --impure -L \
             '.#packages.aarch64-linux.ffmpeg-rockchip^*' \
             '.#packages.aarch64-linux.mpv-rockchip^*' \
+            '.#packages.aarch64-linux.rockchip-vaapi^*' \
             --no-link --print-out-paths)
           {
             echo 'outputs<<EOF'

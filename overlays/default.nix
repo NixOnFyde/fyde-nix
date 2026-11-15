@@ -13,6 +13,9 @@ final: _prev: {
     inherit (final) rockchip-mpp;
   };
   mpv-rockchip = final.callPackage ../pkgs/mpv-rockchip/package.nix { };
+  rockchip-vaapi = final.callPackage ../pkgs/rockchip-vaapi/package.nix {
+    inherit (final) rockchip-mpp;
+  };
   brcm-patchram-plus = final.callPackage ../pkgs/brcm-patchram-plus/package.nix { };
   rk-boot-script = final.callPackage ../pkgs/rk-boot-script/package.nix { };
 

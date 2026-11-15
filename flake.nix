@@ -59,6 +59,7 @@
           rockchip-mpp = pkgs.rockchip-mpp;
           ffmpeg-rockchip = pkgs.ffmpeg-rockchip;
           mpv-rockchip = pkgs.mpv-rockchip;
+          rockchip-vaapi = pkgs.rockchip-vaapi;
           brcm-patchram-plus = pkgs.brcm-patchram-plus;
           rk-boot-script = pkgs.rk-boot-script;
           fydetab-snapshot = pkgs.fydetab-snapshot;
