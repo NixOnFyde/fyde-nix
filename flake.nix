@@ -56,6 +56,8 @@
           ap6275p-firmware = pkgs.ap6275p-firmware;
           himax-firmware = pkgs.himax-firmware;
           librknnrt = pkgs.librknnrt;
+          rockchip-mpp = pkgs.rockchip-mpp;
+          ffmpeg-rockchip = pkgs.ffmpeg-rockchip;
           brcm-patchram-plus = pkgs.brcm-patchram-plus;
           rk-boot-script = pkgs.rk-boot-script;
           fydetab-snapshot = pkgs.fydetab-snapshot;

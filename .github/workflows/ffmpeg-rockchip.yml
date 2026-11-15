@@ -1,0 +1,62 @@
+name: Rockchip FFmpeg build
+
+on:
+  push:
+    branches: [rc6]
+    paths:
+      - ".github/workflows/ffmpeg-rockchip.yml"
+      - "flake.nix"
+      - "flake.lock"
+      - "overlays/default.nix"
+      - "pkgs/ffmpeg-rockchip/**"
+      - "pkgs/rockchip-mpp/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build on AArch64
+    runs-on: ubuntu-24.04-arm
+    env:
+      HAS_CACHIX_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: DeterminateSystems/nix-installer-action@v23
+
+      - name: Accept flake nixConfig
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "accept-flake-config = true" | sudo tee -a /etc/nix/nix.conf
+          sudo pkill -HUP nix-daemon || true
+
+      - uses: cachix/cachix-action@v17
+        if: env.HAS_CACHIX_TOKEN == 'true'
+        with:
+          name: fyde-nix
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build ffmpeg-rockchip
+        id: ffmpeg
+        env:
+          NIXPKGS_ALLOW_UNFREE: "1"
+        run: |
+          OUTPUTS=$(nix build --impure -L \
+            '.#packages.aarch64-linux.ffmpeg-rockchip^*' \
+            --no-link --print-out-paths)
+          {
+            echo 'outputs<<EOF'
+            echo "$OUTPUTS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push package closure to Cachix
+        if: env.HAS_CACHIX_TOKEN == 'true'
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          OUTPUTS: ${{ steps.ffmpeg.outputs.outputs }}
+        run: |
+          mapfile -t outputs <<< "$OUTPUTS"
+          nix-store -qR "${outputs[@]}" | sort -u | cachix push fyde-nix
