@@ -58,6 +58,7 @@
           librknnrt = pkgs.librknnrt;
           rockchip-mpp = pkgs.rockchip-mpp;
           ffmpeg-rockchip = pkgs.ffmpeg-rockchip;
+          mpv-rockchip = pkgs.mpv-rockchip;
           brcm-patchram-plus = pkgs.brcm-patchram-plus;
           rk-boot-script = pkgs.rk-boot-script;
           fydetab-snapshot = pkgs.fydetab-snapshot;
@@ -95,6 +96,7 @@
 
         # ── Hardware features ────────────────────────────────────────────
         # Each is importable on its own. Requires `base` above.
+        multimedia = ./modules/fydetab-duo/multimedia.nix;
         bluetooth = ./modules/fydetab-duo/bluetooth.nix;
         suspend = ./modules/fydetab-duo/suspend.nix;
         display-fix = ./modules/fydetab-duo/display-fix.nix;

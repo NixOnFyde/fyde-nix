@@ -9,7 +9,9 @@ on:
       - "flake.lock"
       - "overlays/default.nix"
       - "pkgs/ffmpeg-rockchip/**"
+      - "pkgs/mpv-rockchip/**"
       - "pkgs/rockchip-mpp/**"
+      - "modules/fydetab-duo/multimedia.nix"
 
 permissions:
   contents: read
@@ -38,13 +40,14 @@ jobs:
           name: fyde-nix
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Build ffmpeg-rockchip
-        id: ffmpeg
+      - name: Build Rockchip media packages
+        id: media
         env:
           NIXPKGS_ALLOW_UNFREE: "1"
         run: |
           OUTPUTS=$(nix build --impure -L \
             '.#packages.aarch64-linux.ffmpeg-rockchip^*' \
+            '.#packages.aarch64-linux.mpv-rockchip^*' \
             --no-link --print-out-paths)
           {
             echo 'outputs<<EOF'
@@ -56,7 +59,7 @@ jobs:
         if: env.HAS_CACHIX_TOKEN == 'true'
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          OUTPUTS: ${{ steps.ffmpeg.outputs.outputs }}
+          OUTPUTS: ${{ steps.media.outputs.outputs }}
         run: |
           mapfile -t outputs <<< "$OUTPUTS"
           nix-store -qR "${outputs[@]}" | sort -u | cachix push fyde-nix

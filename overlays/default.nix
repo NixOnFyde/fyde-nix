@@ -12,6 +12,7 @@ final: _prev: {
     ffmpeg-full = final.ffmpeg-full;
     inherit (final) rockchip-mpp;
   };
+  mpv-rockchip = final.callPackage ../pkgs/mpv-rockchip/package.nix { };
   brcm-patchram-plus = final.callPackage ../pkgs/brcm-patchram-plus/package.nix { };
   rk-boot-script = final.callPackage ../pkgs/rk-boot-script/package.nix { };
 
