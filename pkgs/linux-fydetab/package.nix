@@ -93,6 +93,10 @@ let
       name = "rockchip-mpp-skip-absent-optional-rkvdec-niu-resets";
       patch = ./0022-rockchip-mpp-skip-absent-optional-rkvdec-niu-resets.patch;
     }
+    {
+      name = "thermal-gov-power-allocator-max-power-when-idle";
+      patch = ./0023-thermal-gov-power-allocator-max-power-when-idle.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;

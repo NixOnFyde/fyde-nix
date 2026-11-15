@@ -1,0 +1,40 @@
+From: ZhengShaobo <zhengshaobo1@xiaomi.com>
+Subject: [PATCH] thermal: gov_power_allocator: grant max power when idle
+
+When no cooling actor requests power, setting total_req_power to 1 still
+grants every actor zero power.  CPUFreq and devfreq cooling then interpret
+that as maximum cooling, even when the device is idle.  Grant each actor
+its maximum power in this case.
+
+Backport of upstream commit 08eb0493f6b3583b2efc90665a3e6980faee56a0.
+
+---
+ drivers/thermal/gov_power_allocator.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/thermal/gov_power_allocator.c b/drivers/thermal/gov_power_allocator.c
+index 1b2345a697c5..4301516c0938 100644
+--- a/drivers/thermal/gov_power_allocator.c
++++ b/drivers/thermal/gov_power_allocator.c
+@@ -354,10 +354,16 @@ static void divvy_up_power(struct power_actor *power, int num_actors,
+ 	int i;
+ 
+ 	/*
+-	 * Prevent division by 0 if none of the actors request power.
++	 * Nobody requested anything, just give everybody
++	 * the maximum power
+ 	 */
+-	if (!total_req_power)
+-		total_req_power = 1;
++	if (!total_req_power) {
++		for (i = 0; i < num_actors; i++) {
++			struct power_actor *pa = &power[i];
++
++			pa->granted_power = pa->max_power;
++		}
++
++		return;
++	}
+ 
+ 	for (i = 0; i < num_actors; i++) {
+ 		struct power_actor *pa = &power[i];
