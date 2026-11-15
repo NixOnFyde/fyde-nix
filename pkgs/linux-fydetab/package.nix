@@ -97,6 +97,10 @@ let
       name = "thermal-gov-power-allocator-max-power-when-idle";
       patch = ./0023-thermal-gov-power-allocator-max-power-when-idle.patch;
     }
+    {
+      name = "rockchip-rkvdec-v4l2-h264-vp9";
+      patch = ./0024-rockchip-rkvdec-v4l2-h264-vp9.patch;
+    }
   ];
 
   allKernelPatches = fydetabPatches ++ kernelPatches;
@@ -205,6 +209,11 @@ linuxKernel.buildLinux rec {
     ROCKCHIP_RKNPU = module;
     ROCKCHIP_RKNPU_DRM_GEM = yes;
     ROCKCHIP_RKNPU_DEBUG_FS = yes;
+
+    # Build the stateless V4L2 decoder driver for compile-time validation.
+    # The vendor RK3588 device-tree nodes remain bound to MPP until the
+    # decoder handoff and VP9 timeout recovery are validated.
+    VIDEO_ROCKCHIP_VDEC_V4L2 = module;
   };
 
   extraMeta = {
