@@ -19,6 +19,8 @@ stdenv.mkDerivation {
     hash = "sha256-qA5vDWuQXeYM2fGwZnFbHDePKjwsQOStsnArkB86sj8=";
   };
 
+  patches = [ ./stride-safe-surface-buffers.patch ];
+
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [
     libva

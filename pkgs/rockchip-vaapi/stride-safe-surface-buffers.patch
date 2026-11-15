@@ -1,0 +1,50 @@
+diff --git a/src/rockchip_drv_video.c b/src/rockchip_drv_video.c
+index 08a31c6..ba0ef25 100644
+--- a/src/rockchip_drv_video.c
++++ b/src/rockchip_drv_video.c
+@@ -366,10 +366,25 @@ static VAStatus rk_CreateSurfaces(VADriverContextP ctx,
+         {
+             unsigned hs = (unsigned)((width  + 15) & ~15);
+             unsigned vs = (unsigned)((height + 15) & ~15);
++            /* MPP's output stride can exceed the visible width by more than
++             * the usual 16-byte alignment (e.g. 320 pixels -> 768 bytes,
++             * 1920 -> 2304). Reserve room in the backing DMA-BUF while
++             * keeping the placeholder's exported pitch at the requested
++             * dimensions. The 3840-wide RK3588 4K path reports 3840 itself;
++             * preserve its existing allocation size to avoid extra CMA use. */
++            unsigned alloc_hs = hs;
++            if (width != 3840) {
++                unsigned padded_hs = ((unsigned)width + 511u) & ~255u;
++                if (padded_hs > alloc_hs)
++                    alloc_hs = padded_hs;
++            }
++            /* RK3588 MPP reports 2176 rows for 2160-line 4K output. */
++            unsigned alloc_vs = vs + 16;
++            size_t buffer_size = (size_t)alloc_hs * alloc_vs * 3;
+             MppBufferGroup grp = NULL;
+             MppBuffer      buf = NULL;
+             if (mpp_buffer_group_get_internal(&grp, MPP_BUFFER_TYPE_DRM) == MPP_OK &&
+-                mpp_buffer_get(grp, &buf, hs * vs * 3) == MPP_OK) {
++                mpp_buffer_get(grp, &buf, buffer_size) == MPP_OK) {
+                 int raw_fd = mpp_buffer_get_fd(buf);
+                 int dup_fd = (raw_fd > 0) ? dup(raw_fd) : -1;
+                 if (dup_fd > 0) {
+@@ -679,6 +694,18 @@ static void assign_mpp_frame(MppFrame frame, RKContext *c, RKDriver *d)
+     bool i10    = MPP_FRAME_FMT_IS_YUV_10BIT(ffmt);
+     int  bpp    = i10 ? 2 : 1;
+     int  copied = 0;
++    if (s->priv_buf) {
++        size_t required = (size_t)src_hs * src_vs * (i10 ? 3u : 2u);
++        size_t capacity = mpp_buffer_get_size(s->priv_buf);
++        if (required > capacity) {
++            LOG("assign_mpp_frame: output buffer too small for surface=0x%x "
++                "capacity=%zu required=%zu stride=%dx%d fmt=0x%x",
++                (unsigned)sid, capacity, required, src_hs, src_vs,
++                (unsigned)ffmt);
++            mpp_frame_deinit(&frame);
++            return;
++        }
++    }
+     void *src = buf ? mpp_buffer_get_ptr(buf) : NULL;
+     void *dst = s->priv_buf ? mpp_buffer_get_ptr(s->priv_buf) : NULL;
+     if (src && dst) {
