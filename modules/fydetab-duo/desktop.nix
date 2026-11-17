@@ -464,13 +464,12 @@ in
         </labwc_config>
       '';
 
-      services.greetd.settings.default_session.command =
-        lib.mkForce (
-          if cfg.greeter.compositorCommand != null then
-            cfg.greeter.compositorCommand
-          else
-            "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc"
-        );
+      services.greetd.settings.default_session.command = lib.mkForce (
+        if cfg.greeter.compositorCommand != null then
+          cfg.greeter.compositorCommand
+        else
+          "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc"
+      );
 
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;
