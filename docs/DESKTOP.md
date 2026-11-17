@@ -4,6 +4,7 @@
 
 - [Desktop environment](#desktop-environment)
   - [Compositor (labwc)](#compositor-labwc)
+  - [Greeter (ReGreet)](#greeter-regreet)
   - [Keybindings](#keybindings)
   - [Right-click menu](#right-click-menu)
   - [Panel (wayle)](#panel-wayle)
@@ -35,6 +36,21 @@ The default compositor is [labwc](https://labwc.github.io/) — a wlroots-based 
 labwc starts automatically via greetd. The greeter (ReGreet) itself runs inside a separate labwc session so that touch/stylus mapping and output transforms are applied right from the moment you see the login screen.
 
 Touch and stylus input are mapped to the panel output (`DSI-1`) in `rc.xml`, which means wlroots automatically applies the correct rotation transform to input devices — touch and stylus follow the screen in every orientation without any hardcoded / static calibration matrix.
+
+## Greeter (ReGreet)
+
+The default ReGreet session runs in its own Labwc compositor, separate from the session started after login. This is what allows the greeter to apply the tablet's touch mapping, output rotation, and on-screen keyboard before a user session exists.
+
+Hosts using another compositor can override the greetd compositor command and first-boot session selection:
+
+```nix
+hardware.fydetabduo.greeter = {
+  compositorCommand = "${pkgs.dbus}/bin/dbus-run-session ${pkgs.cage}/bin/cage -s -- ${pkgs.regreet}/bin/regreet";
+  defaultSession = "Niri (UWSM)"; # Desktop entry's Name field.
+};
+```
+
+When `compositorCommand` is set, the Labwc greeter autostart is not run. The custom greeter compositor must provide any required touch mapping, orientation handling, and on-screen keyboard behavior. Set `defaultSession = null` to skip the first-boot session preselection.
 
 ## Keybindings
 

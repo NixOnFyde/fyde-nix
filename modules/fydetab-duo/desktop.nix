@@ -69,6 +69,36 @@ in
     '';
   };
 
+  options.hardware.fydetabduo.greeter = {
+    compositorCommand = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = lib.literalExpression ''
+        "''${pkgs.dbus}/bin/dbus-run-session ''${pkgs.cage}/bin/cage -s -- ''${pkgs.regreet}/bin/regreet"
+      '';
+      description = ''
+        Command used by greetd to start the greeter compositor. By default,
+        fyde-nix starts its tablet-configured Labwc greeter session. Set this
+        to provide a different compositor and launch ReGreet from its session.
+
+        A custom compositor command does not use the Labwc-specific greeter
+        autostart (touch mapping, rotation, on-screen keyboard, and gestures);
+        configure equivalent input handling for the chosen compositor.
+      '';
+    };
+
+    defaultSession = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = "labwc";
+      example = "Niri (UWSM)";
+      description = ''
+        ReGreet session name (the desktop entry's Name) to preselect on first
+        boot. Set to null to leave session selection to ReGreet without
+        seeding a default.
+      '';
+    };
+  };
+
   options.hardware.fydetabduo.shell.desktop.scale = lib.mkOption {
     type = lib.types.nullOr lib.types.numbers.positive;
     default = null;
@@ -126,9 +156,8 @@ in
         "d /tmp/.X11-unix   1777 root     root    -"
       ];
 
-      # Pre-seed regreet's last-session state so labwc is pre-selected
-      # on first boot (otherwise the session defaults to empty).
-      systemd.services.fydetab-regreet-default-session = {
+      # Pre-seed ReGreet's last-session state on first boot.
+      systemd.services.fydetab-regreet-default-session = lib.mkIf (cfg.greeter.defaultSession != null) {
         description = "Pre-seed regreet default session";
         wantedBy = [ "greetd.service" ];
         before = [ "greetd.service" ];
@@ -143,7 +172,7 @@ in
             last_user = "user"
 
             [user_to_last_sess]
-            user = "labwc"
+            user = ${builtins.toJSON cfg.greeter.defaultSession}
             EOF
               chown greeter:greeter "$state"
             fi
@@ -436,7 +465,12 @@ in
       '';
 
       services.greetd.settings.default_session.command =
-        lib.mkForce "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc";
+        lib.mkForce (
+          if cfg.greeter.compositorCommand != null then
+            cfg.greeter.compositorCommand
+          else
+            "${pkgs.dbus}/bin/dbus-run-session ${pkgs.labwc}/bin/labwc -C /etc/regreet-labwc"
+        );
 
       environment.etc."xdg/kanshi/config".text = kanshiBase;
       environment.etc."xdg/kanshi/greeter-config".text = kanshiBase;

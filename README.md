@@ -53,6 +53,18 @@ hardware.fydetabduo.modem.enable = false;
 hardware.fydetabduo.shell.audio.enable = false;
 ```
 
+The ReGreet greeter runs separately from the selected desktop session. For
+example, a host using Niri through UWSM can preselect that session on first
+boot:
+
+```nix
+hardware.fydetabduo.greeter.defaultSession = "Niri (UWSM)";
+```
+
+A custom `hardware.fydetabduo.greeter.compositorCommand` can replace the
+default Labwc greeter compositor; custom commands need to provide their own
+tablet input handling. See the [desktop guide](docs/DESKTOP.md).
+
 Per-user components (wayle, vicinae, swayidle) are Home Manager modules:
 
 ```nix
