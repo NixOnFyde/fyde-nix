@@ -70,6 +70,16 @@ in
   };
 
   options.hardware.fydetabduo.greeter = {
+    defaultUser = lib.mkOption {
+      type = lib.types.str;
+      default = "user";
+      example = "username";
+      description = ''
+        User to preselect in ReGreet on first boot. Defaults to "user" to
+        preserve the existing behavior; set this to the host's login account.
+      '';
+    };
+
     compositorCommand = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -167,12 +177,12 @@ in
           RemainAfterExit = true;
           ExecStart = pkgs.writeShellScript "regreet-default-session" ''
             state=/var/lib/regreet/state.toml
-            if [ ! -f "$state" ]; then
+            if [ ! -f "$state" ] || grep -qx 'last_user = "user"' "$state"; then
               cat > "$state" <<'EOF'
-            last_user = "user"
+            last_user = ${builtins.toJSON cfg.greeter.defaultUser}
 
             [user_to_last_sess]
-            user = ${builtins.toJSON cfg.greeter.defaultSession}
+            ${builtins.toJSON cfg.greeter.defaultUser} = ${builtins.toJSON cfg.greeter.defaultSession}
             EOF
               chown greeter:greeter "$state"
             fi

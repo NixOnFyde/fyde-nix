@@ -66,14 +66,6 @@
 #     power.enable = false;
 #   };
 #
-# GREETER (when the desktop module is enabled):
-#
-#   hardware.fydetabduo.greeter.defaultSession = "Niri (UWSM)";
-#     Preselect this ReGreet session on first boot instead of Labwc.
-#   hardware.fydetabduo.greeter.compositorCommand = "...";
-#     Replace the greeter's Labwc compositor command. The custom command must
-#     launch ReGreet and provide its own touch/rotation/OSK integration.
-#
 # PER-USER COMPONENTS (Home Manager modules):
 #
 #   homeManagerModules.default     wayle + vicinae + swayidle + wl-clip-persist
@@ -157,8 +149,9 @@
     };
   };
 
-  # Optional: choose which ReGreet desktop session is preselected on first
-  # boot. For example, use this with your own Niri UWSM session:
+  # Optional: choose which ReGreet desktop session and username is preselected
+  # on first boot. For example, use this with your own Niri UWSM session:
+  # hardware.fydetabduo.greeter.defaultUser = "username";
   # hardware.fydetabduo.greeter.defaultSession = "Niri (UWSM)";
 
   # Boot

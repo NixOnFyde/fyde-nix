@@ -59,11 +59,14 @@ boot:
 
 ```nix
 hardware.fydetabduo.greeter.defaultSession = "Niri (UWSM)";
+hardware.fydetabduo.greeter.defaultUser = "username";
 ```
 
-A custom `hardware.fydetabduo.greeter.compositorCommand` can replace the
-default Labwc greeter compositor; custom commands need to provide their own
-tablet input handling. See the [desktop guide](docs/DESKTOP.md).
+Set `defaultUser` to the host's login account to have ReGreet preselect it;
+it defaults to `"user"` for compatibility. A custom
+`hardware.fydetabduo.greeter.compositorCommand` can replace the default Labwc
+greeter compositor; custom commands need to provide their own tablet input
+handling. See the [desktop guide](docs/DESKTOP.md).
 
 Per-user components (wayle, vicinae, swayidle) are Home Manager modules:
 

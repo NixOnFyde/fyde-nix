@@ -45,12 +45,13 @@ Hosts using another compositor can override the greetd compositor command and fi
 
 ```nix
 hardware.fydetabduo.greeter = {
+  defaultUser = "user"; # Login account shown by ReGreet.
   compositorCommand = "${pkgs.dbus}/bin/dbus-run-session ${pkgs.cage}/bin/cage -s -- ${pkgs.regreet}/bin/regreet";
   defaultSession = "Niri (UWSM)"; # Desktop entry's Name field.
 };
 ```
 
-When `compositorCommand` is set, the Labwc greeter autostart is not run. The custom greeter compositor must provide any required touch mapping, orientation handling, and on-screen keyboard behavior. Set `defaultSession = null` to skip the first-boot session preselection.
+`defaultUser` defaults to `"user"` to preserve the previous behavior. Set it to the host's login account so ReGreet selects that account instead of requiring it to be typed manually. When `compositorCommand` is set, the Labwc greeter autostart is not run. The custom greeter compositor must provide any required touch mapping, orientation handling, and on-screen keyboard behavior. Set `defaultSession = null` to skip the first-boot session preselection.
 
 ## Keybindings
 
