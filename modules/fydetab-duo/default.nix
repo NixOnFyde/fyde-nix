@@ -18,6 +18,7 @@
 #   nixosModules.qol               -- QoL defaults (zram, fstrim, etc.)
 #   nixosModules.battery           -- SC8886 charge limit (ceiling + recharge threshold)
 #   nixosModules.fingerprint       -- Microarray AFS120 fingerprint driver
+#   nixosModules.hibernation       -- suspend-to-disk (S4)
 #   nixosModules.boot-loader       -- U-Boot boot.scr
 #   nixosModules.desktop           -- labwc, regreet, kanshi, keybinds
 #   nixosModules.shell             -- full desktop shell umbrella
@@ -66,6 +67,7 @@
     ./qol.nix
     ./battery.nix
     ./fingerprint.nix
+    ./hibernation.nix
 
     # Desktop shell (labwc, greeter, wayle, vicinae, etc.)
     ./desktop.nix
